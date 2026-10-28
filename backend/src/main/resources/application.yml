@@ -1,0 +1,62 @@
+spring:
+  application:
+    name: marketradar
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/marketradar}
+    username: ${DB_USUARIO:marketradar}
+    password: ${DB_CLAVE:marketradar}
+    hikari:
+      maximum-pool-size: 10
+      pool-name: marketradar-pool
+  flyway:
+    locations: classpath:db/migration
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    default-property-inclusion: non_null
+
+server:
+  port: ${PUERTO:8080}
+  error:
+    include-stacktrace: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+springdoc:
+  swagger-ui:
+    path: /api/docs
+
+marketradar:
+  modo-desarrollo: ${MODO_DESARROLLO:false}
+  busqueda:
+    timeout-segundos: 4
+    cache-minutos: 15
+    tamano-maximo: 20
+    hilos: 6
+  cors:
+    origenes-permitidos: ${CORS_ORIGENES:http://localhost:8080}
+  moneda:
+    destino: COP
+    # Tasa de cambio configurable (COP por unidad). Valor de ejemplo: actualizar y registrar la fecha.
+    tasa-usd-cop: ${TASA_USD_COP:4000}
+    fecha-tasa: ${FECHA_TASA:2026-10-28}
+  marketplaces:
+    aliexpress:
+      habilitado: ${ALIEXPRESS_HABILITADO:false}
+      app-key: ${ALIEXPRESS_APP_KEY:}
+      app-secret: ${ALIEXPRESS_APP_SECRET:}
+      tracking-id: ${ALIEXPRESS_TRACKING_ID:}
+    shopify:
+      habilitado: ${SHOPIFY_HABILITADO:false}
+      token: ${SHOPIFY_TOKEN:}
+    mercadolibre:
+      habilitado: ${MERCADOLIBRE_HABILITADO:false}
+      client-id: ${MERCADOLIBRE_CLIENT_ID:}
+      client-secret: ${MERCADOLIBRE_CLIENT_SECRET:}
+  asistente:
+    # Proveedor de IA del chatbot: pendiente de decisión del equipo.
+    proveedor: ${ASISTENTE_PROVEEDOR:ninguno}
+    api-key: ${ASISTENTE_API_KEY:}
