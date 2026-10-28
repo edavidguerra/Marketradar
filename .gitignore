@@ -1,0 +1,30 @@
+# Compilación
+target/
+*.class
+*.jar
+*.war
+
+# Credenciales y configuración local (nunca subir)
+.env
+*.env.local
+application-local.yml
+secrets/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+nbproject/private/
+nbactions.xml
+nb-configuration.xml
+.settings/
+.project
+.classpath
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Registros
+*.log
+logs/
