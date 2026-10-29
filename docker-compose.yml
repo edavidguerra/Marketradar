@@ -1,0 +1,35 @@
+# Entorno de desarrollo local: PostgreSQL 16 + backend (que también sirve el frontend).
+# Uso: cp .env.example .env && docker compose up --build
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: marketradar
+      POSTGRES_USER: ${DB_USUARIO:-marketradar}
+      POSTGRES_PASSWORD: ${DB_CLAVE:-marketradar}
+    ports:
+      - "5432:5432"
+    volumes:
+      - datos-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USUARIO:-marketradar} -d marketradar"]
+      interval: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/marketradar
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  datos-postgres:
