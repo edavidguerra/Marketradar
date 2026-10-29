@@ -2,7 +2,7 @@
  * Panel del asistente de IA: conversación en texto sencillo.
  */
 
-import { preguntarAsistente } from './api.js';
+import { preguntarAsistente } from '../comun/api.js';
 
 const historial = [];
 
