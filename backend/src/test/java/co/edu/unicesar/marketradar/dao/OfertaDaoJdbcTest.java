@@ -6,6 +6,7 @@ import co.edu.unicesar.marketradar.dao.jdbc.OfertaDaoJdbc;
 import co.edu.unicesar.marketradar.domain.HistorialPrecio;
 import co.edu.unicesar.marketradar.domain.Marketplace;
 import co.edu.unicesar.marketradar.domain.Oferta;
+import co.edu.unicesar.marketradar.domain.OfertaDestacada;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -68,5 +69,27 @@ class OfertaDaoJdbcTest {
         assertTrue(ofertaDao.eliminar(leida.getId()));
         assertFalse(ofertaDao.buscarPorId(leida.getId()).isPresent());
         assertTrue(historialDao.listarPorOferta(leida.getId()).isEmpty());
+    }
+
+    @Test
+    void encuentraOfertasDestacadasParaElInicio() {
+        Marketplace mercadoLibre = marketplaceDao.buscarPorCodigo("mercadolibre").orElseThrow();
+        Oferta tensiometro = new Oferta();
+        tensiometro.setMarketplaceId(mercadoLibre.getId());
+        tensiometro.setIdExterno("T-1");
+        tensiometro.setTitulo("Tensiómetro digital de brazo");
+        tensiometro.setUrlDestino("https://ejemplo.com/t-1");
+        tensiometro.setPrecioActual(new BigDecimal("90000.00"));
+        ofertaDao.insertar(tensiometro);
+        historialDao.insertar(new HistorialPrecio(tensiometro.getId(), new BigDecimal("120000.00"), "COP"));
+        historialDao.insertar(new HistorialPrecio(tensiometro.getId(), new BigDecimal("90000.00"), "COP"));
+
+        OfertaDestacada porTitulo = ofertaDao.buscarMasBarataPorTitulo("tensiómetros").orElseThrow();
+        assertEquals("mercadolibre", porTitulo.codigoMarketplace());
+        assertEquals("T-1", porTitulo.oferta().getIdExterno());
+
+        OfertaDestacada baja = ofertaDao.buscarMayorBajaDePrecio(30).orElseThrow();
+        assertEquals(0, new BigDecimal("30000").compareTo(baja.baja()));
+        assertTrue(ofertaDao.buscarMasBarataPorTitulo("bicicleta").isEmpty());
     }
 }

@@ -2,6 +2,7 @@ package co.edu.unicesar.marketradar.dao.jdbc;
 
 import co.edu.unicesar.marketradar.dao.OfertaDao;
 import co.edu.unicesar.marketradar.domain.Oferta;
+import co.edu.unicesar.marketradar.domain.OfertaDestacada;
 import org.springframework.stereotype.Repository;
 
 import javax.sql.DataSource;
@@ -51,6 +52,28 @@ public class OfertaDaoJdbc extends DaoJdbcBase implements OfertaDao {
     }
 
     @Override
+    public Optional<OfertaDestacada> buscarMasBarataPorTitulo(String texto) {
+        return consultarUno("SELECT " + columnasCon("o") + ", m.codigo AS codigo_marketplace, NULL AS precio_anterior "
+                        + "FROM oferta o JOIN marketplace m ON m.id = o.marketplace_id "
+                        + "WHERE to_tsvector('spanish', o.titulo) @@ plainto_tsquery('spanish', ?) "
+                        + "ORDER BY o.precio_actual LIMIT 1",
+                sentencia -> sentencia.setString(1, texto), this::mapearDestacada);
+    }
+
+    @Override
+    public Optional<OfertaDestacada> buscarMayorBajaDePrecio(int dias) {
+        return consultarUno("SELECT " + columnasCon("o") + ", m.codigo AS codigo_marketplace, "
+                        + "h.precio_maximo AS precio_anterior "
+                        + "FROM oferta o JOIN marketplace m ON m.id = o.marketplace_id "
+                        + "JOIN (SELECT oferta_id, MAX(precio) AS precio_maximo FROM historial_precio "
+                        + "      WHERE registrado_en > now() - make_interval(days => ?) GROUP BY oferta_id) h "
+                        + "  ON h.oferta_id = o.id "
+                        + "WHERE h.precio_maximo > o.precio_actual "
+                        + "ORDER BY (h.precio_maximo - o.precio_actual) / h.precio_maximo DESC LIMIT 1",
+                sentencia -> sentencia.setInt(1, dias), this::mapearDestacada);
+    }
+
+    @Override
     public List<Oferta> listarTodos() {
         return consultarLista("SELECT " + COLUMNAS + " FROM oferta ORDER BY precio_actual", sentencia -> { }, this::mapear);
     }
@@ -87,6 +110,15 @@ public class OfertaDaoJdbc extends DaoJdbcBase implements OfertaDao {
         sentencia.setObject(12, consultadoEn);
         sentencia.setBigDecimal(13, oferta.getCalificacion());
         asignarEnteroNulable(sentencia, 14, oferta.getTotalResenas());
+    }
+
+    private static String columnasCon(String alias) {
+        return alias + "." + COLUMNAS.replace(", ", ", " + alias + ".");
+    }
+
+    private OfertaDestacada mapearDestacada(ResultSet fila) throws SQLException {
+        return new OfertaDestacada(mapear(fila), fila.getString("codigo_marketplace"),
+                fila.getBigDecimal("precio_anterior"));
     }
 
     private Oferta mapear(ResultSet fila) throws SQLException {
