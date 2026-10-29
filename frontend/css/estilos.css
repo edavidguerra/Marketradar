@@ -108,6 +108,14 @@ h2 { font-size: 1.3rem; margin: 0 0 var(--espacio); }
     cursor: pointer;
 }
 
+a.boton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    text-decoration: none;
+}
+
 .boton-principal {
     background: var(--color-principal);
     color: var(--color-principal-texto);

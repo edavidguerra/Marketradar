@@ -36,12 +36,19 @@ export function iniciarAsistente() {
         if (!mensaje) return;
         agregarMensaje(conversacion, 'usuario', mensaje);
         campo.value = '';
+        const enviar = formulario.querySelector('[type="submit"]');
+        enviar.disabled = true;
+        enviar.textContent = 'Pensando…';
         try {
             const { respuesta } = await preguntarAsistente(mensaje, historial.slice(-10));
             agregarMensaje(conversacion, 'asistente', respuesta);
             historial.push({ rol: 'usuario', contenido: mensaje }, { rol: 'asistente', contenido: respuesta });
         } catch (error) {
             agregarMensaje(conversacion, 'asistente', error.message);
+        } finally {
+            enviar.disabled = false;
+            enviar.textContent = 'Enviar pregunta';
+            campo.focus();
         }
     });
 }
