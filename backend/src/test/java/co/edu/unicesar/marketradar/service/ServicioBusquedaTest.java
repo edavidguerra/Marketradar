@@ -109,8 +109,11 @@ class ServicioBusquedaTest {
     }
 
     private static OfertaNormalizada oferta(String tienda, String id, String precio, String envio) {
-        return new OfertaNormalizada(tienda, id, "Licuadora " + id, new BigDecimal(precio), "COP",
-                envio == null ? null : new BigDecimal(envio), "nuevo", "Vendedor", "https://ejemplo.com/" + id,
-                null, null);
+        return OfertaNormalizada.builder()
+                .codigoMarketplace(tienda).idExterno(id).titulo("Licuadora " + id)
+                .precio(new BigDecimal(precio)).moneda("COP")
+                .costoEnvio(envio == null ? null : new BigDecimal(envio))
+                .condicion("nuevo").vendedor("Vendedor").urlDestino("https://ejemplo.com/" + id)
+                .build();
     }
 }

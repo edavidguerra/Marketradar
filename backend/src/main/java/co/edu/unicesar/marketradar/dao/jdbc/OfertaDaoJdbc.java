@@ -19,7 +19,7 @@ import java.util.Optional;
 public class OfertaDaoJdbc extends DaoJdbcBase implements OfertaDao {
 
     private static final String COLUMNAS = "id, producto_id, marketplace_id, id_externo, titulo, url_destino, "
-            + "url_imagen, precio_actual, moneda, costo_envio, condicion, vendedor, consultado_en";
+            + "url_imagen, precio_actual, moneda, costo_envio, condicion, vendedor, consultado_en, calificacion, total_resenas";
 
     public OfertaDaoJdbc(DataSource dataSource) {
         super(dataSource);
@@ -28,8 +28,8 @@ public class OfertaDaoJdbc extends DaoJdbcBase implements OfertaDao {
     @Override
     public Oferta insertar(Oferta oferta) {
         long id = insertarYObtenerId("INSERT INTO oferta (producto_id, marketplace_id, id_externo, titulo, url_destino, "
-                        + "url_imagen, precio_actual, moneda, costo_envio, condicion, vendedor, consultado_en) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        + "url_imagen, precio_actual, moneda, costo_envio, condicion, vendedor, consultado_en, calificacion, "
+                        + "total_resenas) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 sentencia -> asignarCampos(sentencia, oferta));
         oferta.setId(id);
         return oferta;
@@ -59,10 +59,10 @@ public class OfertaDaoJdbc extends DaoJdbcBase implements OfertaDao {
     public boolean actualizar(Oferta oferta) {
         return ejecutarActualizacion("UPDATE oferta SET producto_id = ?, marketplace_id = ?, id_externo = ?, titulo = ?, "
                         + "url_destino = ?, url_imagen = ?, precio_actual = ?, moneda = ?, costo_envio = ?, "
-                        + "condicion = ?, vendedor = ?, consultado_en = ? WHERE id = ?",
+                        + "condicion = ?, vendedor = ?, consultado_en = ?, calificacion = ?, total_resenas = ? WHERE id = ?",
                 sentencia -> {
                     asignarCampos(sentencia, oferta);
-                    sentencia.setLong(13, oferta.getId());
+                    sentencia.setLong(15, oferta.getId());
                 }) > 0;
     }
 
@@ -85,6 +85,8 @@ public class OfertaDaoJdbc extends DaoJdbcBase implements OfertaDao {
         sentencia.setString(11, oferta.getVendedor());
         OffsetDateTime consultadoEn = oferta.getConsultadoEn() == null ? OffsetDateTime.now() : oferta.getConsultadoEn();
         sentencia.setObject(12, consultadoEn);
+        sentencia.setBigDecimal(13, oferta.getCalificacion());
+        asignarEnteroNulable(sentencia, 14, oferta.getTotalResenas());
     }
 
     private Oferta mapear(ResultSet fila) throws SQLException {
@@ -102,6 +104,9 @@ public class OfertaDaoJdbc extends DaoJdbcBase implements OfertaDao {
         oferta.setCondicion(fila.getString("condicion"));
         oferta.setVendedor(fila.getString("vendedor"));
         oferta.setConsultadoEn(fila.getObject("consultado_en", OffsetDateTime.class));
+        oferta.setCalificacion(fila.getBigDecimal("calificacion"));
+        int totalResenas = fila.getInt("total_resenas");
+        oferta.setTotalResenas(fila.wasNull() ? null : totalResenas);
         return oferta;
     }
 }
