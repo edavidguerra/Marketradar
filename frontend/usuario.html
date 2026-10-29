@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Inicio · Marketradar</title>
+    <meta name="description" content="Busque un producto y vea en qué tienda está más barato.">
+    <link rel="stylesheet" href="css/estilos.css">
+    <script type="module" src="js/usuario/app.js"></script>
+</head>
+<body>
+<a class="saltar" href="#contenido">Ir al contenido</a>
+
+<header class="encabezado">
+    <p class="marca"><span aria-hidden="true">◎</span> Marketradar</p>
+    <div class="herramientas" role="group" aria-label="Tamaño de letra, contraste y salida">
+        <button type="button" class="boton boton-secundario" id="letra-menos" aria-label="Letra más pequeña">A−</button>
+        <button type="button" class="boton boton-secundario" id="letra-mas" aria-label="Letra más grande">A+</button>
+        <button type="button" class="boton boton-secundario" id="contraste" aria-pressed="false">Alto contraste</button>
+        <button type="button" class="boton boton-secundario" id="salir">Salir</button>
+    </div>
+</header>
+
+<nav class="menu" aria-label="Menú principal">
+    <ul>
+        <li><a href="#inicio"><span class="icono" aria-hidden="true">🏠</span> Inicio</a></li>
+        <li><a href="#buscar"><span class="icono" aria-hidden="true">🔍</span> Buscar</a></li>
+        <li><a href="#historial"><span class="icono" aria-hidden="true">🕘</span> Historial</a></li>
+        <li><a href="#perfil"><span class="icono" aria-hidden="true">👤</span> Mi perfil</a></li>
+        <li><a href="#pqr"><span class="icono" aria-hidden="true">✉️</span> PQR</a></li>
+        <li><a href="#tutorial"><span class="icono" aria-hidden="true">❓</span> Tutorial</a></li>
+    </ul>
+</nav>
+
+<main id="contenido" tabindex="-1">
+    <!-- Inicio -->
+    <section id="seccion-inicio" aria-labelledby="saludo" hidden>
+        <h1 id="saludo" tabindex="-1">Bienvenido</h1>
+        <div id="aviso-inicio" class="aviso-inicio" aria-live="polite"></div>
+        <h2>¿Qué quiere hacer hoy?</h2>
+        <ul class="accesos">
+            <li><a href="#buscar"><strong>🔍 Buscar un producto</strong>Le mostramos la mejor opción de compra.</a></li>
+            <li><a href="#historial"><strong>🕘 Ver mis búsquedas</strong>Repita una búsqueda con un clic.</a></li>
+            <li><a href="#pqr"><strong>✉️ Enviar una PQR</strong>Peticiones, quejas, reclamos o sugerencias.</a></li>
+            <li><a href="#tutorial"><strong>❓ Aprender a usar Marketradar</strong>Explicación paso a paso.</a></li>
+        </ul>
+    </section>
+
+    <!-- Buscar -->
+    <section id="seccion-buscar" aria-labelledby="titulo-buscar" hidden>
+        <form id="formulario-busqueda" class="busqueda" novalidate>
+            <h1 id="titulo-buscar" tabindex="-1"><label for="campo-busqueda">¿Qué producto quiere buscar?</label></h1>
+            <input id="campo-busqueda" name="q" type="search" autocomplete="off" required
+                   minlength="2" maxlength="100" aria-describedby="ayuda-busqueda error-busqueda">
+            <p id="ayuda-busqueda" class="ayuda">Por ejemplo: tensiómetro, licuadora, televisor.</p>
+            <p id="error-busqueda" class="error" role="alert" hidden></p>
+            <button type="submit" class="boton boton-principal">Buscar</button>
+        </form>
+        <div id="estado-resultados" role="status" aria-live="polite"></div>
+        <ul id="advertencias" class="advertencias" hidden></ul>
+        <section id="producto-mvp" class="mvp" aria-label="Mejor opción de compra" hidden></section>
+        <ol id="lista-resultados" class="resultados"></ol>
+        <button type="button" class="boton boton-secundario" id="ver-mas" hidden>Ver más resultados</button>
+        <p class="ayuda">Los precios de otras monedas se convierten a pesos con la TRM del día.</p>
+    </section>
+
+    <!-- Detalle de una oferta -->
+    <section id="seccion-detalle" aria-labelledby="titulo-detalle" hidden>
+        <button type="button" class="boton boton-secundario volver" id="volver-resultados">Volver a los resultados</button>
+        <h1 id="titulo-detalle" tabindex="-1">Historial de precio</h1>
+        <div id="contenido-detalle"></div>
+    </section>
+
+    <!-- Historial de búsquedas -->
+    <section id="seccion-historial" aria-labelledby="titulo-historial" hidden>
+        <h1 id="titulo-historial" tabindex="-1">Mis búsquedas</h1>
+        <div id="estado-historial" role="status" aria-live="polite"></div>
+        <p id="resultado-historial" class="aviso-formulario" role="status" hidden></p>
+        <ol id="lista-historial" class="lista-simple"></ol>
+        <button type="button" class="boton boton-secundario" id="borrar-historial" hidden>Borrar mi historial</button>
+    </section>
+
+    <!-- Perfil -->
+    <section id="seccion-perfil" aria-labelledby="titulo-perfil" hidden>
+        <h1 id="titulo-perfil" tabindex="-1">Mi perfil</h1>
+        <form id="formulario-perfil" class="formulario" novalidate>
+            <h2>Mis datos</h2>
+            <p class="ayuda">Los campos marcados con (obligatorio) se deben llenar. Los demás son opcionales.</p>
+            <div class="dos-columnas">
+                <div class="campo">
+                    <label for="perfil-nombres">Nombres (obligatorio)</label>
+                    <input id="perfil-nombres" autocomplete="given-name" required maxlength="80"
+                           aria-describedby="error-perfil-nombres">
+                    <p id="error-perfil-nombres" class="error" hidden></p>
+                </div>
+                <div class="campo">
+                    <label for="perfil-apellidos">Apellidos (obligatorio)</label>
+                    <input id="perfil-apellidos" autocomplete="family-name" required maxlength="80"
+                           aria-describedby="error-perfil-apellidos">
+                    <p id="error-perfil-apellidos" class="error" hidden></p>
+                </div>
+            </div>
+            <div class="campo">
+                <label for="perfil-correo">Correo electrónico</label>
+                <input id="perfil-correo" type="email" readonly aria-describedby="ayuda-perfil-correo">
+                <p id="ayuda-perfil-correo" class="ayuda">Es su usuario para ingresar y no se puede cambiar.</p>
+            </div>
+            <div class="dos-columnas">
+                <div class="campo">
+                    <label for="perfil-tipo-documento">Tipo de documento</label>
+                    <select id="perfil-tipo-documento">
+                        <option value="">Sin elegir</option>
+                        <option value="CC">Cédula de ciudadanía</option>
+                        <option value="CE">Cédula de extranjería</option>
+                        <option value="PA">Pasaporte</option>
+                    </select>
+                </div>
+                <div class="campo">
+                    <label for="perfil-numero-documento">Número de documento</label>
+                    <input id="perfil-numero-documento" inputmode="numeric" maxlength="15"
+                           aria-describedby="ayuda-perfil-documento error-perfil-numero-documento">
+                    <p id="ayuda-perfil-documento" class="ayuda">Sin puntos ni espacios.</p>
+                    <p id="error-perfil-numero-documento" class="error" hidden></p>
+                </div>
+            </div>
+            <div class="dos-columnas">
+                <div class="campo">
+                    <label for="perfil-fecha-nacimiento">Fecha de nacimiento</label>
+                    <input id="perfil-fecha-nacimiento" type="date" autocomplete="bday"
+                           aria-describedby="error-perfil-fecha-nacimiento">
+                    <p id="error-perfil-fecha-nacimiento" class="error" hidden></p>
+                </div>
+                <div class="campo">
+                    <label for="perfil-celular">Celular</label>
+                    <input id="perfil-celular" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="14"
+                           aria-describedby="ayuda-perfil-celular error-perfil-celular">
+                    <p id="ayuda-perfil-celular" class="ayuda">10 números, por ejemplo 3001234567.</p>
+                    <p id="error-perfil-celular" class="error" hidden></p>
+                </div>
+            </div>
+            <div class="campo">
+                <label for="perfil-ciudad">Ciudad donde vive</label>
+                <input id="perfil-ciudad" autocomplete="address-level2" maxlength="80"
+                       aria-describedby="error-perfil-ciudad">
+                <p id="error-perfil-ciudad" class="error" hidden></p>
+            </div>
+            <p id="resultado-perfil" class="aviso-formulario" role="status" hidden></p>
+            <button type="submit" class="boton boton-principal">Guardar mis datos</button>
+        </form>
+
+        <form id="formulario-clave" class="formulario" novalidate>
+            <h2>Cambiar mi contraseña</h2>
+            <div class="campo">
+                <label for="clave-actual">Contraseña actual</label>
+                <input id="clave-actual" type="password" autocomplete="current-password" maxlength="64"
+                       aria-describedby="error-clave-actual">
+                <p id="error-clave-actual" class="error" hidden></p>
+            </div>
+            <div class="campo">
+                <label for="clave-nueva">Contraseña nueva</label>
+                <input id="clave-nueva" type="password" autocomplete="new-password" maxlength="64"
+                       aria-describedby="reglas-clave-nueva error-clave-nueva">
+                <ul id="reglas-clave-nueva" class="reglas-clave" aria-label="Reglas de la contraseña" aria-live="polite"></ul>
+                <p id="error-clave-nueva" class="error" hidden></p>
+            </div>
+            <div class="campo">
+                <label for="clave-confirmacion">Repita la contraseña nueva</label>
+                <input id="clave-confirmacion" type="password" autocomplete="new-password" maxlength="64"
+                       aria-describedby="error-clave-confirmacion">
+                <p id="error-clave-confirmacion" class="error" hidden></p>
+                <button type="button" class="boton boton-enlace" id="ver-clave-perfil" aria-pressed="false">
+                    Mostrar contraseña</button>
+            </div>
+            <p id="resultado-clave" class="aviso-formulario" role="status" hidden></p>
+            <button type="submit" class="boton boton-principal">Cambiar contraseña</button>
+        </form>
+    </section>
+
+    <!-- PQR -->
+    <section id="seccion-pqr" aria-labelledby="titulo-pqr" hidden>
+        <h1 id="titulo-pqr" tabindex="-1">Peticiones, quejas, reclamos y sugerencias</h1>
+        <form id="formulario-pqr" class="formulario" novalidate>
+            <h2>Enviar una solicitud</h2>
+            <div class="campo">
+                <label for="pqr-tipo">¿Qué desea enviar?</label>
+                <select id="pqr-tipo" required aria-describedby="error-pqr-tipo">
+                    <option value="">Elija una opción</option>
+                    <option value="PETICION">Petición: pedir información o ayuda</option>
+                    <option value="QUEJA">Queja: algo no le gustó</option>
+                    <option value="RECLAMO">Reclamo: algo no funcionó como debía</option>
+                    <option value="SUGERENCIA">Sugerencia: una idea para mejorar</option>
+                </select>
+                <p id="error-pqr-tipo" class="error" hidden></p>
+            </div>
+            <div class="campo">
+                <label for="pqr-asunto">Asunto</label>
+                <input id="pqr-asunto" maxlength="120" required aria-describedby="ayuda-pqr-asunto error-pqr-asunto">
+                <p id="ayuda-pqr-asunto" class="ayuda">En pocas palabras, por ejemplo: "El precio era distinto".</p>
+                <p id="error-pqr-asunto" class="error" hidden></p>
+            </div>
+            <div class="campo">
+                <label for="pqr-descripcion">Cuéntenos qué pasó</label>
+                <textarea id="pqr-descripcion" rows="5" maxlength="2000" required
+                          aria-describedby="contador-pqr error-pqr-descripcion"></textarea>
+                <p id="contador-pqr" class="contador">0 de 2000 caracteres</p>
+                <p id="error-pqr-descripcion" class="error" hidden></p>
+            </div>
+            <p id="resultado-pqr" class="aviso-formulario" role="status" hidden></p>
+            <button type="submit" class="boton boton-principal">Enviar solicitud</button>
+        </form>
+        <h2>Mis solicitudes</h2>
+        <div id="estado-pqr" role="status" aria-live="polite"></div>
+        <ol id="lista-pqr" class="lista-simple"></ol>
+    </section>
+
+    <!-- Tutorial -->
+    <section id="seccion-tutorial" aria-labelledby="titulo-tutorial" hidden>
+        <h1 id="titulo-tutorial" tabindex="-1">¿Cómo usar Marketradar?</h1>
+        <p class="introduccion">Marketradar busca un producto en varias tiendas en línea y le dice dónde le sale
+            mejor comprarlo. Estas son las opciones del menú:</p>
+        <ol class="pasos">
+            <li>
+                <h2>🏠 Inicio</h2>
+                <p>Le saluda y le muestra un aviso con ofertas: productos que bajaron de precio o que usted buscó
+                    hace poco. Pulse "Ver otro aviso" para ver más.</p>
+                <a class="boton boton-secundario" href="#inicio">Ir a Inicio</a>
+            </li>
+            <li>
+                <h2>🔍 Buscar</h2>
+                <p>Escriba el nombre del producto, por ejemplo "tensiómetro", y pulse "Buscar". Arriba verá la
+                    <strong>mejor opción de compra</strong>, elegida por precio, opiniones de otros compradores y
+                    envío, con las razones. Pulse "Comprar este producto" y se abrirá la página exacta del producto
+                    en la tienda. Más abajo están todas las ofertas, de la más barata a la más cara.</p>
+                <p>Los precios están en pesos colombianos. Si una tienda cobra en dólares, lo convertimos con la TRM
+                    del día.</p>
+                <a class="boton boton-secundario" href="#buscar">Ir a Buscar</a>
+            </li>
+            <li>
+                <h2>🕘 Historial</h2>
+                <p>Guarda las búsquedas que usted hizo. Pulse "Buscar otra vez" para ver los precios de hoy sin
+                    volver a escribir. Si lo desea, puede borrar todo el historial.</p>
+                <a class="boton boton-secundario" href="#historial">Ir a Historial</a>
+            </li>
+            <li>
+                <h2>👤 Mi perfil</h2>
+                <p>Allí puede revisar y corregir sus datos: nombres, documento, fecha de nacimiento, celular y
+                    ciudad. También puede cambiar su contraseña.</p>
+                <a class="boton boton-secundario" href="#perfil">Ir a Mi perfil</a>
+            </li>
+            <li>
+                <h2>✉️ PQR</h2>
+                <p>Si tiene una pregunta, una queja, un reclamo o una sugerencia, escríbala aquí. Le daremos un
+                    número de solicitud y la respuesta aparecerá en la misma sección.</p>
+                <a class="boton boton-secundario" href="#pqr">Ir a PQR</a>
+            </li>
+            <li>
+                <h2>💬 Asistente</h2>
+                <p>Al final de cada página está el botón "¿Necesita ayuda?". Escriba su pregunta con sus palabras,
+                    por ejemplo "¿dónde está más barato un tensiómetro?", y el asistente le responderá.</p>
+            </li>
+            <li>
+                <h2>🔠 Letra y contraste</h2>
+                <p>Arriba a la derecha, "A+" agranda la letra, "A−" la achica y "Alto contraste" pone la pantalla en
+                    negro y amarillo. Marketradar recuerda su preferencia.</p>
+            </li>
+            <li>
+                <h2>🔒 Su seguridad</h2>
+                <p>Marketradar nunca le pedirá datos bancarios. La compra se hace en la página de la tienda.
+                    Cuando termine, pulse "Salir".</p>
+            </li>
+        </ol>
+    </section>
+</main>
+
+<!-- Asistente de IA -->
+<aside class="asistente" aria-labelledby="titulo-asistente">
+    <button type="button" class="boton boton-asistente" id="abrir-asistente" aria-expanded="false"
+            aria-controls="panel-asistente">💬 ¿Necesita ayuda? Pregúntele al asistente</button>
+    <div id="panel-asistente" class="panel-asistente" hidden>
+        <h2 id="titulo-asistente">Asistente</h2>
+        <ol id="conversacion" class="conversacion" aria-live="polite"></ol>
+        <form id="formulario-asistente" class="formulario-asistente">
+            <label for="campo-asistente">Escriba su pregunta</label>
+            <textarea id="campo-asistente" rows="2" maxlength="500"></textarea>
+            <div class="acciones">
+                <button type="submit" class="boton boton-principal">Enviar pregunta</button>
+                <button type="button" class="boton boton-secundario" id="cerrar-asistente">Cerrar</button>
+            </div>
+        </form>
+    </div>
+</aside>
+
+<footer class="pie">
+    <p>Los precios son informativos y pueden cambiar en la tienda. Algunos enlaces pueden generar una comisión
+        para este proyecto, sin costo adicional para usted.</p>
+    <p>Proyecto de aula · Programación de Computadores III · Universidad Popular del Cesar</p>
+</footer>
+</body>
+</html>
