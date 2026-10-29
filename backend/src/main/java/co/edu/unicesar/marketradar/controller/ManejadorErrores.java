@@ -3,6 +3,7 @@ package co.edu.unicesar.marketradar.controller;
 import co.edu.unicesar.marketradar.config.PropiedadesMarketradar;
 import co.edu.unicesar.marketradar.dto.ErrorRespuestaDto;
 import co.edu.unicesar.marketradar.exception.AccesoDatosException;
+import co.edu.unicesar.marketradar.exception.CredencialesInvalidasException;
 import co.edu.unicesar.marketradar.exception.RecursoNoEncontradoException;
 import co.edu.unicesar.marketradar.exception.ValidacionException;
 import org.slf4j.Logger;
@@ -38,6 +39,13 @@ public class ManejadorErrores {
     public ResponseEntity<ErrorRespuestaDto> parametroInvalido(Exception e) {
         return respuesta(HttpStatus.BAD_REQUEST, "PARAMETRO_INVALIDO",
                 "Algún dato de la consulta no es válido. Revise e intente de nuevo.", e);
+    }
+
+    @ExceptionHandler(CredencialesInvalidasException.class)
+    public ResponseEntity<ErrorRespuestaDto> credenciales(CredencialesInvalidasException e) {
+        return e.isBloqueada()
+                ? respuesta(HttpStatus.TOO_MANY_REQUESTS, "CUENTA_BLOQUEADA", e.getMessage(), e)
+                : respuesta(HttpStatus.UNAUTHORIZED, "CREDENCIALES_INVALIDAS", e.getMessage(), e);
     }
 
     @ExceptionHandler(RecursoNoEncontradoException.class)

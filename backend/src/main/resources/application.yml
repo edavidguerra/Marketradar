@@ -60,3 +60,9 @@ marketradar:
     # Proveedor de IA del chatbot: pendiente de decisión del equipo.
     proveedor: ${ASISTENTE_PROVEEDOR:ninguno}
     api-key: ${ASISTENTE_API_KEY:}
+  administrador:
+    # Cuenta de administrador que se crea al arrancar si no existe. La clave debe ser segura.
+    correo: ${ADMIN_CORREO:}
+    clave: ${ADMIN_CLAVE:}
+    nombres: ${ADMIN_NOMBRES:Administrador}
+    apellidos: ${ADMIN_APELLIDOS:Marketradar}

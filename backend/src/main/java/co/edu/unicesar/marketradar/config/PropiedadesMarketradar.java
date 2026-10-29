@@ -16,6 +16,7 @@ import java.util.List;
  * @param moneda conversión de moneda
  * @param marketplaces credenciales de cada marketplace
  * @param asistente configuración del chatbot de IA
+ * @param administrador cuenta de administrador que se crea al arrancar
  */
 @ConfigurationProperties(prefix = "marketradar")
 public record PropiedadesMarketradar(
@@ -24,7 +25,8 @@ public record PropiedadesMarketradar(
         Cors cors,
         Moneda moneda,
         Marketplaces marketplaces,
-        Asistente asistente) {
+        Asistente asistente,
+        Administrador administrador) {
 
     /**
      * @param timeoutSegundos tiempo máximo de espera por marketplace
@@ -84,5 +86,19 @@ public record PropiedadesMarketradar(
      * @param apiKey clave de la API del proveedor
      */
     public record Asistente(String proveedor, String apiKey) {
+    }
+
+    /**
+     * @param correo correo del administrador inicial; vacío para no crearlo
+     * @param clave contraseña inicial, que debe cumplir la política de contraseñas
+     * @param nombres nombres
+     * @param apellidos apellidos
+     */
+    public record Administrador(String correo, String clave, String nombres, String apellidos) {
+
+        @Override
+        public String toString() {
+            return "Administrador[correo=" + correo + "]";
+        }
     }
 }
