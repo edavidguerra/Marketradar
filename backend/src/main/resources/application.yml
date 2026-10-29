@@ -10,6 +10,30 @@ spring:
       pool-name: marketradar-pool
   flyway:
     locations: classpath:db/migration
+  ai:
+    # Chatbot con Spring AI. Por defecto usa Gemini con su endpoint compatible con OpenAI; para usar OpenAI
+    # cambie ASISTENTE_URL_BASE=https://api.openai.com, ASISTENTE_RUTA=/v1/chat/completions y ASISTENTE_MODELO.
+    openai:
+      api-key: ${ASISTENTE_API_KEY:sin-configurar}
+      base-url: ${ASISTENTE_URL_BASE:https://generativelanguage.googleapis.com/v1beta/openai}
+      chat:
+        completions-path: ${ASISTENTE_RUTA:/chat/completions}
+        options:
+          model: ${ASISTENTE_MODELO:gemini-2.5-flash}
+          temperature: 0.3
+    retry:
+      max-attempts: 2
+    model:
+      embedding: none
+      image: none
+      moderation: none
+      audio:
+        speech: none
+        transcription: none
+  http:
+    client:
+      connect-timeout: 5s
+      read-timeout: 20s
   jackson:
     property-naming-strategy: SNAKE_CASE
     default-property-inclusion: non_null
@@ -68,8 +92,8 @@ marketradar:
       client-id: ${MERCADOLIBRE_CLIENT_ID:}
       client-secret: ${MERCADOLIBRE_CLIENT_SECRET:}
   asistente:
-    # Proveedor de IA del chatbot: pendiente de decisión del equipo.
-    proveedor: ${ASISTENTE_PROVEEDOR:ninguno}
+    # "spring-ai" usa el modelo configurado en spring.ai.openai; "ninguno" apaga el chatbot.
+    proveedor: ${ASISTENTE_PROVEEDOR:spring-ai}
     api-key: ${ASISTENTE_API_KEY:}
   administrador:
     # Cuenta de administrador que se crea al arrancar si no existe. La clave debe ser segura.
