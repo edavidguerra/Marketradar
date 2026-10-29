@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Administración · Marketradar</title>
+    <link rel="stylesheet" href="css/estilos.css">
+    <script type="module" src="js/admin/app.js"></script>
+</head>
+<body>
+<a class="saltar" href="#contenido">Ir al contenido</a>
+
+<header class="encabezado">
+    <p class="marca"><span aria-hidden="true">◎</span> Marketradar · Administración</p>
+    <div class="herramientas" role="group" aria-label="Tamaño de letra, contraste y salida">
+        <button type="button" class="boton boton-secundario" id="letra-menos" aria-label="Letra más pequeña">A−</button>
+        <button type="button" class="boton boton-secundario" id="letra-mas" aria-label="Letra más grande">A+</button>
+        <button type="button" class="boton boton-secundario" id="contraste" aria-pressed="false">Alto contraste</button>
+        <button type="button" class="boton boton-secundario" id="salir">Salir</button>
+    </div>
+</header>
+
+<main id="contenido" tabindex="-1">
+    <section id="seccion-lista" aria-labelledby="titulo-admin">
+        <h1 id="titulo-admin" tabindex="-1">Panel del administrador</h1>
+        <p id="saludo-admin" class="saludo"></p>
+        <h2>Resumen</h2>
+        <ul id="cifras" class="cifras" aria-live="polite"></ul>
+
+        <h2>PQR de los usuarios</h2>
+        <div class="filtros" role="group" aria-label="Filtrar PQR por estado">
+            <button type="button" class="boton boton-secundario" data-estado="" aria-pressed="true">Todas</button>
+            <button type="button" class="boton boton-secundario" data-estado="RADICADA" aria-pressed="false">Nuevas</button>
+            <button type="button" class="boton boton-secundario" data-estado="EN_PROCESO" aria-pressed="false">En revisión</button>
+            <button type="button" class="boton boton-secundario" data-estado="RESPONDIDA" aria-pressed="false">Respondidas</button>
+        </div>
+        <div id="estado-lista" role="status" aria-live="polite"></div>
+        <ol id="lista-pqr-admin" class="lista-simple"></ol>
+    </section>
+
+    <section id="seccion-detalle" aria-labelledby="titulo-detalle-pqr" hidden>
+        <button type="button" class="boton boton-secundario volver" id="volver-lista">Volver a la lista</button>
+        <h1 id="titulo-detalle-pqr" tabindex="-1">Solicitud</h1>
+        <div id="detalle-pqr" class="lista-simple"></div>
+        <form id="formulario-respuesta" class="formulario" novalidate hidden>
+            <h2>Responder al usuario</h2>
+            <div class="campo">
+                <label for="respuesta-pqr">Respuesta</label>
+                <textarea id="respuesta-pqr" rows="6" maxlength="2000" required
+                          aria-describedby="contador-respuesta error-respuesta-pqr"></textarea>
+                <p id="contador-respuesta" class="contador">0 de 2000 caracteres</p>
+                <p id="error-respuesta-pqr" class="error" hidden></p>
+            </div>
+            <button type="submit" class="boton boton-principal">Enviar respuesta</button>
+        </form>
+        <p id="resultado-respuesta" class="aviso-formulario" role="status" hidden></p>
+    </section>
+</main>
+
+<footer class="pie">
+    <p>Proyecto de aula · Programación de Computadores III · Universidad Popular del Cesar</p>
+</footer>
+</body>
+</html>
