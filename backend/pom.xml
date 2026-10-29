@@ -107,6 +107,11 @@
                 <directory>../frontend</directory>
                 <targetPath>static</targetPath>
             </resource>
+            <!-- Las migraciones viven en ../base-de-datos (asignatura Bases de Datos); Flyway las lee del classpath -->
+            <resource>
+                <directory>../base-de-datos/migraciones</directory>
+                <targetPath>db/migration</targetPath>
+            </resource>
         </resources>
         <plugins>
             <plugin>
