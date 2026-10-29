@@ -3,11 +3,12 @@ package co.edu.unicesar.marketradar.domain;
 import java.time.OffsetDateTime;
 
 /**
- * Registro estadístico de una búsqueda realizada (sin datos personales).
+ * Búsqueda realizada. Si la hizo un usuario con sesión, alimenta su historial.
  */
 public class Busqueda {
 
     private Long id;
+    private Long usuarioId;
     private String termino;
     private int totalResultados;
     private int duracionMs;
@@ -36,6 +37,14 @@ public class Busqueda {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Long getUsuarioId() {
+        return usuarioId;
+    }
+
+    public void setUsuarioId(Long usuarioId) {
+        this.usuarioId = usuarioId;
     }
 
     public String getTermino() {
