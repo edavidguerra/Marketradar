@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800" role="img" aria-label="Mockup de la pantalla de perfil">
+<title>Mockup de la pantalla de perfil</title>
+<rect width="1280" height="800" fill="#fff"/>
+<rect x="0" y="0" width="1280" height="84" rx="0" fill="#0B2A5B"/>
+<text x="40" y="56" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700" fill="#fff" text-anchor="start">Marketradar</text>
+<rect x="760" y="16" width="80" height="52" rx="12" fill="#fff" stroke="#fff" stroke-width="3"/>
+<text x="800.0" y="51.8" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">A−</text>
+<rect x="852" y="16" width="80" height="52" rx="12" fill="#fff" stroke="#fff" stroke-width="3"/>
+<text x="892.0" y="51.8" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">A+</text>
+<rect x="944" y="16" width="150" height="52" rx="12" fill="#FFD400" stroke="#FFD400" stroke-width="3"/>
+<text x="1019.0" y="50.4" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="#000" text-anchor="middle">Contraste</text>
+<rect x="1106" y="16" width="134" height="52" rx="12" fill="#fff" stroke="#fff" stroke-width="3"/>
+<text x="1173.0" y="50.4" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="#0B2A5B" text-anchor="middle">Salir</text>
+<rect x="0" y="84" width="1280" height="76" rx="0" fill="#F1F3F7"/>
+<text x="125.0" y="136" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">Inicio</text>
+<text x="309.0" y="136" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">Búsqueda</text>
+<text x="493.0" y="136" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">Historial</text>
+<rect x="592" y="100" width="170" height="52" rx="10" fill="#1D4ED8"/>
+<text x="677.0" y="136" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#fff" text-anchor="middle">Perfil</text>
+<text x="861.0" y="136" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">PQR</text>
+<text x="40" y="225" font-family="Arial, Helvetica, sans-serif" font-size="40" font-weight="700" fill="#0B2A5B" text-anchor="start">Tu perfil</text>
+<text x="40" y="270" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#0A0A0A" text-anchor="start">Nombre completo</text>
+<rect x="40" y="282" width="560" height="64" rx="10" fill="#fff" stroke="#1F2937" stroke-width="3"/>
+<text x="60" y="323.0" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="400" fill="#374151" text-anchor="start">María Pérez Gómez</text>
+<text x="40" y="390" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#0A0A0A" text-anchor="start">Correo electrónico</text>
+<rect x="40" y="402" width="560" height="64" rx="10" fill="#fff" stroke="#1F2937" stroke-width="3"/>
+<text x="60" y="443.0" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="400" fill="#374151" text-anchor="start">maria@correo.com</text>
+<text x="40" y="510" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#0A0A0A" text-anchor="start">Teléfono</text>
+<rect x="40" y="522" width="560" height="64" rx="10" fill="#fff" stroke="#1F2937" stroke-width="3"/>
+<text x="60" y="563.0" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="400" fill="#374151" text-anchor="start">300 123 4567</text>
+<text x="680" y="270" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#0A0A0A" text-anchor="start">Tipo de documento</text>
+<rect x="680" y="282" width="560" height="64" rx="10" fill="#fff" stroke="#1F2937" stroke-width="3"/>
+<text x="700" y="323.0" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="400" fill="#374151" text-anchor="start">Cédula de ciudadanía</text>
+<text x="680" y="390" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#0A0A0A" text-anchor="start">Número de documento</text>
+<rect x="680" y="402" width="560" height="64" rx="10" fill="#fff" stroke="#1F2937" stroke-width="3"/>
+<text x="700" y="443.0" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="400" fill="#374151" text-anchor="start">1.234.567.890</text>
+<rect x="40" y="650" width="360" height="80" rx="12" fill="#0B2A5B" stroke="#0B2A5B" stroke-width="3"/>
+<text x="220.0" y="700.5" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700" fill="#fff" text-anchor="middle">Guardar cambios</text>
+<rect x="430" y="650" width="400" height="80" rx="12" fill="#fff" stroke="#0B2A5B" stroke-width="3"/>
+<text x="630.0" y="699.8" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">Cambiar contraseña</text>
+</svg>

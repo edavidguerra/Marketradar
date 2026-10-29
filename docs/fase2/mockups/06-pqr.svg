@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800" role="img" aria-label="Mockup de la pantalla de peticiones, quejas y reclamos">
+<title>Mockup de la pantalla de peticiones, quejas y reclamos</title>
+<rect width="1280" height="800" fill="#fff"/>
+<rect x="0" y="0" width="1280" height="84" rx="0" fill="#0B2A5B"/>
+<text x="40" y="56" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700" fill="#fff" text-anchor="start">Marketradar</text>
+<rect x="760" y="16" width="80" height="52" rx="12" fill="#fff" stroke="#fff" stroke-width="3"/>
+<text x="800.0" y="51.8" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">A−</text>
+<rect x="852" y="16" width="80" height="52" rx="12" fill="#fff" stroke="#fff" stroke-width="3"/>
+<text x="892.0" y="51.8" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">A+</text>
+<rect x="944" y="16" width="150" height="52" rx="12" fill="#FFD400" stroke="#FFD400" stroke-width="3"/>
+<text x="1019.0" y="50.4" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="#000" text-anchor="middle">Contraste</text>
+<rect x="1106" y="16" width="134" height="52" rx="12" fill="#fff" stroke="#fff" stroke-width="3"/>
+<text x="1173.0" y="50.4" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="#0B2A5B" text-anchor="middle">Salir</text>
+<rect x="0" y="84" width="1280" height="76" rx="0" fill="#F1F3F7"/>
+<text x="125.0" y="136" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">Inicio</text>
+<text x="309.0" y="136" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">Búsqueda</text>
+<text x="493.0" y="136" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">Historial</text>
+<text x="677.0" y="136" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">Perfil</text>
+<rect x="776" y="100" width="170" height="52" rx="10" fill="#1D4ED8"/>
+<text x="861.0" y="136" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#fff" text-anchor="middle">PQR</text>
+<text x="40" y="225" font-family="Arial, Helvetica, sans-serif" font-size="40" font-weight="700" fill="#0B2A5B" text-anchor="start">Escríbenos</text>
+<text x="40" y="262" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="400" fill="#374151" text-anchor="start">Petición, queja o reclamo</text>
+<text x="40" y="320" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#0A0A0A" text-anchor="start">Tipo</text>
+<rect x="40" y="332" width="170" height="60" rx="10" fill="#fff" stroke="#1F2937" stroke-width="3"/>
+<text x="125" y="372" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#0B2A5B" text-anchor="middle">Petición</text>
+<rect x="230" y="332" width="170" height="60" rx="10" fill="#1D4ED8" stroke="#1F2937" stroke-width="3"/>
+<text x="315" y="372" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#fff" text-anchor="middle">Queja</text>
+<rect x="420" y="332" width="170" height="60" rx="10" fill="#fff" stroke="#1F2937" stroke-width="3"/>
+<text x="505" y="372" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#0B2A5B" text-anchor="middle">Reclamo</text>
+<text x="40" y="420" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#0A0A0A" text-anchor="start">Asunto</text>
+<rect x="40" y="432" width="620" height="64" rx="10" fill="#fff" stroke="#1F2937" stroke-width="3"/>
+<text x="60" y="473.0" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="400" fill="#374151" text-anchor="start">El precio no coincide</text>
+<text x="40" y="540" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#0A0A0A" text-anchor="start">Mensaje</text>
+<rect x="40" y="552" width="620" height="140" rx="10" fill="#fff" stroke="#1F2937" stroke-width="3"/>
+<text x="60" y="596" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="400" fill="#374151" text-anchor="start">El precio de la tienda es distinto al</text>
+<text x="60" y="632" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="400" fill="#374151" text-anchor="start">que mostró Marketradar.</text>
+<rect x="40" y="710" width="300" height="64" rx="12" fill="#0B2A5B" stroke="#0B2A5B" stroke-width="3"/>
+<text x="190.0" y="751.8" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#fff" text-anchor="middle">Enviar</text>
+<text x="720" y="220" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" fill="#0B2A5B" text-anchor="start">Mis solicitudes</text>
+<rect x="720" y="250" width="520" height="130" rx="12" fill="#F1F3F7" stroke="#1F2937" stroke-width="2"/>
+<text x="745" y="295" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0A0A0A" text-anchor="start">El precio no coincide</text>
+<rect x="745" y="318" width="200" height="44" rx="10" fill="#9A3412"/>
+<text x="845" y="349" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="#fff" text-anchor="middle">En revisión</text>
+<rect x="720" y="400" width="520" height="130" rx="12" fill="#F1F3F7" stroke="#1F2937" stroke-width="2"/>
+<text x="745" y="445" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0A0A0A" text-anchor="start">Error al ingresar</text>
+<rect x="745" y="468" width="200" height="44" rx="10" fill="#0B6B2E"/>
+<text x="845" y="499" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="#fff" text-anchor="middle">Respondida</text>
+<rect x="720" y="550" width="520" height="130" rx="12" fill="#F1F3F7" stroke="#1F2937" stroke-width="2"/>
+<text x="745" y="595" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0A0A0A" text-anchor="start">Sugerencia de color</text>
+<rect x="745" y="618" width="200" height="44" rx="10" fill="#0B6B2E"/>
+<text x="845" y="649" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="#fff" text-anchor="middle">Respondida</text>
+</svg>
