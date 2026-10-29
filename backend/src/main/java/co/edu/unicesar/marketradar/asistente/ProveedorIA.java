@@ -3,8 +3,8 @@ package co.edu.unicesar.marketradar.asistente;
 import java.util.List;
 
 /**
- * Contrato del modelo de lenguaje que usa el chatbot. El proveedor concreto (OpenAI, Gemini,
- * Claude u otro) está pendiente de decisión del equipo; cambiarlo no afecta al resto del sistema.
+ * Contrato del modelo de lenguaje que usa el chatbot. La implementación principal es
+ * {@link ProveedorIASpringAi}; cambiar de proveedor no afecta al resto del sistema.
  */
 public interface ProveedorIA {
 

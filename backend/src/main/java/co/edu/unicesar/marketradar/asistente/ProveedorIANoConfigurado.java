@@ -6,8 +6,8 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * Proveedor usado mientras no se elija un modelo de IA. Responde con un mensaje amable
- * para que la interfaz funcione de punta a punta.
+ * Proveedor sin IA, para pruebas o para apagar el chatbot ({@code ASISTENTE_PROVEEDOR=ninguno}).
+ * Responde con un mensaje amable para que la interfaz funcione de punta a punta.
  */
 @Component
 @ConditionalOnProperty(prefix = "marketradar.asistente", name = "proveedor", havingValue = "ninguno",
