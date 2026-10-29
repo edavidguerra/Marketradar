@@ -34,3 +34,24 @@ export function haceCuanto(fechaIso) {
 export function fechaCorta(fechaIso) {
     return new Date(fechaIso).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
 }
+
+export function fechaHora(fechaIso) {
+    return new Date(fechaIso).toLocaleString('es-CO', {
+        day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit',
+    });
+}
+
+export function estrellas(calificacion) {
+    const llenas = Math.round(Number(calificacion));
+    return '★'.repeat(llenas) + '☆'.repeat(5 - llenas);
+}
+
+export function decimal(valor) {
+    return Number(valor).toLocaleString('es-CO', { maximumFractionDigits: 1 });
+}
+
+const ESTADOS_PQR = { RADICADA: 'Recibida', EN_PROCESO: 'En revisión', RESPONDIDA: 'Respondida' };
+const TIPOS_PQR = { PETICION: 'Petición', QUEJA: 'Queja', RECLAMO: 'Reclamo', SUGERENCIA: 'Sugerencia' };
+
+export const nombreEstadoPqr = (estado) => ESTADOS_PQR[estado] || estado;
+export const nombreTipoPqr = (tipo) => TIPOS_PQR[tipo] || tipo;

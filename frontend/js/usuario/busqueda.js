@@ -2,7 +2,7 @@
  * Construcción de las pantallas. Todo el texto se inserta con textContent para evitar inyección de HTML.
  */
 
-import { fechaCorta, haceCuanto, nombreTienda, pesos } from './formato.js';
+import { fechaCorta, haceCuanto, nombreTienda, pesos } from '../comun/formato.js';
 
 const PANTALLAS = ['inicio', 'resultados', 'detalle'];
 

@@ -3,10 +3,10 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Marketradar: compare precios fácilmente</title>
-    <meta name="description" content="Busque un producto y vea en qué tienda está más barato.">
+    <title>Marketradar: ingrese o cree su cuenta</title>
+    <meta name="description" content="Compare precios fácilmente. Ingrese con su correo o cree una cuenta gratis.">
     <link rel="stylesheet" href="css/estilos.css">
-    <script type="module" src="js/app.js"></script>
+    <script type="module" src="js/ingreso/ingreso.js"></script>
 </head>
 <body>
 <a class="saltar" href="#contenido">Ir al contenido</a>
@@ -21,57 +21,88 @@
 </header>
 
 <main id="contenido" tabindex="-1">
-    <!-- Pantalla 1: Inicio -->
-    <section id="pantalla-inicio" class="pantalla" aria-labelledby="titulo-inicio">
-        <form id="formulario-busqueda" class="busqueda" novalidate>
-            <h1 id="titulo-inicio" tabindex="-1"><label for="campo-busqueda">¿Qué producto quiere buscar?</label></h1>
-            <input id="campo-busqueda" name="q" type="search" autocomplete="off" required
-                   minlength="2" maxlength="100" aria-describedby="ayuda-busqueda error-busqueda">
-            <p id="ayuda-busqueda" class="ayuda">Por ejemplo: licuadora, televisor, audífonos.</p>
-            <p id="error-busqueda" class="error" role="alert" hidden></p>
-            <button type="submit" class="boton boton-principal">Buscar</button>
+    <h1>Compare precios y compre con tranquilidad</h1>
+    <p class="introduccion">Busque un producto y le mostramos en qué tienda le sale más barato, con envío incluido.</p>
+    <p id="aviso-sesion" class="aviso-formulario info" role="status" hidden></p>
+
+    <div class="pestanas" role="tablist" aria-label="Ingresar o crear cuenta">
+        <button type="button" role="tab" id="pestana-ingreso" aria-controls="panel-ingreso" aria-selected="true"
+                class="pestana">Ya tengo cuenta</button>
+        <button type="button" role="tab" id="pestana-registro" aria-controls="panel-registro" aria-selected="false"
+                class="pestana" tabindex="-1">Crear cuenta nueva</button>
+    </div>
+
+    <!-- Ingreso -->
+    <section id="panel-ingreso" role="tabpanel" aria-labelledby="pestana-ingreso" class="panel">
+        <form id="formulario-ingreso" class="formulario" novalidate>
+            <h2>Ingresar</h2>
+            <div class="campo">
+                <label for="ingreso-correo">Correo electrónico</label>
+                <input id="ingreso-correo" type="email" autocomplete="username" required maxlength="150"
+                       aria-describedby="error-ingreso-correo">
+                <p id="error-ingreso-correo" class="error" hidden></p>
+            </div>
+            <div class="campo">
+                <label for="ingreso-clave">Contraseña</label>
+                <input id="ingreso-clave" type="password" autocomplete="current-password" required maxlength="64"
+                       aria-describedby="error-ingreso-clave">
+                <p id="error-ingreso-clave" class="error" hidden></p>
+                <button type="button" class="boton boton-enlace" id="ver-clave-ingreso" aria-pressed="false">
+                    Mostrar contraseña</button>
+            </div>
+            <p id="resultado-ingreso" class="aviso-formulario" role="alert" hidden></p>
+            <button type="submit" class="boton boton-principal">Ingresar</button>
         </form>
     </section>
 
-    <!-- Pantalla 2: Resultados -->
-    <section id="pantalla-resultados" class="pantalla" aria-labelledby="titulo-resultados" hidden>
-        <button type="button" class="boton boton-secundario volver" data-volver="inicio">Volver</button>
-        <h1 id="titulo-resultados" tabindex="-1">Resultados</h1>
-        <div id="estado-resultados" role="status" aria-live="polite"></div>
-        <ul id="advertencias" class="advertencias" hidden></ul>
-        <ol id="lista-resultados" class="resultados"></ol>
-        <button type="button" class="boton boton-secundario" id="ver-mas" hidden>Ver más resultados</button>
-    </section>
-
-    <!-- Pantalla 3: Detalle e historial -->
-    <section id="pantalla-detalle" class="pantalla" aria-labelledby="titulo-detalle" hidden>
-        <button type="button" class="boton boton-secundario volver" data-volver="resultados">Volver</button>
-        <h1 id="titulo-detalle" tabindex="-1">Historial de precio</h1>
-        <div id="contenido-detalle"></div>
+    <!-- Registro -->
+    <section id="panel-registro" role="tabpanel" aria-labelledby="pestana-registro" class="panel" hidden>
+        <form id="formulario-registro" class="formulario" novalidate>
+            <h2>Crear cuenta nueva</h2>
+            <p class="ayuda">Todos los campos son obligatorios.</p>
+            <div class="campo">
+                <label for="registro-nombres">Nombres</label>
+                <input id="registro-nombres" autocomplete="given-name" required maxlength="80"
+                       aria-describedby="error-registro-nombres">
+                <p id="error-registro-nombres" class="error" hidden></p>
+            </div>
+            <div class="campo">
+                <label for="registro-apellidos">Apellidos</label>
+                <input id="registro-apellidos" autocomplete="family-name" required maxlength="80"
+                       aria-describedby="error-registro-apellidos">
+                <p id="error-registro-apellidos" class="error" hidden></p>
+            </div>
+            <div class="campo">
+                <label for="registro-correo">Correo electrónico</label>
+                <input id="registro-correo" type="email" autocomplete="email" required maxlength="150"
+                       aria-describedby="ayuda-registro-correo error-registro-correo">
+                <p id="ayuda-registro-correo" class="ayuda">Será su usuario para ingresar.</p>
+                <p id="error-registro-correo" class="error" hidden></p>
+            </div>
+            <div class="campo">
+                <label for="registro-clave">Contraseña</label>
+                <input id="registro-clave" type="password" autocomplete="new-password" required maxlength="64"
+                       aria-describedby="reglas-clave error-registro-clave">
+                <p class="ayuda" id="titulo-reglas">Su contraseña debe tener:</p>
+                <ul id="reglas-clave" class="reglas-clave" aria-labelledby="titulo-reglas" aria-live="polite"></ul>
+                <p id="error-registro-clave" class="error" hidden></p>
+            </div>
+            <div class="campo">
+                <label for="registro-confirmacion">Repita la contraseña</label>
+                <input id="registro-confirmacion" type="password" autocomplete="new-password" required maxlength="64"
+                       aria-describedby="error-registro-confirmacion">
+                <p id="error-registro-confirmacion" class="error" hidden></p>
+                <button type="button" class="boton boton-enlace" id="ver-clave-registro" aria-pressed="false">
+                    Mostrar contraseña</button>
+            </div>
+            <p id="resultado-registro" class="aviso-formulario" role="alert" hidden></p>
+            <button type="submit" class="boton boton-principal">Crear mi cuenta</button>
+        </form>
     </section>
 </main>
 
-<!-- Asistente de IA -->
-<aside class="asistente" aria-labelledby="titulo-asistente">
-    <button type="button" class="boton boton-asistente" id="abrir-asistente" aria-expanded="false"
-            aria-controls="panel-asistente">¿Necesita ayuda? Pregúntele al asistente</button>
-    <div id="panel-asistente" class="panel-asistente" hidden>
-        <h2 id="titulo-asistente">Asistente</h2>
-        <ol id="conversacion" class="conversacion" aria-live="polite"></ol>
-        <form id="formulario-asistente" class="formulario-asistente">
-            <label for="campo-asistente">Escriba su pregunta</label>
-            <textarea id="campo-asistente" rows="2" maxlength="500"></textarea>
-            <div class="acciones">
-                <button type="submit" class="boton boton-principal">Enviar pregunta</button>
-                <button type="button" class="boton boton-secundario" id="cerrar-asistente">Cerrar</button>
-            </div>
-        </form>
-    </div>
-</aside>
-
 <footer class="pie">
-    <p>Los precios son informativos y pueden cambiar en la tienda. Algunos enlaces pueden generar una comisión
-        para este proyecto, sin costo adicional para usted.</p>
+    <p>Sus datos se usan solo para su cuenta en Marketradar. Nunca le pediremos datos bancarios.</p>
     <p>Proyecto de aula · Programación de Computadores III · Universidad Popular del Cesar</p>
 </footer>
 </body>
