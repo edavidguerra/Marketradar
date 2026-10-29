@@ -1,11 +1,13 @@
 package co.edu.unicesar.marketradar.controller;
 
+import co.edu.unicesar.marketradar.dto.AvisoDto;
 import co.edu.unicesar.marketradar.dto.BusquedaHistorialDto;
 import co.edu.unicesar.marketradar.dto.CambioClaveDto;
 import co.edu.unicesar.marketradar.dto.PerfilDto;
 import co.edu.unicesar.marketradar.dto.PqrDto;
 import co.edu.unicesar.marketradar.dto.SolicitudPqrDto;
 import co.edu.unicesar.marketradar.seguridad.UsuarioAutenticado;
+import co.edu.unicesar.marketradar.service.ServicioAvisos;
 import co.edu.unicesar.marketradar.service.ServicioCuentas;
 import co.edu.unicesar.marketradar.service.ServicioHistorial;
 import co.edu.unicesar.marketradar.service.ServicioPerfil;
@@ -24,7 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * Opciones de la interfaz de usuario: perfil, historial de búsquedas y PQR. Solo responde a cuentas
+ * Opciones de la interfaz de usuario: avisos del inicio, perfil, historial de búsquedas y PQR. Solo responde a cuentas
  * con rol USUARIO, y cada persona ve únicamente sus propios datos.
  */
 @RestController
@@ -35,13 +37,21 @@ public class ControladorUsuario {
     private final ServicioCuentas servicioCuentas;
     private final ServicioHistorial servicioHistorial;
     private final ServicioPqr servicioPqr;
+    private final ServicioAvisos servicioAvisos;
 
     public ControladorUsuario(ServicioPerfil servicioPerfil, ServicioCuentas servicioCuentas,
-                              ServicioHistorial servicioHistorial, ServicioPqr servicioPqr) {
+                              ServicioHistorial servicioHistorial, ServicioPqr servicioPqr,
+                              ServicioAvisos servicioAvisos) {
         this.servicioPerfil = servicioPerfil;
         this.servicioCuentas = servicioCuentas;
         this.servicioHistorial = servicioHistorial;
         this.servicioPqr = servicioPqr;
+        this.servicioAvisos = servicioAvisos;
+    }
+
+    @GetMapping("/avisos")
+    public List<AvisoDto> avisos(@AuthenticationPrincipal UsuarioAutenticado usuario) {
+        return servicioAvisos.avisosPara(usuario.getId()).stream().map(AvisoDto::desde).toList();
     }
 
     @GetMapping("/perfil")
