@@ -25,6 +25,7 @@ public final class PropiedadesPrueba {
                         new PropiedadesMarketradar.Shopify(false, ""),
                         new PropiedadesMarketradar.MercadoLibre(false, "", "")),
                 new PropiedadesMarketradar.Asistente("ninguno", ""),
-                new PropiedadesMarketradar.Administrador("", "", "Administrador", "Marketradar"));
+                new PropiedadesMarketradar.Administrador("", "", "Administrador", "Marketradar"),
+                new PropiedadesMarketradar.Mvp(0.6, 0.3, 0.1, 20));
     }
 }

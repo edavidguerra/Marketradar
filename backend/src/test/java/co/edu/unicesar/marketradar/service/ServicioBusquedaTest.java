@@ -6,6 +6,7 @@ import co.edu.unicesar.marketradar.domain.ConsultaBusqueda;
 import co.edu.unicesar.marketradar.domain.OfertaNormalizada;
 import co.edu.unicesar.marketradar.domain.ResultadoBusqueda;
 import co.edu.unicesar.marketradar.exception.MarketplaceException;
+import co.edu.unicesar.marketradar.service.mvp.SeleccionPonderadaMvp;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,6 +56,7 @@ class ServicioBusquedaTest {
         assertEquals(List.of("2", "3", "1"), ids);
         assertTrue(resultado.esMejorPrecio(resultado.getOfertas().get(0)));
         assertTrue(resultado.getAdvertencias().isEmpty());
+        assertTrue(resultado.getProductoMvp().isPresent());
     }
 
     @Test
@@ -93,7 +95,7 @@ class ServicioBusquedaTest {
 
     private ServicioBusqueda servicio(AdaptadorMarketplace... adaptadores) {
         return new ServicioBusqueda(List.of(adaptadores), ejecutor, CircuitBreakerRegistry.ofDefaults(),
-                persistencia, PropiedadesPrueba.crear());
+                persistencia, PropiedadesPrueba.crear(), new SeleccionPonderadaMvp(PropiedadesPrueba.crear()));
     }
 
     private static ConsultaBusqueda consulta(String orden) {
