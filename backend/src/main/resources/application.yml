@@ -40,9 +40,14 @@ marketradar:
     origenes-permitidos: ${CORS_ORIGENES:http://localhost:8080}
   moneda:
     destino: COP
-    # Tasa de cambio configurable (COP por unidad). Valor de ejemplo: actualizar y registrar la fecha.
+    # La TRM del dólar se consulta cada día en datos abiertos (Superintendencia Financiera) y las demás
+    # monedas en ExchangeRate-API. Si no responden, se usa la última guardada y, si no hay, esta de respaldo.
     tasa-usd-cop: ${TASA_USD_COP:4000}
     fecha-tasa: ${FECHA_TASA:2026-10-28}
+    url-trm: https://www.datos.gov.co/resource/32sa-8pi3.json?$order=vigenciadesde%20DESC&$limit=1
+    url-tasas-internacionales: https://open.er-api.com/v6/latest/USD
+    monedas-adicionales: EUR,BRL,MXN,CNY,GBP
+    cron-actualizacion: "0 0 6 * * *"
   mvp:
     # Pesos para elegir la mejor opción de compra (deben sumar 1).
     peso-precio: 0.6

@@ -3,11 +3,14 @@ package co.edu.unicesar.marketradar.adapter;
 import co.edu.unicesar.marketradar.PropiedadesPrueba;
 import co.edu.unicesar.marketradar.domain.ConsultaBusqueda;
 import co.edu.unicesar.marketradar.domain.OfertaNormalizada;
+import co.edu.unicesar.marketradar.domain.TasaCambio;
 import co.edu.unicesar.marketradar.exception.MarketplaceException;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -15,7 +18,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class AdaptadorMarketplaceBaseTest {
 
-    private final ConversorMoneda conversor = new ConversorMoneda(PropiedadesPrueba.crear());
+    private final ConversorMoneda conversor = new ConversorMoneda(PropiedadesPrueba.crear(),
+            moneda -> "USD".equals(moneda)
+                    ? Optional.of(new TasaCambio("USD", new BigDecimal("4000"), LocalDate.of(2026, 10, 28), "prueba"))
+                    : Optional.empty());
     private final ConsultaBusqueda consulta = ConsultaBusqueda.crear("audifonos", null, Set.of(), 1, 10);
 
     @Test
@@ -25,8 +31,8 @@ class AdaptadorMarketplaceBaseTest {
         OfertaNormalizada convertida = adaptador.buscar(consulta).get(0);
 
         assertEquals("COP", convertida.getMoneda());
-        assertEquals(new BigDecimal("42000.00"), convertida.getPrecio());
-        assertEquals(new BigDecimal("8000.00"), convertida.getCostoEnvio());
+        assertEquals(new BigDecimal("42000"), convertida.getPrecio());
+        assertEquals(new BigDecimal("8000"), convertida.getCostoEnvio());
     }
 
     @Test

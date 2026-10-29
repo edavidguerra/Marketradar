@@ -19,7 +19,8 @@ public final class PropiedadesPrueba {
                 true,
                 new PropiedadesMarketradar.Busqueda(1, 15, 20, 4),
                 new PropiedadesMarketradar.Cors(List.of("http://localhost:8080")),
-                new PropiedadesMarketradar.Moneda("COP", new BigDecimal("4000"), LocalDate.of(2026, 10, 28)),
+                new PropiedadesMarketradar.Moneda("COP", new BigDecimal("4000"), LocalDate.of(2026, 10, 28),
+                        "http://localhost/trm", "http://localhost/tasas", List.of("EUR")),
                 new PropiedadesMarketradar.Marketplaces(
                         new PropiedadesMarketradar.AliExpress(false, "", "", ""),
                         new PropiedadesMarketradar.Shopify(false, ""),
