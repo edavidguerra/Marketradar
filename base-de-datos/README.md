@@ -12,6 +12,7 @@ aplica los scripts en orden cuando arranca la aplicación.
 | --- | --- |
 | `V1__esquema_inicial.sql` | Tablas principales (marketplace, producto, oferta, historial_precio, busqueda y consumo_api) con sus llaves, restricciones e índices. |
 | `V2__marketplaces_iniciales.sql` | Datos iniciales: las tiendas que consulta Marketradar. |
+| `V3__usuarios_pqr_y_resenas.sql` | Usuarios con rol, PQR, búsquedas por usuario, calificación y reseñas de las ofertas, y tasas de cambio. |
 
 ## Reglas para cambiar el esquema
 
@@ -31,4 +32,5 @@ scripts en orden desde esta carpeta:
 createdb -U postgres marketradar_revision
 psql -U postgres -d marketradar_revision -f migraciones/V1__esquema_inicial.sql
 psql -U postgres -d marketradar_revision -f migraciones/V2__marketplaces_iniciales.sql
+psql -U postgres -d marketradar_revision -f migraciones/V3__usuarios_pqr_y_resenas.sql
 ```
