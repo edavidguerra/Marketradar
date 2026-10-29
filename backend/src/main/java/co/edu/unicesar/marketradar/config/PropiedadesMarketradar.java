@@ -17,6 +17,7 @@ import java.util.List;
  * @param marketplaces credenciales de cada marketplace
  * @param asistente configuración del chatbot de IA
  * @param administrador cuenta de administrador que se crea al arrancar
+ * @param mvp pesos para elegir la mejor opción de compra
  */
 @ConfigurationProperties(prefix = "marketradar")
 public record PropiedadesMarketradar(
@@ -26,7 +27,8 @@ public record PropiedadesMarketradar(
         Moneda moneda,
         Marketplaces marketplaces,
         Asistente asistente,
-        Administrador administrador) {
+        Administrador administrador,
+        Mvp mvp) {
 
     /**
      * @param timeoutSegundos tiempo máximo de espera por marketplace
@@ -99,6 +101,30 @@ public record PropiedadesMarketradar(
         @Override
         public String toString() {
             return "Administrador[correo=" + correo + "]";
+        }
+    }
+
+    /**
+     * Pesos del puntaje del producto MVP. Deben sumar 1.
+     *
+     * @param pesoPrecio peso del precio total
+     * @param pesoCalificacion peso de las reseñas
+     * @param pesoEnvio peso del costo de envío
+     * @param resenasMinimas opiniones necesarias para confiar plenamente en las estrellas
+     */
+    public record Mvp(double pesoPrecio, double pesoCalificacion, double pesoEnvio, int resenasMinimas) {
+
+        /**
+         * Verifica que los pesos sean positivos y sumen 1.
+         */
+        public Mvp {
+            if (pesoPrecio < 0 || pesoCalificacion < 0 || pesoEnvio < 0
+                    || Math.abs(pesoPrecio + pesoCalificacion + pesoEnvio - 1.0) > 0.001) {
+                throw new IllegalArgumentException("Los pesos del producto MVP deben ser positivos y sumar 1");
+            }
+            if (resenasMinimas < 1) {
+                throw new IllegalArgumentException("resenas-minimas debe ser mayor que cero");
+            }
         }
     }
 }

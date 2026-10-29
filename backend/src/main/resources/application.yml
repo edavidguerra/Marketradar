@@ -43,6 +43,12 @@ marketradar:
     # Tasa de cambio configurable (COP por unidad). Valor de ejemplo: actualizar y registrar la fecha.
     tasa-usd-cop: ${TASA_USD_COP:4000}
     fecha-tasa: ${FECHA_TASA:2026-10-28}
+  mvp:
+    # Pesos para elegir la mejor opción de compra (deben sumar 1).
+    peso-precio: 0.6
+    peso-calificacion: 0.3
+    peso-envio: 0.1
+    resenas-minimas: 20
   marketplaces:
     aliexpress:
       habilitado: ${ALIEXPRESS_HABILITADO:false}

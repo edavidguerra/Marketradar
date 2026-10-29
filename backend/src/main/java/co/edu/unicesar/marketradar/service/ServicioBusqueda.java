@@ -7,6 +7,7 @@ import co.edu.unicesar.marketradar.domain.OfertaNormalizada;
 import co.edu.unicesar.marketradar.domain.OrdenResultados;
 import co.edu.unicesar.marketradar.domain.ResultadoBusqueda;
 import co.edu.unicesar.marketradar.exception.AccesoDatosException;
+import co.edu.unicesar.marketradar.service.mvp.EstrategiaSeleccionMvp;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
@@ -42,15 +43,17 @@ public class ServicioBusqueda {
     private final ServicioPersistenciaOfertas persistencia;
     private final Cache<String, ResultadoCompleto> cache;
     private final int timeoutSegundos;
+    private final EstrategiaSeleccionMvp seleccionMvp;
 
     public ServicioBusqueda(List<AdaptadorMarketplace> adaptadores, ExecutorService ejecutor,
                             CircuitBreakerRegistry circuitBreakers, ServicioPersistenciaOfertas persistencia,
-                            PropiedadesMarketradar propiedades) {
+                            PropiedadesMarketradar propiedades, EstrategiaSeleccionMvp seleccionMvp) {
         adaptadores.forEach(adaptador -> adaptadoresPorCodigo.put(adaptador.codigo(), adaptador));
         this.ejecutor = ejecutor;
         this.circuitBreakers = circuitBreakers;
         this.persistencia = persistencia;
         this.timeoutSegundos = propiedades.busqueda().timeoutSegundos();
+        this.seleccionMvp = seleccionMvp;
         this.cache = Caffeine.newBuilder()
                 .expireAfterWrite(Duration.ofMinutes(propiedades.busqueda().cacheMinutos()))
                 .maximumSize(500)
@@ -73,7 +76,7 @@ public class ServicioBusqueda {
      *
      * @param consulta parámetros validados
      * @param usuarioId persona con sesión, o {@code null}
-     * @return ofertas de la página pedida, advertencias y total
+     * @return ofertas de la página pedida, advertencias, total y producto MVP
      */
     public ResultadoBusqueda buscar(ConsultaBusqueda consulta, Long usuarioId) {
         long inicio = System.nanoTime();
@@ -87,7 +90,7 @@ public class ServicioBusqueda {
             registrarBusquedaSinInterrumpir(consulta.getTermino(), ordenadas.size(), inicio, usuarioId);
         }
         return new ResultadoBusqueda(ordenadas.subList(desde, hasta), completo.advertencias(), ordenadas.size(),
-                completo.idsPersistidos(), mejorPrecio);
+                completo.idsPersistidos(), mejorPrecio, seleccionMvp.elegir(ordenadas).orElse(null));
     }
 
     /**

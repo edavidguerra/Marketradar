@@ -43,6 +43,9 @@ public final class OfertaNormalizada {
         if (precio.signum() < 0) {
             throw new IllegalArgumentException("El precio no puede ser negativo");
         }
+        if (!urlDestino.startsWith("https://") && !urlDestino.startsWith("http://")) {
+            throw new IllegalArgumentException("El enlace a la tienda debe ser una dirección web");
+        }
     }
 
     /**

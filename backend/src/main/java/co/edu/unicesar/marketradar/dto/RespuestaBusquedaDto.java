@@ -14,9 +14,10 @@ import java.util.List;
  * @param totalResultados total de ofertas encontradas
  * @param ofertas ofertas de la página
  * @param advertencias tiendas que no respondieron
+ * @param productoMvp mejor opción de compra entre todas las ofertas; {@code null} si no hay ofertas
  */
 public record RespuestaBusquedaDto(String termino, int pagina, int tamano, int totalResultados,
-                                   List<OfertaDto> ofertas, List<String> advertencias) {
+                                   List<OfertaDto> ofertas, List<String> advertencias, ProductoMvpDto productoMvp) {
 
     /**
      * Construye la respuesta a partir del resultado del servicio.
@@ -30,6 +31,7 @@ public record RespuestaBusquedaDto(String termino, int pagina, int tamano, int t
                 .map(oferta -> OfertaDto.desde(oferta, resultado.idPersistido(oferta), resultado.esMejorPrecio(oferta)))
                 .toList();
         return new RespuestaBusquedaDto(consulta.getTermino(), consulta.getPagina(), consulta.getTamano(),
-                resultado.getTotalResultados(), ofertas, resultado.getAdvertencias());
+                resultado.getTotalResultados(), ofertas, resultado.getAdvertencias(),
+                resultado.getProductoMvp().map(mvp -> ProductoMvpDto.desde(mvp, resultado)).orElse(null));
     }
 }
