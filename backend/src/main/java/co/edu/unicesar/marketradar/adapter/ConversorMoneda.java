@@ -5,56 +5,49 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
- * Convierte precios a pesos colombianos con tasas de cambio configurables.
+ * Convierte precios a pesos colombianos con la tasa vigente que entrega {@link ProveedorTasas}
+ * (TRM del día para dólares).
  */
 @Component
 public class ConversorMoneda {
 
     private final String monedaDestino;
-    private final Map<String, BigDecimal> tasasADestino = new HashMap<>();
-    private final LocalDate fechaTasa;
+    private final ProveedorTasas proveedorTasas;
 
     /**
-     * Crea el conversor a partir de la configuración.
-     *
-     * @param propiedades configuración con la tasa USD-COP y su fecha
+     * @param propiedades configuración con la moneda destino
+     * @param proveedorTasas fuente de las tasas vigentes
      */
-    public ConversorMoneda(PropiedadesMarketradar propiedades) {
+    public ConversorMoneda(PropiedadesMarketradar propiedades, ProveedorTasas proveedorTasas) {
         this.monedaDestino = propiedades.moneda().destino();
-        this.fechaTasa = propiedades.moneda().fechaTasa();
-        tasasADestino.put(monedaDestino, BigDecimal.ONE);
-        tasasADestino.put("USD", propiedades.moneda().tasaUsdCop());
+        this.proveedorTasas = proveedorTasas;
     }
 
     /**
-     * Convierte un valor a la moneda destino, redondeado a dos decimales.
+     * Convierte un valor a la moneda destino. Los pesos se redondean a valores enteros, como se
+     * muestran en Colombia.
      *
      * @param valor valor en la moneda de origen; {@code null} devuelve {@code null}
      * @param monedaOrigen código ISO 4217 de origen
      * @return valor convertido
-     * @throws IllegalArgumentException si no hay tasa configurada para la moneda
+     * @throws IllegalArgumentException si no hay tasa conocida para la moneda
      */
     public BigDecimal convertir(BigDecimal valor, String monedaOrigen) {
         if (valor == null) {
             return null;
         }
-        BigDecimal tasa = tasasADestino.get(monedaOrigen);
-        if (tasa == null) {
-            throw new IllegalArgumentException("No hay tasa de cambio configurada para " + monedaOrigen);
+        if (monedaDestino.equals(monedaOrigen)) {
+            return valor;
         }
-        return valor.multiply(tasa).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal tasa = proveedorTasas.tasaVigente(monedaOrigen)
+                .orElseThrow(() -> new IllegalArgumentException("No hay tasa de cambio para " + monedaOrigen))
+                .valor();
+        return valor.multiply(tasa).setScale(0, RoundingMode.HALF_UP);
     }
 
     public String getMonedaDestino() {
         return monedaDestino;
-    }
-
-    public LocalDate getFechaTasa() {
-        return fechaTasa;
     }
 }

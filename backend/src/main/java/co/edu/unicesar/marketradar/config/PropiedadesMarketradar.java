@@ -45,10 +45,14 @@ public record PropiedadesMarketradar(
 
     /**
      * @param destino moneda en la que se muestran los precios (COP)
-     * @param tasaUsdCop pesos colombianos por dólar
-     * @param fechaTasa fecha en que se tomó la tasa
+     * @param tasaUsdCop pesos por dólar de respaldo, si la TRM no se puede consultar
+     * @param fechaTasa fecha de la tasa de respaldo
+     * @param urlTrm consulta de la TRM en datos abiertos
+     * @param urlTasasInternacionales consulta de tasas de otras monedas con base USD
+     * @param monedasAdicionales monedas, además del dólar, que se convierten a pesos
      */
-    public record Moneda(String destino, BigDecimal tasaUsdCop, LocalDate fechaTasa) {
+    public record Moneda(String destino, BigDecimal tasaUsdCop, LocalDate fechaTasa, String urlTrm,
+                         String urlTasasInternacionales, List<String> monedasAdicionales) {
     }
 
     /**
