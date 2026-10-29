@@ -19,12 +19,15 @@ import java.time.OffsetDateTime;
  * @param vendedor nombre del vendedor
  * @param urlDestino enlace a la tienda
  * @param urlImagen enlace a la foto
+ * @param calificacion estrellas de 0 a 5 según las reseñas, {@code null} si la tienda no las informa
+ * @param totalResenas cantidad de reseñas
  * @param consultadoEn momento de la consulta, para mostrar qué tan reciente es el precio
  * @param mejorPrecio si es la oferta más barata de la búsqueda
  */
 public record OfertaDto(Long id, String tienda, String titulo, BigDecimal precio, BigDecimal costoEnvio,
                         BigDecimal precioTotal, String moneda, String condicion, String vendedor, String urlDestino,
-                        String urlImagen, OffsetDateTime consultadoEn, boolean mejorPrecio) {
+                        String urlImagen, BigDecimal calificacion, Integer totalResenas,
+                        OffsetDateTime consultadoEn, boolean mejorPrecio) {
 
     /**
      * Convierte una oferta normalizada en el DTO de respuesta.
@@ -37,7 +40,7 @@ public record OfertaDto(Long id, String tienda, String titulo, BigDecimal precio
     public static OfertaDto desde(OfertaNormalizada oferta, Long id, boolean mejorPrecio) {
         return new OfertaDto(id, oferta.getCodigoMarketplace(), oferta.getTitulo(), oferta.getPrecio(),
                 oferta.getCostoEnvio(), oferta.precioTotal(), oferta.getMoneda(), oferta.getCondicion(),
-                oferta.getVendedor(), oferta.getUrlDestino(), oferta.getUrlImagen(), oferta.getConsultadoEn(),
-                mejorPrecio);
+                oferta.getVendedor(), oferta.getUrlDestino(), oferta.getUrlImagen(), oferta.getCalificacion(),
+                oferta.getTotalResenas(), oferta.getConsultadoEn(), mejorPrecio);
     }
 }

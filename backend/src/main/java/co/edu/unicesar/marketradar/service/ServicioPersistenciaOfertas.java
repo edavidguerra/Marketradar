@@ -101,6 +101,8 @@ public class ServicioPersistenciaOfertas {
         oferta.setCondicion(normalizada.getCondicion());
         oferta.setVendedor(normalizada.getVendedor());
         oferta.setConsultadoEn(normalizada.getConsultadoEn());
+        oferta.setCalificacion(normalizada.getCalificacion());
+        oferta.setTotalResenas(normalizada.getTotalResenas());
 
         if (existente.isPresent()) {
             ofertaDao.actualizar(oferta);

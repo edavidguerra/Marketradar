@@ -52,8 +52,11 @@ class AdaptadorMarketplaceBaseTest {
     }
 
     private static OfertaNormalizada oferta(String precio, String envio, String moneda) {
-        return new OfertaNormalizada("simulado", "1", "Audífonos", new BigDecimal(precio), moneda,
-                new BigDecimal(envio), "nuevo", "Tienda", "https://ejemplo.com/1", null, null);
+        return OfertaNormalizada.builder()
+                .codigoMarketplace("simulado").idExterno("1").titulo("Audífonos")
+                .precio(new BigDecimal(precio)).moneda(moneda).costoEnvio(new BigDecimal(envio))
+                .condicion("nuevo").vendedor("Tienda").urlDestino("https://ejemplo.com/1")
+                .build();
     }
 
     private final class AdaptadorSimulado extends AdaptadorMarketplaceBase {
