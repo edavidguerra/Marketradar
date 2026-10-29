@@ -58,18 +58,34 @@ public class ServicioBusqueda {
     }
 
     /**
-     * Busca un producto en los marketplaces habilitados.
+     * Busca un producto en los marketplaces habilitados, sin asociar la búsqueda a una persona.
      *
      * @param consulta parámetros validados
      * @return ofertas de la página pedida, advertencias y total
      */
     public ResultadoBusqueda buscar(ConsultaBusqueda consulta) {
+        return buscar(consulta, null);
+    }
+
+    /**
+     * Busca un producto en los marketplaces habilitados y la guarda en el historial de la persona.
+     * Solo la primera página cuenta como búsqueda nueva, para no repetirla al paginar.
+     *
+     * @param consulta parámetros validados
+     * @param usuarioId persona con sesión, o {@code null}
+     * @return ofertas de la página pedida, advertencias y total
+     */
+    public ResultadoBusqueda buscar(ConsultaBusqueda consulta, Long usuarioId) {
+        long inicio = System.nanoTime();
         ResultadoCompleto completo = cache.get(consulta.claveCache(), clave -> consultarMarketplaces(consulta));
         List<OfertaNormalizada> ordenadas = ordenar(completo.ofertas(), consulta.getOrden());
         int desde = Math.min((consulta.getPagina() - 1) * consulta.getTamano(), ordenadas.size());
         int hasta = Math.min(desde + consulta.getTamano(), ordenadas.size());
         BigDecimal mejorPrecio = ordenadas.stream().map(OfertaNormalizada::precioTotal)
                 .min(Comparator.naturalOrder()).orElse(null);
+        if (consulta.getPagina() == 1) {
+            registrarBusquedaSinInterrumpir(consulta.getTermino(), ordenadas.size(), inicio, usuarioId);
+        }
         return new ResultadoBusqueda(ordenadas.subList(desde, hasta), completo.advertencias(), ordenadas.size(),
                 completo.idsPersistidos(), mejorPrecio);
     }
@@ -111,7 +127,7 @@ public class ServicioBusqueda {
             }
         });
 
-        Map<String, Long> ids = guardarSinInterrumpir(consulta, ofertas, inicio);
+        Map<String, Long> ids = guardarSinInterrumpir(ofertas);
         return new ResultadoCompleto(ofertas, advertencias, ids);
     }
 
@@ -133,15 +149,20 @@ public class ServicioBusqueda {
                 .orTimeout(timeoutSegundos, TimeUnit.SECONDS);
     }
 
-    private Map<String, Long> guardarSinInterrumpir(ConsultaBusqueda consulta, List<OfertaNormalizada> ofertas,
-                                                   long inicio) {
+    private Map<String, Long> guardarSinInterrumpir(List<OfertaNormalizada> ofertas) {
         try {
-            Map<String, Long> ids = persistencia.guardarOfertas(ofertas);
-            persistencia.registrarBusqueda(consulta.getTermino(), ofertas.size(), milisegundosDesde(inicio));
-            return ids;
+            return persistencia.guardarOfertas(ofertas);
         } catch (AccesoDatosException e) {
             LOG.error("No se pudieron guardar los resultados de la búsqueda", e);
             return Map.of();
+        }
+    }
+
+    private void registrarBusquedaSinInterrumpir(String termino, int total, long inicio, Long usuarioId) {
+        try {
+            persistencia.registrarBusqueda(termino, total, milisegundosDesde(inicio), usuarioId);
+        } catch (AccesoDatosException e) {
+            LOG.error("No se pudo registrar la búsqueda", e);
         }
     }
 

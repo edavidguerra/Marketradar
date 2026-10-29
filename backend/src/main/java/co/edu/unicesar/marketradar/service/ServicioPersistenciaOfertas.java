@@ -1,5 +1,6 @@
 package co.edu.unicesar.marketradar.service;
 
+import co.edu.unicesar.marketradar.dao.BusquedaDao;
 import co.edu.unicesar.marketradar.dao.Dao;
 import co.edu.unicesar.marketradar.dao.HistorialPrecioDao;
 import co.edu.unicesar.marketradar.dao.MarketplaceDao;
@@ -27,11 +28,11 @@ public class ServicioPersistenciaOfertas {
     private final OfertaDao ofertaDao;
     private final HistorialPrecioDao historialDao;
     private final MarketplaceDao marketplaceDao;
-    private final Dao<Busqueda> busquedaDao;
+    private final BusquedaDao busquedaDao;
     private final Dao<ConsumoApi> consumoApiDao;
 
     public ServicioPersistenciaOfertas(OfertaDao ofertaDao, HistorialPrecioDao historialDao,
-                                       MarketplaceDao marketplaceDao, Dao<Busqueda> busquedaDao,
+                                       MarketplaceDao marketplaceDao, BusquedaDao busquedaDao,
                                        Dao<ConsumoApi> consumoApiDao) {
         this.ofertaDao = ofertaDao;
         this.historialDao = historialDao;
@@ -61,14 +62,17 @@ public class ServicioPersistenciaOfertas {
     }
 
     /**
-     * Registra una búsqueda realizada (sin datos personales).
+     * Registra una búsqueda realizada. Si la hizo una persona con sesión, queda en su historial.
      *
      * @param termino texto buscado
      * @param totalResultados cantidad de ofertas encontradas
      * @param duracionMs duración total en milisegundos
+     * @param usuarioId persona con sesión, o {@code null}
      */
-    public void registrarBusqueda(String termino, int totalResultados, int duracionMs) {
-        busquedaDao.insertar(new Busqueda(termino, totalResultados, duracionMs));
+    public void registrarBusqueda(String termino, int totalResultados, int duracionMs, Long usuarioId) {
+        Busqueda busqueda = new Busqueda(termino, totalResultados, duracionMs);
+        busqueda.setUsuarioId(usuarioId);
+        busquedaDao.insertar(busqueda);
     }
 
     /**

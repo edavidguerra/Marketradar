@@ -2,7 +2,9 @@ package co.edu.unicesar.marketradar.controller;
 
 import co.edu.unicesar.marketradar.domain.ConsultaBusqueda;
 import co.edu.unicesar.marketradar.dto.RespuestaBusquedaDto;
+import co.edu.unicesar.marketradar.seguridad.UsuarioAutenticado;
 import co.edu.unicesar.marketradar.service.ServicioBusqueda;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -33,6 +35,7 @@ public class ControladorBusqueda {
      * @param marketplaces códigos separados por coma; vacío para todos
      * @param pagina número de página desde 1
      * @param tamano resultados por página, máximo 20
+     * @param usuario persona con sesión, para guardar la búsqueda en su historial
      * @return resultados ordenados y advertencias
      */
     @GetMapping
@@ -40,9 +43,11 @@ public class ControladorBusqueda {
                                        @RequestParam(required = false) String orden,
                                        @RequestParam(required = false) String marketplaces,
                                        @RequestParam(defaultValue = "1") int pagina,
-                                       @RequestParam(defaultValue = "10") int tamano) {
+                                       @RequestParam(defaultValue = "10") int tamano,
+                                       @AuthenticationPrincipal UsuarioAutenticado usuario) {
         ConsultaBusqueda consulta = ConsultaBusqueda.crear(q, orden, separarCodigos(marketplaces), pagina, tamano);
-        return RespuestaBusquedaDto.desde(consulta, servicioBusqueda.buscar(consulta));
+        Long usuarioId = usuario == null ? null : usuario.getId();
+        return RespuestaBusquedaDto.desde(consulta, servicioBusqueda.buscar(consulta, usuarioId));
     }
 
     private static Set<String> separarCodigos(String marketplaces) {
