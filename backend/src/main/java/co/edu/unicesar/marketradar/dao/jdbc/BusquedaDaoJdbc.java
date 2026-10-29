@@ -1,6 +1,6 @@
 package co.edu.unicesar.marketradar.dao.jdbc;
 
-import co.edu.unicesar.marketradar.dao.Dao;
+import co.edu.unicesar.marketradar.dao.BusquedaDao;
 import co.edu.unicesar.marketradar.domain.Busqueda;
 import org.springframework.stereotype.Repository;
 
@@ -15,9 +15,9 @@ import java.util.Optional;
  * Implementación JDBC del DAO de búsquedas realizadas (tabla {@code busqueda}).
  */
 @Repository
-public class BusquedaDaoJdbc extends DaoJdbcBase implements Dao<Busqueda> {
+public class BusquedaDaoJdbc extends DaoJdbcBase implements BusquedaDao {
 
-    private static final String COLUMNAS = "id, termino, total_resultados, duracion_ms, creada_en";
+    private static final String COLUMNAS = "id, usuario_id, termino, total_resultados, duracion_ms, creada_en";
 
     public BusquedaDaoJdbc(DataSource dataSource) {
         super(dataSource);
@@ -25,11 +25,13 @@ public class BusquedaDaoJdbc extends DaoJdbcBase implements Dao<Busqueda> {
 
     @Override
     public Busqueda insertar(Busqueda busqueda) {
-        long id = insertarYObtenerId("INSERT INTO busqueda (termino, total_resultados, duracion_ms) VALUES (?, ?, ?)",
+        long id = insertarYObtenerId("INSERT INTO busqueda (usuario_id, termino, total_resultados, duracion_ms) "
+                        + "VALUES (?, ?, ?, ?)",
                 sentencia -> {
-                    sentencia.setString(1, busqueda.getTermino());
-                    sentencia.setInt(2, busqueda.getTotalResultados());
-                    sentencia.setInt(3, busqueda.getDuracionMs());
+                    asignarLongNulable(sentencia, 1, busqueda.getUsuarioId());
+                    sentencia.setString(2, busqueda.getTermino());
+                    sentencia.setInt(3, busqueda.getTotalResultados());
+                    sentencia.setInt(4, busqueda.getDuracionMs());
                 });
         busqueda.setId(id);
         return busqueda;
@@ -44,6 +46,21 @@ public class BusquedaDaoJdbc extends DaoJdbcBase implements Dao<Busqueda> {
     @Override
     public List<Busqueda> listarTodos() {
         return consultarLista("SELECT " + COLUMNAS + " FROM busqueda ORDER BY creada_en DESC", sentencia -> { }, this::mapear);
+    }
+
+    @Override
+    public List<Busqueda> listarPorUsuario(long usuarioId, int limite) {
+        return consultarLista("SELECT " + COLUMNAS + " FROM busqueda WHERE usuario_id = ? ORDER BY creada_en DESC LIMIT ?",
+                sentencia -> {
+                    sentencia.setLong(1, usuarioId);
+                    sentencia.setInt(2, limite);
+                }, this::mapear);
+    }
+
+    @Override
+    public int eliminarPorUsuario(long usuarioId) {
+        return ejecutarActualizacion("DELETE FROM busqueda WHERE usuario_id = ?",
+                sentencia -> sentencia.setLong(1, usuarioId));
     }
 
     @Override
@@ -66,6 +83,7 @@ public class BusquedaDaoJdbc extends DaoJdbcBase implements Dao<Busqueda> {
         Busqueda busqueda = new Busqueda(fila.getString("termino"), fila.getInt("total_resultados"),
                 fila.getInt("duracion_ms"));
         busqueda.setId(fila.getLong("id"));
+        busqueda.setUsuarioId(leerLongNulable(fila, "usuario_id"));
         busqueda.setCreadaEn(fila.getObject("creada_en", OffsetDateTime.class));
         return busqueda;
     }
