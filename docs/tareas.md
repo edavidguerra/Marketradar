@@ -14,8 +14,11 @@ Actualícela al cierre de cada fase. Estados: completada, en progreso, pendiente
 | Adaptador de AliExpress | Por asignar | 3 | pendiente |
 | Adaptador de Shopify | Por asignar | 3 | pendiente |
 | Adaptador de Mercado Libre | Por asignar | 3 | pendiente |
-| Integración del proveedor de IA del asistente | Por asignar | 3 | pendiente |
-| Frontend accesible (inicio, resultados, historial, asistente) | Por asignar | 3 | en progreso |
+| Integración del asistente con Spring AI | Por asignar | 3 | completada |
+| Ingreso con roles, registro y validaciones | Por asignar | 3 | completada |
+| Perfil, historial, PQR y gestión de PQR del administrador | Por asignar | 3 | completada |
+| Producto MVP y conversión con la TRM | Por asignar | 3 | completada |
+| Frontend accesible (usuario, tutorial y administrador) | Por asignar | 3 | completada |
 | Auditoría Lighthouse y axe | Por asignar | 3 | pendiente |
 | Guion de usabilidad con adultos mayores | Por asignar | 3 | pendiente |
 | MER, diccionario de datos y documentación final | Por asignar | 4 | pendiente |
