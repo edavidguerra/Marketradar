@@ -23,6 +23,8 @@ public class Oferta {
     private BigDecimal costoEnvio;
     private String condicion;
     private String vendedor;
+    private BigDecimal calificacion;
+    private Integer totalResenas;
     private OffsetDateTime consultadoEn;
     private final List<HistorialPrecio> historial = new ArrayList<>();
 
@@ -170,6 +172,22 @@ public class Oferta {
 
     public void setVendedor(String vendedor) {
         this.vendedor = vendedor;
+    }
+
+    public BigDecimal getCalificacion() {
+        return calificacion;
+    }
+
+    public void setCalificacion(BigDecimal calificacion) {
+        this.calificacion = calificacion;
+    }
+
+    public Integer getTotalResenas() {
+        return totalResenas;
+    }
+
+    public void setTotalResenas(Integer totalResenas) {
+        this.totalResenas = totalResenas;
     }
 
     public OffsetDateTime getConsultadoEn() {
