@@ -11,7 +11,7 @@ Actualícela al cierre de cada fase. Estados: completada, en progreso, pendiente
 | Estructura del proyecto en 3 capas | Por asignar | 3 | completada |
 | Esquema de base de datos y DAO JDBC | Por asignar | 3 | completada |
 | Servicio de búsqueda con caché y resiliencia | Por asignar | 3 | completada |
-| Adaptador de AliExpress | Por asignar | 3 | pendiente |
+| Adaptador de AliExpress | Gustavo Rodriguez | 3 | completada |
 | Adaptador de Shopify | Por asignar | 3 | pendiente |
 | Adaptador de Mercado Libre | Por asignar | 3 | pendiente |
 | Integración del asistente con Spring AI | Por asignar | 3 | completada |
