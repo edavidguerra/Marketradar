@@ -1,0 +1,64 @@
+@startuml paquetes
+' Diagrama de paquetes de Marketradar por capas
+!pragma layout smetana
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam ArrowColor #333333
+skinparam PackageBorderColor #333333
+title Marketradar: diagrama de paquetes por capas
+
+package "frontend (HTML, CSS y JavaScript)" as frontend #FFF4E5 {
+}
+
+package "Capa de presentación" as presentacion #E8F1FB {
+  package controller
+  package dto
+}
+
+package "Capa de lógica de negocio" as negocio #EAF7EA {
+  package service
+  package "service.mvp" as mvp
+  package domain
+  package adapter
+  package "adapter.aliexpress\nadapter.shopify\nadapter.mercadolibre" as tiendas
+  package "adapter.tasas" as tasas
+  package asistente
+  package validacion
+}
+
+package "Capa de acceso a datos" as datos #F3EAF7 {
+  package dao
+  package "dao.jdbc" as jdbc
+}
+
+package "Transversales" as transversal #F2F2F2 {
+  package config
+  package seguridad
+  package exception
+}
+
+database "PostgreSQL 16" as bd
+cloud "APIs de las tiendas\ny de tasas de cambio" as apis
+
+frontend ..> controller : HTTP / JSON
+controller ..> dto
+controller ..> service
+service ..> mvp
+service ..> domain
+service ..> adapter
+service ..> asistente
+service ..> validacion
+service ..> dao
+tiendas ..> adapter : extienden
+tasas ..> adapter : implementan
+adapter ..> apis
+tasas ..> apis
+jdbc ..> dao : implementan
+jdbc ..> bd : JDBC
+dao ..> domain
+config ..> service
+seguridad ..> dao
+negocio ..> exception
+datos ..> exception
+@enduml
