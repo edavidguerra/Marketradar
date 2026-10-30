@@ -2,7 +2,7 @@
 
 ![Modelo entidad relación de Marketradar](mer-marketradar.svg)
 
-El diagrama corresponde a las migraciones V1 a V4 de `base-de-datos/migraciones`. La fuente es
+El diagrama corresponde a las migraciones V1 a V5 de `base-de-datos/migraciones`. La fuente es
 [`mer-marketradar.puml`](mer-marketradar.puml) (PlantUML); la imagen está en SVG y en PNG.
 
 ## Entidades
@@ -17,22 +17,26 @@ El diagrama corresponde a las migraciones V1 a V4 de `base-de-datos/migraciones`
 | `usuario` | Persona registrada, con rol USUARIO o ADMINISTRADOR. |
 | `busqueda` | Cada búsqueda hecha en la aplicación, con o sin usuario. |
 | `pqr` | Petición, queja, reclamo o sugerencia de un usuario y la respuesta del administrador. |
+| `seguimiento_oferta` | Oferta que sigue una persona para enterarse cuando baja de precio. Tabla intermedia de la relación muchos a muchos entre `usuario` y `oferta`. |
 | `tasa_cambio` | Valor de una moneda en pesos colombianos a partir de una fecha. |
 
 ## Relaciones y cardinalidades
 
-| Relación | Cardinalidad | Llave foránea | Regla de borrado |
+| Relación | Cardinalidad | Llave foránea | Al borrar el padre |
 | --- | --- | --- | --- |
-| Una tienda publica ofertas | `marketplace` 1 a 0..N `oferta` | `oferta.marketplace_id` (NOT NULL) | Restringido |
-| Un producto se vende como ofertas | `producto` 0..1 a 0..N `oferta` | `oferta.producto_id` (admite nulo) | Restringido |
-| Una oferta registra su historial | `oferta` 1 a 0..N `historial_precio` | `historial_precio.oferta_id` | En cascada |
-| Una tienda recibe consultas a su API | `marketplace` 1 a 0..N `consumo_api` | `consumo_api.marketplace_id` | Restringido |
-| Un usuario hace búsquedas | `usuario` 0..1 a 0..N `busqueda` | `busqueda.usuario_id` (admite nulo) | Queda en nulo |
-| Un usuario radica PQR | `usuario` 1 a 0..N `pqr` | `pqr.usuario_id` (NOT NULL) | Restringido |
-| Un administrador responde PQR | `usuario` 0..1 a 0..N `pqr` | `pqr.respondida_por` (admite nulo) | Restringido |
+| Una tienda publica ofertas | `marketplace` 1 a 0..N `oferta` | `fk_oferta_marketplace` (NOT NULL) | `RESTRICT`: la tienda se desactiva, no se borra |
+| Un producto se vende como ofertas | `producto` 0..1 a 0..N `oferta` | `fk_oferta_producto` (admite nulo) | `SET NULL`: la oferta queda sin asociar |
+| Una oferta registra su historial | `oferta` 1 a 0..N `historial_precio` | `fk_historial_oferta` | `CASCADE`: el historial se borra con la oferta |
+| Una tienda recibe consultas a su API | `marketplace` 1 a 0..N `consumo_api` | `fk_consumo_marketplace` | `RESTRICT`: se conservan las mediciones |
+| Un usuario hace búsquedas | `usuario` 0..1 a 0..N `busqueda` | `fk_busqueda_usuario` (admite nulo) | `SET NULL`: se conservan las estadísticas |
+| Un usuario radica PQR | `usuario` 1 a 0..N `pqr` | `fk_pqr_usuario` (NOT NULL) | `RESTRICT`: la PQR es un registro que se conserva |
+| Un administrador responde PQR | `usuario` 0..1 a 0..N `pqr` | `fk_pqr_respondida_por` (admite nulo) | `RESTRICT`: se sabe siempre quién respondió |
+| **Un usuario sigue muchas ofertas y una oferta la siguen muchos usuarios** | `usuario` N a M `oferta`, resuelta con `seguimiento_oferta` | `fk_seguimiento_usuario` y `fk_seguimiento_oferta` | `CASCADE`: el seguimiento no tiene sentido sin la persona o la oferta |
 
-"Restringido" significa que PostgreSQL no deja borrar la fila padre mientras tenga filas hijas (comportamiento por
-defecto de `REFERENCES`). `producto_id` admite nulo porque una oferta se guarda apenas llega de la tienda, antes de
+Todas las llaves foráneas tienen además `ON UPDATE CASCADE`: los `id` son autoincrementales y no cambian, pero si
+cambiaran, las filas hijas los seguirían.
+
+`RESTRICT` significa que PostgreSQL no deja borrar la fila padre mientras tenga filas hijas. `producto_id` admite nulo porque una oferta se guarda apenas llega de la tienda, antes de
 asociarla a un producto normalizado. `tasa_cambio` no se relaciona con otras tablas: se consulta por moneda y fecha.
 
 Las vistas de V4 (`vista_ofertas_vigentes`, `vista_bajadas_precio`, `vista_resumen_pqr` y

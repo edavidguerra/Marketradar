@@ -1,16 +1,16 @@
 -- Datos de prueba para la demostración de Marketradar.
 --
--- No es una migración: se carga a mano, una sola vez, sobre una base de desarrollo que ya tenga las migraciones.
--- Nunca se carga en la base real.
+-- No es una migración: se carga a mano, una sola vez, sobre una base de desarrollo que ya tenga las migraciones
+-- V1 a V5. Nunca se carga en la base real.
 --
 --   psql -U marketradar -d marketradar -f datos-prueba/datos_demo.sql
 --
--- Los usuarios no se insertan aquí porque la contraseña se guarda como hash BCrypt. Antes de cargar el archivo,
--- registre desde la pantalla de registro estas dos cuentas (con cualquier contraseña válida):
---   rosa.demo@marketradar.co  y  jorge.demo@marketradar.co
--- Si no existen, el archivo carga igual los productos, ofertas y precios, y solo omite sus búsquedas y PQR.
+-- Deja cinco filas o más en cada tabla. Las seis cuentas de prueba (correo *.demo@marketradar.co) tienen la
+-- contraseña Demo2026* guardada como hash BCrypt, igual que las cuentas creadas desde la aplicación, así que se
+-- puede ingresar con ellas. La cuenta admin.demo@marketradar.co entra a la interfaz de administrador.
 --
 -- Las fechas se calculan desde el momento de la carga, para que las consultas de "últimos 30 días" tengan datos.
+-- Después de cargarlo, casos_prueba.sql muestra los tres casos que pide la rúbrica.
 
 \set ON_ERROR_STOP on
 
@@ -22,14 +22,20 @@ SELECT EXISTS (SELECT 1 FROM oferta WHERE id_externo LIKE 'demo-%') AS ya_cargad
 
 BEGIN;
 
--- Tiendas activas para que se vean en la demostración.
+-- Tiendas activas para que se vean en la demostración, y dos tiendas candidatas sin ofertas todavía.
 UPDATE marketplace SET activo = TRUE WHERE codigo IN ('aliexpress', 'shopify', 'mercadolibre');
+INSERT INTO marketplace (codigo, nombre, sitio_web, activo) VALUES
+    ('falabella', 'Falabella', 'https://www.falabella.com.co', FALSE),
+    ('exito',     'Éxito',     'https://www.exito.com',        FALSE)
+ON CONFLICT (codigo) DO NOTHING;
 
 -- Tasas de cambio de los últimos días (valores de ejemplo).
 INSERT INTO tasa_cambio (moneda_origen, moneda_destino, valor, vigente_desde, fuente) VALUES
     ('USD', 'COP', 4185.30, CURRENT_DATE - 2, 'Datos de prueba'),
     ('USD', 'COP', 4172.85, CURRENT_DATE - 1, 'Datos de prueba'),
-    ('USD', 'COP', 4160.10, CURRENT_DATE,     'Datos de prueba')
+    ('USD', 'COP', 4160.10, CURRENT_DATE,     'Datos de prueba'),
+    ('EUR', 'COP', 4842.60, CURRENT_DATE - 1, 'Datos de prueba'),
+    ('EUR', 'COP', 4831.95, CURRENT_DATE,     'Datos de prueba')
 ON CONFLICT (moneda_origen, moneda_destino, vigente_desde) DO NOTHING;
 
 -- Productos que suelen buscar las personas mayores.
@@ -40,7 +46,8 @@ INSERT INTO demo_producto VALUES
     ('olla',        'olla arrocera 1.8 litros',     'Oster'),
     ('celular',     'celular con teclas grandes',   'Alcatel'),
     ('lupa',        'lupa con luz led',             NULL),
-    ('audifonos',   'audifonos bluetooth',          'JBL');
+    ('audifonos',   'audifonos bluetooth',          'JBL'),
+    ('baston',      'baston plegable de aluminio',  NULL);
 
 INSERT INTO producto (nombre_normalizado, marca)
 SELECT nombre, marca FROM demo_producto ORDER BY clave;
@@ -120,28 +127,38 @@ FROM (VALUES
 JOIN marketplace m ON m.codigo = c.codigo
 CROSS JOIN generate_series(1, 40) AS g;
 
--- Datos de las dos cuentas de prueba, si ya se registraron desde la aplicación.
-UPDATE usuario SET fecha_nacimiento = DATE '1952-04-18', ciudad = 'Valledupar', celular = '3001234567'
-WHERE correo = 'rosa.demo@marketradar.co';
-UPDATE usuario SET fecha_nacimiento = DATE '1958-11-02', ciudad = 'Barranquilla', celular = '3157654321'
-WHERE correo = 'jorge.demo@marketradar.co';
+-- Cuentas de prueba. Contraseña de todas: Demo2026* (hash BCrypt generado con el mismo codificador del backend).
+INSERT INTO usuario (correo, clave_hash, rol, nombres, apellidos, tipo_documento, numero_documento,
+                     fecha_nacimiento, celular, ciudad, creado_en)
+SELECT t.correo, '$2a$10$9IJhs1xuGKqoPW8RONVlDuLBY9JvtwYqZ.vImXyaVWslQAmFkWm8K', t.rol, t.nombres, t.apellidos,
+       t.tipo, t.numero, t.nacimiento, t.celular, t.ciudad, now() - t.hace
+FROM (VALUES
+    ('admin.demo@marketradar.co',  'ADMINISTRADOR', 'Andrea',      'Gómez',    'CC', '1065123456', DATE '1990-07-21', '3012345678', 'Valledupar',   INTERVAL '40 days'),
+    ('rosa.demo@marketradar.co',   'USUARIO',       'Rosa Elena',  'Díaz',     'CC', '26754321',   DATE '1952-04-18', '3001234567', 'Valledupar',   INTERVAL '35 days'),
+    ('jorge.demo@marketradar.co',  'USUARIO',       'Jorge',       'Pinto',    'CC', '17123987',   DATE '1958-11-02', '3157654321', 'Barranquilla', INTERVAL '30 days'),
+    ('carmen.demo@marketradar.co', 'USUARIO',       'Carmen',      'Ospino',   'CE', '456789',     DATE '1949-02-10', '3204567890', 'Santa Marta',  INTERVAL '21 days'),
+    ('luis.demo@marketradar.co',   'USUARIO',       'Luis Alberto','Maestre',  'PA', 'AB123456',   DATE '1961-09-30', NULL,         'Bogotá',       INTERVAL '12 days'),
+    ('beatriz.demo@marketradar.co','USUARIO',       'Beatriz',     'Fuentes',  NULL, NULL,         DATE '1955-12-05', NULL,         'Valledupar',   INTERVAL '2 days')
+) AS t(correo, rol, nombres, apellidos, tipo, numero, nacimiento, celular, ciudad, hace)
+ON CONFLICT (correo) DO NOTHING;
 
 INSERT INTO busqueda (termino, total_resultados, duracion_ms, creada_en, usuario_id)
 SELECT t.termino, t.resultados, t.duracion, now() - t.hace, u.id
 FROM (VALUES
-    ('rosa.demo@marketradar.co',  'tensiometro',      3, 1720, INTERVAL '20 days'),
-    ('rosa.demo@marketradar.co',  'glucometro',       2, 1480, INTERVAL '9 days'),
-    ('rosa.demo@marketradar.co',  'tensiometro',      3, 1390, INTERVAL '2 days'),
-    ('jorge.demo@marketradar.co', 'celular teclas grandes', 2, 2050, INTERVAL '6 days'),
-    ('jorge.demo@marketradar.co', 'olla arrocera',    3, 1930, INTERVAL '4 hours')
+    ('rosa.demo@marketradar.co',   'tensiometro',            3, 1720, INTERVAL '20 days'),
+    ('rosa.demo@marketradar.co',   'glucometro',             2, 1480, INTERVAL '9 days'),
+    ('rosa.demo@marketradar.co',   'tensiometro',            3, 1390, INTERVAL '2 days'),
+    ('jorge.demo@marketradar.co',  'celular teclas grandes', 2, 2050, INTERVAL '6 days'),
+    ('jorge.demo@marketradar.co',  'olla arrocera',          3, 1930, INTERVAL '4 hours'),
+    ('carmen.demo@marketradar.co', 'lupa con luz',           2, 1100, INTERVAL '8 days'),
+    ('luis.demo@marketradar.co',   'audifonos',              3, 1540, INTERVAL '3 days')
 ) AS t(correo, termino, resultados, duracion, hace)
 JOIN usuario u ON u.correo = t.correo;
 
+-- PQR en los tres estados. Las respondidas las contesta la cuenta de administrador de prueba.
 INSERT INTO pqr (usuario_id, tipo, asunto, descripcion, estado, respuesta, respondida_por, creada_en, respondida_en)
-SELECT u.id, t.tipo, t.asunto, t.descripcion, t.estado,
-       t.respuesta,
-       CASE WHEN t.respuesta IS NULL THEN NULL
-            ELSE (SELECT a.id FROM usuario a WHERE a.rol = 'ADMINISTRADOR' ORDER BY a.id LIMIT 1) END,
+SELECT u.id, t.tipo, t.asunto, t.descripcion, t.estado, t.respuesta,
+       CASE WHEN t.respuesta IS NULL THEN NULL ELSE a.id END,
        now() - t.hace,
        CASE WHEN t.estado = 'RESPONDIDA' THEN now() - t.hace + INTERVAL '26 hours' END
 FROM (VALUES
@@ -153,16 +170,45 @@ FROM (VALUES
      NULL, INTERVAL '3 days'),
     ('jorge.demo@marketradar.co', 'SUGERENCIA', 'Agregar más tiendas',
      'Sería bueno poder comparar también con almacenes de cadena de Colombia.', 'RADICADA',
-     NULL, INTERVAL '20 days')
+     NULL, INTERVAL '20 days'),
+    ('carmen.demo@marketradar.co', 'RECLAMO', 'El enlace no abría la tienda',
+     'Al tocar el botón para ir a comprar la lupa, la página quedó en blanco.', 'RESPONDIDA',
+     'Ya corregimos el enlace. Gracias por avisarnos.', INTERVAL '10 days'),
+    ('luis.demo@marketradar.co', 'PETICION', 'Avisos por correo',
+     'Quisiera recibir un correo cuando baje el precio de los audífonos que sigo.', 'RADICADA',
+     NULL, INTERVAL '1 day')
 ) AS t(correo, tipo, asunto, descripcion, estado, respuesta, hace)
-JOIN usuario u ON u.correo = t.correo;
+JOIN usuario u ON u.correo = t.correo
+CROSS JOIN (SELECT id FROM usuario WHERE correo = 'admin.demo@marketradar.co') a;
+
+-- Ofertas que sigue cada persona (relación muchos a muchos). Rosa sigue varias ofertas, el tensiómetro de
+-- Mercado Libre lo siguen varias personas y Beatriz no sigue ninguna.
+INSERT INTO seguimiento_oferta (usuario_id, oferta_id, precio_objetivo, creado_en)
+SELECT u.id, o.id, t.objetivo, now() - t.hace
+FROM (VALUES
+    ('rosa.demo@marketradar.co',   'demo-ml-001',  180000, INTERVAL '19 days'),
+    ('rosa.demo@marketradar.co',   'demo-ml-002',    NULL, INTERVAL '9 days'),
+    ('rosa.demo@marketradar.co',   'demo-sh-002',  130000, INTERVAL '9 days'),
+    ('jorge.demo@marketradar.co',  'demo-ml-001',    NULL, INTERVAL '15 days'),
+    ('jorge.demo@marketradar.co',  'demo-ml-005',  200000, INTERVAL '6 days'),
+    ('carmen.demo@marketradar.co', 'demo-ml-001',  175000, INTERVAL '7 days'),
+    ('carmen.demo@marketradar.co', 'demo-ali-006',   NULL, INTERVAL '8 days'),
+    ('luis.demo@marketradar.co',   'demo-ml-007',  210000, INTERVAL '3 days')
+) AS t(correo, id_externo, objetivo, hace)
+JOIN usuario u ON u.correo = t.correo
+JOIN oferta o ON o.id_externo = t.id_externo
+ON CONFLICT (usuario_id, oferta_id) DO NOTHING;
 
 COMMIT;
 
-SELECT (SELECT COUNT(*) FROM producto)                                   AS productos,
+SELECT (SELECT COUNT(*) FROM marketplace)                                AS tiendas,
+       (SELECT COUNT(*) FROM producto)                                   AS productos,
        (SELECT COUNT(*) FROM oferta WHERE id_externo LIKE 'demo-%')      AS ofertas,
        (SELECT COUNT(*) FROM historial_precio)                           AS precios_historicos,
        (SELECT COUNT(*) FROM busqueda)                                   AS busquedas,
+       (SELECT COUNT(*) FROM usuario)                                    AS usuarios,
        (SELECT COUNT(*) FROM pqr)                                        AS pqr,
+       (SELECT COUNT(*) FROM seguimiento_oferta)                         AS seguimientos,
+       (SELECT COUNT(*) FROM tasa_cambio)                                AS tasas,
        (SELECT COUNT(*) FROM consumo_api)                                AS consultas_api;
 \echo 'Datos de prueba cargados.'
