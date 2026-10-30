@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800" role="img" aria-label="Mockup del panel del administrador para gestionar PQR">
+<title>Mockup del panel del administrador para gestionar PQR</title>
+<rect width="1280" height="800" fill="#fff"/>
+<rect x="0" y="0" width="1280" height="84" rx="0" fill="#0B2A5B"/>
+<text x="40" y="56" font-family="Arial, Helvetica, sans-serif" font-size="36" font-weight="700" fill="#fff" text-anchor="start">Marketradar · Administrador</text>
+<rect x="760" y="16" width="80" height="52" rx="12" fill="#fff" stroke="#fff" stroke-width="3"/>
+<text x="800.0" y="51.8" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">A−</text>
+<rect x="852" y="16" width="80" height="52" rx="12" fill="#fff" stroke="#fff" stroke-width="3"/>
+<text x="892.0" y="51.8" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">A+</text>
+<rect x="944" y="16" width="150" height="52" rx="12" fill="#FFD400" stroke="#FFD400" stroke-width="3"/>
+<text x="1019.0" y="50.4" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="#000" text-anchor="middle">Contraste</text>
+<rect x="1106" y="16" width="134" height="52" rx="12" fill="#fff" stroke="#fff" stroke-width="3"/>
+<text x="1173.0" y="50.4" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="#0B2A5B" text-anchor="middle">Salir</text>
+<rect x="40" y="110" width="380" height="120" rx="14" fill="#fff" stroke="#9A3412" stroke-width="5"/>
+<text x="70" y="190" font-family="Arial, Helvetica, sans-serif" font-size="64" font-weight="700" fill="#9A3412" text-anchor="start">12</text>
+<text x="390" y="185" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#111" text-anchor="end">Pendientes</text>
+<rect x="450" y="110" width="380" height="120" rx="14" fill="#fff" stroke="#1D4ED8" stroke-width="5"/>
+<text x="480" y="190" font-family="Arial, Helvetica, sans-serif" font-size="64" font-weight="700" fill="#1D4ED8" text-anchor="start">5</text>
+<text x="800" y="185" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#111" text-anchor="end">En revisión</text>
+<rect x="860" y="110" width="380" height="120" rx="14" fill="#fff" stroke="#0B6B2E" stroke-width="5"/>
+<text x="890" y="190" font-family="Arial, Helvetica, sans-serif" font-size="64" font-weight="700" fill="#0B6B2E" text-anchor="start">48</text>
+<text x="1210" y="185" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#111" text-anchor="end">Respondidas</text>
+<text x="40" y="285" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700" fill="#0B2A5B" text-anchor="start">Solicitudes</text>
+<rect x="40" y="300" width="760" height="56" rx="10" fill="#0B2A5B"/>
+<text x="60" y="338" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#fff" text-anchor="start">Usuario</text>
+<text x="290" y="338" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#fff" text-anchor="start">Tipo</text>
+<text x="440" y="338" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#fff" text-anchor="start">Estado</text>
+<rect x="40" y="366" width="760" height="74" rx="10" fill="#E0E7FF" stroke="#1D4ED8" stroke-width="4"/>
+<text x="60" y="413" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#0A0A0A" text-anchor="start">María Pérez</text>
+<text x="290" y="413" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="400" fill="#0A0A0A" text-anchor="start">Queja</text>
+<rect x="430" y="380" width="200" height="46" rx="10" fill="#9A3412"/>
+<text x="530" y="412" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="#fff" text-anchor="middle">Pendiente</text>
+<rect x="650" y="378" width="130" height="50" rx="12" fill="#fff" stroke="#0B2A5B" stroke-width="3"/>
+<text x="715.0" y="410.7" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#0B2A5B" text-anchor="middle">Abrir</text>
+<rect x="40" y="452" width="760" height="74" rx="10" fill="#F1F3F7" stroke="#1F2937" stroke-width="2"/>
+<text x="60" y="499" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#0A0A0A" text-anchor="start">Carlos Díaz</text>
+<text x="290" y="499" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="400" fill="#0A0A0A" text-anchor="start">Reclamo</text>
+<rect x="430" y="466" width="200" height="46" rx="10" fill="#9A3412"/>
+<text x="530" y="498" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="#fff" text-anchor="middle">Pendiente</text>
+<rect x="650" y="464" width="130" height="50" rx="12" fill="#fff" stroke="#0B2A5B" stroke-width="3"/>
+<text x="715.0" y="496.7" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#0B2A5B" text-anchor="middle">Abrir</text>
+<rect x="40" y="538" width="760" height="74" rx="10" fill="#F1F3F7" stroke="#1F2937" stroke-width="2"/>
+<text x="60" y="585" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#0A0A0A" text-anchor="start">Ana Mora</text>
+<text x="290" y="585" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="400" fill="#0A0A0A" text-anchor="start">Petición</text>
+<rect x="430" y="552" width="200" height="46" rx="10" fill="#1D4ED8"/>
+<text x="530" y="584" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="#fff" text-anchor="middle">En revisión</text>
+<rect x="650" y="550" width="130" height="50" rx="12" fill="#fff" stroke="#0B2A5B" stroke-width="3"/>
+<text x="715.0" y="582.7" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#0B2A5B" text-anchor="middle">Abrir</text>
+<rect x="40" y="624" width="760" height="74" rx="10" fill="#F1F3F7" stroke="#1F2937" stroke-width="2"/>
+<text x="60" y="671" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#0A0A0A" text-anchor="start">Luis Rojas</text>
+<text x="290" y="671" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="400" fill="#0A0A0A" text-anchor="start">Queja</text>
+<rect x="430" y="638" width="200" height="46" rx="10" fill="#0B6B2E"/>
+<text x="530" y="670" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="#fff" text-anchor="middle">Respondida</text>
+<rect x="650" y="636" width="130" height="50" rx="12" fill="#fff" stroke="#0B2A5B" stroke-width="3"/>
+<text x="715.0" y="668.7" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#0B2A5B" text-anchor="middle">Abrir</text>
+<rect x="830" y="285" width="410" height="480" rx="16" fill="#fff" stroke="#1F2937" stroke-width="3"/>
+<text x="855" y="335" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#0B2A5B" text-anchor="start">Solicitud de María Pérez</text>
+<text x="855" y="372" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="400" fill="#374151" text-anchor="start">Queja · El precio no coincide</text>
+<rect x="855" y="395" width="360" height="110" rx="10" fill="#F1F3F7" stroke="#1F2937" stroke-width="2"/>
+<text x="870" y="435" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="400" fill="#0A0A0A" text-anchor="start">El precio de la tienda es</text>
+<text x="870" y="468" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="400" fill="#0A0A0A" text-anchor="start">distinto al de Marketradar.</text>
+<text x="855" y="545" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#0A0A0A" text-anchor="start">Tu respuesta</text>
+<rect x="855" y="558" width="360" height="120" rx="10" fill="#fff" stroke="#1F2937" stroke-width="3"/>
+<text x="870" y="600" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="400" fill="#6B7280" text-anchor="start">Gracias por avisarnos...</text>
+<rect x="855" y="692" width="360" height="56" rx="12" fill="#0B2A5B" stroke="#0B2A5B" stroke-width="3"/>
+<text x="1035.0" y="729.1" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#fff" text-anchor="middle">Enviar respuesta</text>
+</svg>

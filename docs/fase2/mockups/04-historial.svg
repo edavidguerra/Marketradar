@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800" role="img" aria-label="Mockup de la pantalla de historial de búsquedas">
+<title>Mockup de la pantalla de historial de búsquedas</title>
+<rect width="1280" height="800" fill="#fff"/>
+<rect x="0" y="0" width="1280" height="84" rx="0" fill="#0B2A5B"/>
+<text x="40" y="56" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700" fill="#fff" text-anchor="start">Marketradar</text>
+<rect x="760" y="16" width="80" height="52" rx="12" fill="#fff" stroke="#fff" stroke-width="3"/>
+<text x="800.0" y="51.8" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">A−</text>
+<rect x="852" y="16" width="80" height="52" rx="12" fill="#fff" stroke="#fff" stroke-width="3"/>
+<text x="892.0" y="51.8" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">A+</text>
+<rect x="944" y="16" width="150" height="52" rx="12" fill="#FFD400" stroke="#FFD400" stroke-width="3"/>
+<text x="1019.0" y="50.4" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="#000" text-anchor="middle">Contraste</text>
+<rect x="1106" y="16" width="134" height="52" rx="12" fill="#fff" stroke="#fff" stroke-width="3"/>
+<text x="1173.0" y="50.4" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="#0B2A5B" text-anchor="middle">Salir</text>
+<rect x="0" y="84" width="1280" height="76" rx="0" fill="#F1F3F7"/>
+<text x="125.0" y="136" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">Inicio</text>
+<text x="309.0" y="136" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">Búsqueda</text>
+<rect x="408" y="100" width="170" height="52" rx="10" fill="#1D4ED8"/>
+<text x="493.0" y="136" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#fff" text-anchor="middle">Historial</text>
+<text x="677.0" y="136" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">Perfil</text>
+<text x="861.0" y="136" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">PQR</text>
+<text x="40" y="225" font-family="Arial, Helvetica, sans-serif" font-size="40" font-weight="700" fill="#0B2A5B" text-anchor="start">Tus búsquedas recientes</text>
+<rect x="40" y="255" width="1200" height="76" rx="12" fill="#F1F3F7" stroke="#1F2937" stroke-width="2"/>
+<text x="70" y="303" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700" fill="#0A0A0A" text-anchor="start">Licuadora 600 W</text>
+<text x="780" y="303" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="400" fill="#374151" text-anchor="start">Hoy, 10:42</text>
+<rect x="1020" y="265" width="200" height="56" rx="12" fill="#fff" stroke="#0B2A5B" stroke-width="3"/>
+<text x="1120.0" y="300.7" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#0B2A5B" text-anchor="middle">Buscar otra vez</text>
+<rect x="40" y="345" width="1200" height="76" rx="12" fill="#F1F3F7" stroke="#1F2937" stroke-width="2"/>
+<text x="70" y="393" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700" fill="#0A0A0A" text-anchor="start">Audífonos inalámbricos</text>
+<text x="780" y="393" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="400" fill="#374151" text-anchor="start">Ayer, 18:05</text>
+<rect x="1020" y="355" width="200" height="56" rx="12" fill="#fff" stroke="#0B2A5B" stroke-width="3"/>
+<text x="1120.0" y="390.7" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#0B2A5B" text-anchor="middle">Buscar otra vez</text>
+<rect x="40" y="435" width="1200" height="76" rx="12" fill="#F1F3F7" stroke="#1F2937" stroke-width="2"/>
+<text x="70" y="483" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700" fill="#0A0A0A" text-anchor="start">Lámpara de mesa</text>
+<text x="780" y="483" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="400" fill="#374151" text-anchor="start">27 de octubre</text>
+<rect x="1020" y="445" width="200" height="56" rx="12" fill="#fff" stroke="#0B2A5B" stroke-width="3"/>
+<text x="1120.0" y="480.7" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#0B2A5B" text-anchor="middle">Buscar otra vez</text>
+<rect x="40" y="525" width="1200" height="76" rx="12" fill="#F1F3F7" stroke="#1F2937" stroke-width="2"/>
+<text x="70" y="573" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700" fill="#0A0A0A" text-anchor="start">Zapatos cómodos</text>
+<text x="780" y="573" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="400" fill="#374151" text-anchor="start">25 de octubre</text>
+<rect x="1020" y="535" width="200" height="56" rx="12" fill="#fff" stroke="#0B2A5B" stroke-width="3"/>
+<text x="1120.0" y="570.7" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#0B2A5B" text-anchor="middle">Buscar otra vez</text>
+<rect x="40" y="615" width="1200" height="76" rx="12" fill="#F1F3F7" stroke="#1F2937" stroke-width="2"/>
+<text x="70" y="663" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700" fill="#0A0A0A" text-anchor="start">Cafetera pequeña</text>
+<text x="780" y="663" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="400" fill="#374151" text-anchor="start">22 de octubre</text>
+<rect x="1020" y="625" width="200" height="56" rx="12" fill="#fff" stroke="#0B2A5B" stroke-width="3"/>
+<text x="1120.0" y="660.7" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#0B2A5B" text-anchor="middle">Buscar otra vez</text>
+<rect x="40" y="720" width="380" height="56" rx="12" fill="#9A3412" stroke="#9A3412" stroke-width="3"/>
+<text x="230.0" y="756.4" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="#fff" text-anchor="middle">Borrar todo el historial</text>
+</svg>

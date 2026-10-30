@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800" role="img" aria-label="Mockup de la pantalla de búsqueda con producto recomendado">
+<title>Mockup de la pantalla de búsqueda con producto recomendado</title>
+<rect width="1280" height="800" fill="#fff"/>
+<rect x="0" y="0" width="1280" height="84" rx="0" fill="#0B2A5B"/>
+<text x="40" y="56" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700" fill="#fff" text-anchor="start">Marketradar</text>
+<rect x="760" y="16" width="80" height="52" rx="12" fill="#fff" stroke="#fff" stroke-width="3"/>
+<text x="800.0" y="51.8" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">A−</text>
+<rect x="852" y="16" width="80" height="52" rx="12" fill="#fff" stroke="#fff" stroke-width="3"/>
+<text x="892.0" y="51.8" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">A+</text>
+<rect x="944" y="16" width="150" height="52" rx="12" fill="#FFD400" stroke="#FFD400" stroke-width="3"/>
+<text x="1019.0" y="50.4" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="#000" text-anchor="middle">Contraste</text>
+<rect x="1106" y="16" width="134" height="52" rx="12" fill="#fff" stroke="#fff" stroke-width="3"/>
+<text x="1173.0" y="50.4" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="#0B2A5B" text-anchor="middle">Salir</text>
+<rect x="0" y="84" width="1280" height="76" rx="0" fill="#F1F3F7"/>
+<text x="125.0" y="136" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">Inicio</text>
+<rect x="224" y="100" width="170" height="52" rx="10" fill="#1D4ED8"/>
+<text x="309.0" y="136" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#fff" text-anchor="middle">Búsqueda</text>
+<text x="493.0" y="136" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">Historial</text>
+<text x="677.0" y="136" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">Perfil</text>
+<text x="861.0" y="136" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">PQR</text>
+<rect x="40" y="190" width="900" height="76" rx="12" fill="#fff" stroke="#1F2937" stroke-width="3"/>
+<text x="64" y="240" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="400" fill="#374151" text-anchor="start">Licuadora 600 W</text>
+<rect x="960" y="190" width="280" height="76" rx="12" fill="#0B2A5B" stroke="#0B2A5B" stroke-width="3"/>
+<text x="1100.0" y="239.2" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" fill="#fff" text-anchor="middle">Buscar</text>
+<rect x="40" y="300" width="1200" height="250" rx="18" fill="#fff" stroke="#0B6B2E" stroke-width="6"/>
+<rect x="40" y="300" width="260" height="52" rx="12" fill="#0B6B2E"/>
+<text x="170" y="337" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#fff" text-anchor="middle">Mejor opción</text>
+<text x="70" y="405" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700" fill="#0A0A0A" text-anchor="start">Licuadora Oster 600 W</text>
+<text x="70" y="450" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="400" fill="#374151" text-anchor="start">Mercado Libre · Envío incluido</text>
+<text x="70" y="495" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="400" fill="#374151" text-anchor="start">Calificación 4,7 de 5 · 1.280 reseñas</text>
+<text x="1210" y="430" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="700" fill="#0B2A5B" text-anchor="end">$ 189.900</text>
+<rect x="930" y="460" width="280" height="70" rx="12" fill="#0B6B2E" stroke="#0B6B2E" stroke-width="3"/>
+<text x="1070.0" y="504.8" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#fff" text-anchor="middle">Ir a la tienda</text>
+<rect x="40" y="580" width="1200" height="84" rx="12" fill="#F1F3F7" stroke="#1F2937" stroke-width="2"/>
+<text x="70" y="618" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0A0A0A" text-anchor="start">Licuadora Imusa 600 W</text>
+<text x="70" y="650" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="400" fill="#374151" text-anchor="start">AliExpress</text>
+<text x="1210" y="635" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" fill="#0B2A5B" text-anchor="end">$ 205.400</text>
+<rect x="40" y="680" width="1200" height="84" rx="12" fill="#F1F3F7" stroke="#1F2937" stroke-width="2"/>
+<text x="70" y="718" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0A0A0A" text-anchor="start">Licuadora Kalley 600 W</text>
+<text x="70" y="750" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="400" fill="#374151" text-anchor="start">Shopify</text>
+<text x="1210" y="735" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" fill="#0B2A5B" text-anchor="end">$ 219.000</text>
+</svg>

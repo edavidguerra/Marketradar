@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800" role="img" aria-label="Mockup de la pantalla de ingreso y registro">
+<title>Mockup de la pantalla de ingreso y registro</title>
+<rect width="1280" height="800" fill="#fff"/>
+<rect x="0" y="0" width="1280" height="84" rx="0" fill="#0B2A5B"/>
+<text x="40" y="56" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700" fill="#fff" text-anchor="start">Marketradar</text>
+<rect x="760" y="16" width="80" height="52" rx="12" fill="#fff" stroke="#fff" stroke-width="3"/>
+<text x="800.0" y="51.8" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">A−</text>
+<rect x="852" y="16" width="80" height="52" rx="12" fill="#fff" stroke="#fff" stroke-width="3"/>
+<text x="892.0" y="51.8" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">A+</text>
+<rect x="944" y="16" width="150" height="52" rx="12" fill="#FFD400" stroke="#FFD400" stroke-width="3"/>
+<text x="1019.0" y="50.4" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" fill="#000" text-anchor="middle">Contraste</text>
+<rect x="320" y="130" width="640" height="620" rx="18" fill="#fff" stroke="#1F2937" stroke-width="4"/>
+<text x="640" y="200" font-family="Arial, Helvetica, sans-serif" font-size="40" font-weight="700" fill="#0B2A5B" text-anchor="middle">Ingresa a tu cuenta</text>
+<rect x="360" y="230" width="270" height="60" rx="10" fill="#1D4ED8"/>
+<text x="495" y="271" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#fff" text-anchor="middle">Ingresar</text>
+<rect x="640" y="230" width="280" height="60" rx="10" fill="#F1F3F7" stroke="#1F2937" stroke-width="2"/>
+<text x="780" y="271" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#0B2A5B" text-anchor="middle">Registrarme</text>
+<text x="360" y="340" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#0A0A0A" text-anchor="start">Correo electrónico</text>
+<rect x="360" y="352" width="560" height="64" rx="10" fill="#fff" stroke="#1F2937" stroke-width="3"/>
+<text x="380" y="393.0" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="400" fill="#374151" text-anchor="start">nombre@correo.com</text>
+<text x="360" y="460" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#0A0A0A" text-anchor="start">Contraseña</text>
+<rect x="360" y="472" width="560" height="64" rx="10" fill="#fff" stroke="#1F2937" stroke-width="3"/>
+<text x="380" y="513.0" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="400" fill="#374151" text-anchor="start">••••••••••</text>
+<text x="360" y="580" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="400" fill="#374151" text-anchor="start">Mínimo 8 caracteres, con mayúscula, número y símbolo</text>
+<rect x="360" y="610" width="560" height="76" rx="12" fill="#0B2A5B" stroke="#0B2A5B" stroke-width="3"/>
+<text x="640.0" y="659.2" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" fill="#fff" text-anchor="middle">Ingresar</text>
+<text x="640" y="725" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="400" fill="#374151" text-anchor="middle">¿Olvidaste tu contraseña? Escribe a soporte</text>
+</svg>
