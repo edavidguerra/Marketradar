@@ -1,0 +1,144 @@
+@startuml mer-marketradar
+!pragma layout smetana
+' Modelo entidad relación de Marketradar (migraciones V1 a V4).
+' Notación pata de gallo: |o cero o uno, || exactamente uno, o{ cero o muchos.
+hide circle
+skinparam linetype ortho
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam class {
+  BackgroundColor #FFFFFF
+  BorderColor #2B4C7E
+  HeaderBackgroundColor #DCE6F2
+  ArrowColor #2B4C7E
+}
+
+entity "marketplace" as marketplace {
+  * **id** : SMALLSERIAL <<PK>>
+  --
+  * codigo : VARCHAR(30) <<UQ>>
+  * nombre : VARCHAR(80)
+  * sitio_web : VARCHAR(255)
+  * activo : BOOLEAN
+}
+
+entity "producto" as producto {
+  * **id** : BIGSERIAL <<PK>>
+  --
+  * nombre_normalizado : VARCHAR(300)
+    marca : VARCHAR(100)
+  * creado_en : TIMESTAMPTZ
+}
+
+entity "oferta" as oferta {
+  * **id** : BIGSERIAL <<PK>>
+  --
+    producto_id : BIGINT <<FK>>
+  * marketplace_id : SMALLINT <<FK>>
+  * id_externo : VARCHAR(120)
+  * titulo : VARCHAR(400)
+  * url_destino : TEXT
+    url_imagen : TEXT
+  * precio_actual : NUMERIC(14,2)
+  * moneda : CHAR(3)
+    costo_envio : NUMERIC(14,2)
+    condicion : VARCHAR(20)
+    vendedor : VARCHAR(150)
+    calificacion : NUMERIC(2,1)
+    total_resenas : INTEGER
+  * consultado_en : TIMESTAMPTZ
+  --
+  UQ (marketplace_id, id_externo)
+}
+
+entity "historial_precio" as historial {
+  * **id** : BIGSERIAL <<PK>>
+  --
+  * oferta_id : BIGINT <<FK>>
+  * precio : NUMERIC(14,2)
+  * moneda : CHAR(3)
+  * registrado_en : TIMESTAMPTZ
+}
+
+entity "consumo_api" as consumo {
+  * **id** : BIGSERIAL <<PK>>
+  --
+  * marketplace_id : SMALLINT <<FK>>
+  * exitoso : BOOLEAN
+    codigo_http : INTEGER
+  * duracion_ms : INTEGER
+  * registrado_en : TIMESTAMPTZ
+}
+
+entity "usuario" as usuario {
+  * **id** : BIGSERIAL <<PK>>
+  --
+  * correo : VARCHAR(150) <<UQ>>
+  * clave_hash : VARCHAR(100)
+  * rol : VARCHAR(20)
+  * nombres : VARCHAR(80)
+  * apellidos : VARCHAR(80)
+    tipo_documento : VARCHAR(3)
+    numero_documento : VARCHAR(15)
+    fecha_nacimiento : DATE
+    celular : VARCHAR(10)
+    ciudad : VARCHAR(80)
+  * activo : BOOLEAN
+  * creado_en : TIMESTAMPTZ
+  * actualizado_en : TIMESTAMPTZ
+  --
+  UQ (tipo_documento, numero_documento)
+}
+
+entity "busqueda" as busqueda {
+  * **id** : BIGSERIAL <<PK>>
+  --
+    usuario_id : BIGINT <<FK>>
+  * termino : VARCHAR(200)
+  * total_resultados : INTEGER
+  * duracion_ms : INTEGER
+  * creada_en : TIMESTAMPTZ
+}
+
+entity "pqr" as pqr {
+  * **id** : BIGSERIAL <<PK>>
+  --
+  * usuario_id : BIGINT <<FK>>
+  * tipo : VARCHAR(20)
+  * asunto : VARCHAR(120)
+  * descripcion : VARCHAR(2000)
+  * estado : VARCHAR(20)
+    respuesta : VARCHAR(2000)
+    respondida_por : BIGINT <<FK>>
+  * creada_en : TIMESTAMPTZ
+    respondida_en : TIMESTAMPTZ
+}
+
+entity "tasa_cambio" as tasa {
+  * **id** : BIGSERIAL <<PK>>
+  --
+  * moneda_origen : CHAR(3)
+  * moneda_destino : CHAR(3)
+  * valor : NUMERIC(14,4)
+  * vigente_desde : DATE
+  * fuente : VARCHAR(80)
+  * consultada_en : TIMESTAMPTZ
+  --
+  UQ (moneda_origen, moneda_destino, vigente_desde)
+}
+
+marketplace ||--o{ oferta : "publica"
+producto |o--o{ oferta : "se vende como"
+oferta ||--o{ historial : "registra"
+marketplace ||--o{ consumo : "recibe"
+usuario |o--o{ busqueda : "hace"
+usuario ||--o{ pqr : "radica"
+usuario |o--o{ pqr : "responde"
+
+legend right
+  ● = obligatorio (NOT NULL)
+  PK llave primaria, FK llave foránea, UQ única
+  tasa_cambio no tiene relaciones: se consulta
+  por moneda y fecha.
+endlegend
+@enduml
