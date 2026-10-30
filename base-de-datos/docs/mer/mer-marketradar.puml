@@ -1,6 +1,6 @@
 @startuml mer-marketradar
 !pragma layout smetana
-' Modelo entidad relación de Marketradar (migraciones V1 a V4).
+' Modelo entidad relación de Marketradar (migraciones V1 a V5).
 ' Notación pata de gallo: |o cero o uno, || exactamente uno, o{ cero o muchos.
 hide circle
 skinparam linetype ortho
@@ -114,6 +114,14 @@ entity "pqr" as pqr {
     respondida_en : TIMESTAMPTZ
 }
 
+entity "seguimiento_oferta" as seguimiento {
+  * **usuario_id** : BIGINT <<PK, FK>>
+  * **oferta_id** : BIGINT <<PK, FK>>
+  --
+    precio_objetivo : NUMERIC(14,2)
+  * creado_en : TIMESTAMPTZ
+}
+
 entity "tasa_cambio" as tasa {
   * **id** : BIGSERIAL <<PK>>
   --
@@ -134,10 +142,14 @@ marketplace ||--o{ consumo : "recibe"
 usuario |o--o{ busqueda : "hace"
 usuario ||--o{ pqr : "radica"
 usuario |o--o{ pqr : "responde"
+usuario ||--o{ seguimiento : "sigue"
+oferta ||--o{ seguimiento : "es seguida en"
 
 legend right
   ● = obligatorio (NOT NULL)
   PK llave primaria, FK llave foránea, UQ única
+  seguimiento_oferta resuelve la relación
+  muchos a muchos entre usuario y oferta.
   tasa_cambio no tiene relaciones: se consulta
   por moneda y fecha.
 endlegend

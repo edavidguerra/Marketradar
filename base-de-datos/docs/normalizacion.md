@@ -1,6 +1,6 @@
 # Análisis de normalización del esquema
 
-Este documento revisa las tablas creadas por las migraciones V1 a V3 de `base-de-datos/migraciones` y justifica que el
+Este documento revisa las tablas creadas por las migraciones V1 a V3 y V5 de `base-de-datos/migraciones` y justifica que el
 esquema cumple la primera, la segunda y la tercera forma normal (1FN, 2FN y 3FN). También explica las decisiones de
 diseño y las dos redundancias que se aceptaron a propósito. Las vistas de V4 no se analizan porque no guardan datos.
 
@@ -31,6 +31,7 @@ declarada con `UNIQUE` para que la base la proteja:
 | `consumo_api` | `id` | Ninguna |
 | `usuario` | `id` | `correo`; `(tipo_documento, numero_documento)` cuando ambos tienen valor |
 | `pqr` | `id` | Ninguna |
+| `seguimiento_oferta` | `(usuario_id, oferta_id)` | Ninguna (la llave primaria es natural y compuesta) |
 | `tasa_cambio` | `id` | `(moneda_origen, moneda_destino, vigente_desde)` |
 
 ## 3. Dependencias funcionales por tabla
@@ -98,6 +99,15 @@ El nombre y el correo de quien la radicó no se copian en la PQR: la lista del a
 a `usuario`. Guardarlos aquí crearía la dependencia transitiva `id → usuario_id → correo`. `estado` no depende de
 `respuesta`: una PQR sin respuesta puede estar `RADICADA` o `EN_PROCESO`. Cumple FNBC.
 
+**seguimiento_oferta**
+
+- `(usuario_id, oferta_id) → precio_objetivo, creado_en`
+
+Es la única tabla con llave primaria compuesta, así que es la que pone a prueba la 2FN: `precio_objetivo` y
+`creado_en` dependen de la pareja completa (lo que una persona espera pagar por esa oferta y desde cuándo la sigue),
+no solo de la persona ni solo de la oferta. Los datos que dependen solo de la persona (nombre, correo) están en
+`usuario` y los que dependen solo de la oferta (título, precio) están en `oferta`. Cumple FNBC.
+
 **tasa_cambio**
 
 - `id → moneda_origen, moneda_destino, valor, vigente_desde, fuente, consultada_en`
@@ -117,6 +127,7 @@ Cumple FNBC.
 | `consumo_api` | Sí | Sí | Sí | Sí |
 | `usuario` | Sí | Sí | Sí | Sí |
 | `pqr` | Sí | Sí | Sí | Sí |
+| `seguimiento_oferta` | Sí | Sí | Sí | Sí |
 | `tasa_cambio` | Sí | Sí | Sí | Sí |
 
 En 1FN se tuvo en cuenta que `nombres` y `apellidos` guardan el nombre completo de la persona como un solo valor,
@@ -139,6 +150,11 @@ Separar `producto` de `oferta` permite comparar las ofertas de un producto sin r
 **Las tasas de cambio no se copian en las ofertas.** El precio en pesos se calcula en la vista
 `vista_ofertas_vigentes` con la tasa más reciente. Si se guardara el precio convertido en cada oferta, habría que
 actualizar todas las ofertas en dólares cada día que cambie la TRM.
+
+**La relación muchos a muchos se resuelve con una tabla intermedia.** Una persona puede seguir muchas ofertas y una
+oferta la pueden seguir muchas personas. Guardar en `usuario` una lista de ofertas (o en `oferta` una lista de
+personas) violaría la 1FN. Por eso V5 agrega `seguimiento_oferta`, con una fila por cada pareja persona-oferta y la
+pareja como llave primaria.
 
 **El usuario se separa de sus búsquedas y PQR.** Una persona tiene muchas búsquedas y muchas PQR. Al borrar una cuenta,
 sus búsquedas quedan con `usuario_id` nulo (`ON DELETE SET NULL`) para no perder las estadísticas, mientras que una PQR

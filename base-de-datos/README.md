@@ -14,6 +14,7 @@ aplica los scripts en orden cuando arranca la aplicación.
 | `V2__marketplaces_iniciales.sql` | Datos iniciales: las tiendas que consulta Marketradar. |
 | `V3__usuarios_pqr_y_resenas.sql` | Usuarios con rol, PQR, búsquedas por usuario, calificación y reseñas de las ofertas, y tasas de cambio. |
 | `V4__vistas_reportes.sql` | Vistas de solo lectura para reportes: ofertas vigentes en pesos, bajadas de precio, resumen de PQR y disponibilidad de cada API. |
+| `V5__seguimiento_y_restricciones.sql` | Tabla `seguimiento_oferta` (relación muchos a muchos entre usuario y oferta), nombre propio para todas las restricciones, acción referencial explícita en cada llave foránea y reglas del negocio como `CHECK`. No cambia datos. |
 
 ## Vistas y consultas de reportes
 
@@ -34,6 +35,32 @@ barata por producto, ofertas bajo el promedio, registros por mes, PQR sin respue
 psql -U marketradar -d marketradar -f consultas/reportes.sql
 ```
 
+## Datos de prueba
+
+Se cargan a mano en una base de desarrollo, nunca en la real, después de aplicar V1 a V5:
+
+```bash
+psql -U marketradar -d marketradar -f datos-prueba/datos_demo.sql
+psql -U marketradar -d marketradar -f datos-prueba/casos_prueba.sql
+```
+
+`datos_demo.sql` deja cinco filas o más en cada tabla, con seis cuentas de prueba (contraseña `Demo2026*`).
+`casos_prueba.sql` muestra los tres casos:
+
+1. **Filas relacionadas con varias:** la oferta del tensiómetro la siguen tres personas, Rosa sigue tres ofertas y
+   cada producto tiene ofertas en varias tiendas.
+2. **Filas sin ninguna relación:** Beatriz no sigue ninguna oferta, el bastón no tiene ofertas y Falabella y Éxito no
+   tienen ofertas.
+3. **Datos rechazados:** nueve intentos que rompen una regla (precio negativo, asunto corto, celular no colombiano,
+   correo repetido, seguimiento repetido, oferta inexistente, borrar una tienda con ofertas, borrar a quien radicó una
+   PQR, PQR respondida sin respuesta). PostgreSQL responde con el nombre de la restricción, por ejemplo:
+
+   ```text
+   ERROR:  new row for relation "pqr" violates check constraint "ck_pqr_asunto_longitud"
+   ```
+
+   Cada intento va dentro de una transacción que se deshace, así que no cambia los datos.
+
 ## Reglas para cambiar el esquema
 
 - Cada cambio es un archivo nuevo `V<número>__descripcion.sql`. Una migración que ya está en `main` no se edita,
@@ -42,6 +69,8 @@ psql -U marketradar -d marketradar -f consultas/reportes.sql
 - Toda tabla tiene llave primaria, y las relaciones se declaran con `REFERENCES` y la regla de borrado explícita.
 - Las reglas que protegen los datos (rangos, valores permitidos, únicos) van como `CHECK`, `UNIQUE` o `NOT NULL`
   en la base, no solo en el código.
+- Toda restricción lleva nombre propio: `pk_` llave primaria, `fk_` llave foránea, `uq_` única y `ck_` regla. Toda
+  llave foránea declara su `ON DELETE` y `ON UPDATE`, con un comentario que lo justifica.
 
 ## Revisar el esquema sin el backend
 
@@ -54,6 +83,7 @@ psql -U postgres -d marketradar_revision -f migraciones/V1__esquema_inicial.sql
 psql -U postgres -d marketradar_revision -f migraciones/V2__marketplaces_iniciales.sql
 psql -U postgres -d marketradar_revision -f migraciones/V3__usuarios_pqr_y_resenas.sql
 psql -U postgres -d marketradar_revision -f migraciones/V4__vistas_reportes.sql
+psql -U postgres -d marketradar_revision -f migraciones/V5__seguimiento_y_restricciones.sql
 ```
 
 ## Scripts de administración
