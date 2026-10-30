@@ -28,3 +28,7 @@ Thumbs.db
 # Registros
 *.log
 logs/
+
+# Respaldos de la base de datos
+respaldos/
+*.dump
