@@ -1,0 +1,74 @@
+@startuml clases-dao
+' Patrón DAO: una interfaz genérica, una interfaz por entidad y una implementación JDBC por tabla.
+!pragma layout smetana
+skinparam defaultFontName Arial
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+hide empty members
+left to right direction
+title Marketradar: patrón DAO con JDBC
+
+interface "Dao<T>" as Dao {
+  + insertar(entidad : T) : T
+  + buscarPorId(id : long) : Optional<T>
+  + listarTodos() : List<T>
+  + actualizar(entidad : T) : boolean
+  + eliminar(id : long) : boolean
+}
+
+abstract class DaoJdbcBase {
+  - dataSource : DataSource
+  # consultarLista(sql, parametros, mapeador) : List<T>
+  # consultarUno(sql, parametros, mapeador) : Optional<T>
+  # ejecutarActualizacion(sql, parametros) : int
+  # insertarYObtenerId(sql, parametros) : long
+}
+
+interface OfertaDao {
+  + buscarPorMarketplaceYIdExterno(...) : Optional<Oferta>
+  + buscarMayorBajaDePrecio(dias : int) : Optional<OfertaDestacada>
+}
+interface UsuarioDao {
+  + buscarPorCorreo(correo : String) : Optional<Usuario>
+  + existeDocumento(...) : boolean
+  + actualizarClave(id : long, claveHash : String) : boolean
+}
+interface PqrDao {
+  + listarPorUsuario(usuarioId : long) : List<Pqr>
+  + listarPorEstado(estado : EstadoPqr) : List<Pqr>
+}
+interface HistorialPrecioDao
+interface MarketplaceDao
+interface BusquedaDao
+interface TasaCambioDao {
+  + guardar(tasa : TasaCambio) : void
+  + buscarVigente(moneda : String) : Optional<TasaCambio>
+}
+
+Dao <|-- OfertaDao
+Dao <|-- UsuarioDao
+Dao <|-- PqrDao
+Dao <|-- HistorialPrecioDao
+Dao <|-- MarketplaceDao
+Dao <|-- BusquedaDao
+
+OfertaDao <|.. OfertaDaoJdbc
+UsuarioDao <|.. UsuarioDaoJdbc
+PqrDao <|.. PqrDaoJdbc
+HistorialPrecioDao <|.. HistorialPrecioDaoJdbc
+MarketplaceDao <|.. MarketplaceDaoJdbc
+BusquedaDao <|.. BusquedaDaoJdbc
+TasaCambioDao <|.. TasaCambioDaoJdbc
+Dao <|.. ProductoDaoJdbc : Dao<Producto>
+Dao <|.. ConsumoApiDaoJdbc : Dao<ConsumoApi>
+
+DaoJdbcBase <|-- OfertaDaoJdbc
+DaoJdbcBase <|-- UsuarioDaoJdbc
+DaoJdbcBase <|-- PqrDaoJdbc
+DaoJdbcBase <|-- HistorialPrecioDaoJdbc
+DaoJdbcBase <|-- MarketplaceDaoJdbc
+DaoJdbcBase <|-- BusquedaDaoJdbc
+DaoJdbcBase <|-- TasaCambioDaoJdbc
+DaoJdbcBase <|-- ProductoDaoJdbc
+DaoJdbcBase <|-- ConsumoApiDaoJdbc
+@enduml

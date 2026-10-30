@@ -1,0 +1,82 @@
+@startuml clases-adaptadores
+' Herencia, interfaces y polimorfismo en los adaptadores de tiendas, las tasas de cambio y el producto MVP.
+!pragma layout smetana
+skinparam defaultFontName Arial
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+hide empty members
+title Marketradar: adaptadores de tiendas, tasas de cambio y producto MVP
+
+class ServicioBusqueda {
+  - adaptadoresPorCodigo : Map<String, AdaptadorMarketplace>
+  - cache : Cache<String, ResultadoCompleto>
+  - timeoutSegundos : int
+  + buscar(consulta : ConsultaBusqueda) : ResultadoBusqueda
+}
+
+interface AdaptadorMarketplace {
+  + codigo() : String
+  + estaHabilitado() : boolean
+  + buscar(consulta : ConsultaBusqueda) : List<OfertaNormalizada>
+}
+
+abstract class AdaptadorMarketplaceBase {
+  - codigo : String
+  - conversor : ConversorMoneda
+  - limitador : RateLimiter
+  + buscar(consulta : ConsultaBusqueda) : List<OfertaNormalizada>
+  # {abstract} consultarApi(consulta : ConsultaBusqueda) : List<OfertaNormalizada>
+}
+
+class AdaptadorAliExpress {
+  + estaHabilitado() : boolean
+  # consultarApi(consulta) : List<OfertaNormalizada>
+}
+class AdaptadorShopify {
+  + estaHabilitado() : boolean
+  # consultarApi(consulta) : List<OfertaNormalizada>
+}
+class AdaptadorMercadoLibre {
+  + estaHabilitado() : boolean
+  # consultarApi(consulta) : List<OfertaNormalizada>
+}
+
+class ConversorMoneda {
+  - proveedorTasas : ProveedorTasas
+}
+
+interface ProveedorTasas {
+  + tasaVigente(moneda : String) : Optional<TasaCambio>
+}
+
+class ServicioTasasCambio {
+  - fuentes : List<FuenteTasaCambio>
+  - tasaCambioDao : TasaCambioDao
+}
+
+interface FuenteTasaCambio {
+  + nombre() : String
+  + consultar() : List<TasaCambio>
+}
+class FuenteTrmBancoRepublica
+class FuenteTasasInternacionales
+
+interface EstrategiaSeleccionMvp {
+  + elegir(ofertas : List<OfertaNormalizada>) : Optional<ProductoMvp>
+}
+class SeleccionPonderadaMvp
+
+ServicioBusqueda --> "1..*" AdaptadorMarketplace : usa por polimorfismo
+ServicioBusqueda --> EstrategiaSeleccionMvp
+EstrategiaSeleccionMvp <|.. SeleccionPonderadaMvp
+AdaptadorMarketplace <|.. AdaptadorMarketplaceBase
+AdaptadorMarketplaceBase <|-- AdaptadorAliExpress
+AdaptadorMarketplaceBase <|-- AdaptadorShopify
+AdaptadorMarketplaceBase <|-- AdaptadorMercadoLibre
+AdaptadorMarketplaceBase --> ConversorMoneda
+ConversorMoneda --> ProveedorTasas
+ProveedorTasas <|.. ServicioTasasCambio
+ServicioTasasCambio --> "1..*" FuenteTasaCambio
+FuenteTasaCambio <|.. FuenteTrmBancoRepublica
+FuenteTasaCambio <|.. FuenteTasasInternacionales
+@enduml

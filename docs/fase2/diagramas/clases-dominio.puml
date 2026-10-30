@@ -1,0 +1,208 @@
+@startuml clases-dominio
+' Diagrama de clases del dominio (paquete domain). Se omiten getters y setters.
+!pragma layout smetana
+skinparam defaultFontName Arial
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+hide empty members
+title Marketradar: diagrama de clases del dominio
+
+class Producto {
+  - id : Long
+  - nombreNormalizado : String
+  - marca : String
+  - creadoEn : OffsetDateTime
+  - ofertas : List<Oferta>
+  + agregarOferta(oferta : Oferta) : void
+}
+
+class Oferta {
+  - id : Long
+  - productoId : Long
+  - marketplaceId : Short
+  - idExterno : String
+  - titulo : String
+  - urlDestino : String
+  - precioActual : BigDecimal
+  - moneda : String
+  - costoEnvio : BigDecimal
+  - calificacion : BigDecimal
+  - totalResenas : Integer
+  - consultadoEn : OffsetDateTime
+  - historial : List<HistorialPrecio>
+  + calcularPrecioTotal() : BigDecimal
+  + cambioPrecio(precioNuevo : BigDecimal) : boolean
+  + agregarHistorial(registro : HistorialPrecio) : void
+}
+
+class HistorialPrecio {
+  - id : Long
+  - ofertaId : Long
+  - precio : BigDecimal
+  - moneda : String
+  - registradoEn : OffsetDateTime
+}
+
+class Marketplace {
+  - id : Short
+  - codigo : String
+  - nombre : String
+  - sitioWeb : String
+  - activo : boolean
+}
+
+class ConsumoApi {
+  - id : Long
+  - marketplaceId : Short
+  - exitoso : boolean
+  - codigoHttp : Integer
+  - duracionMs : int
+}
+
+class Usuario {
+  - id : Long
+  - correo : String
+  - claveHash : String
+  - rol : Rol
+  - nombres : String
+  - apellidos : String
+  - tipoDocumento : TipoDocumento
+  - numeroDocumento : String
+  - fechaNacimiento : LocalDate
+  - celular : String
+  - ciudad : String
+  - activo : boolean
+  + nombreCompleto() : String
+  + esAdministrador() : boolean
+}
+
+class Pqr {
+  - id : Long
+  - usuarioId : Long
+  - tipo : TipoPqr
+  - asunto : String
+  - descripcion : String
+  - estado : EstadoPqr
+  - respuesta : String
+  - respondidaPor : Long
+  + marcarEnProceso() : void
+  + responder(texto : String, administradorId : Long) : void
+}
+
+class Busqueda {
+  - id : Long
+  - usuarioId : Long
+  - termino : String
+  - totalResultados : int
+  - duracionMs : int
+}
+
+class ConsultaBusqueda <<final>> {
+  - termino : String
+  - orden : OrdenResultados
+  - marketplaces : Set<String>
+  - pagina : int
+  - tamano : int
+  + {static} crear(...) : ConsultaBusqueda
+  + claveCache() : String
+}
+
+class OfertaNormalizada <<final>> {
+  - codigoMarketplace : String
+  - idExterno : String
+  - titulo : String
+  - precio : BigDecimal
+  - moneda : String
+  - costoEnvio : BigDecimal
+  - condicion : String
+  - calificacion : BigDecimal
+  - totalResenas : Integer
+  + {static} builder() : Builder
+  + precioTotal() : BigDecimal
+  + tieneResenas() : boolean
+  + conPrecio(precio, envio, moneda) : OfertaNormalizada
+}
+
+class ResultadoBusqueda <<final>> {
+  - ofertas : List<OfertaNormalizada>
+  - advertencias : List<String>
+  - idsPersistidos : Map<String, Long>
+  - mejorPrecio : BigDecimal
+  - productoMvp : ProductoMvp
+  + esMejorPrecio(oferta : OfertaNormalizada) : boolean
+  + getProductoMvp() : Optional<ProductoMvp>
+}
+
+class ProductoMvp <<record>> {
+  oferta : OfertaNormalizada
+  puntaje : int
+  razones : List<String>
+}
+
+class OfertaDestacada <<record>> {
+  oferta : Oferta
+  codigoMarketplace : String
+  precioAnterior : BigDecimal
+  + baja() : BigDecimal
+}
+
+class TasaCambio <<record>> {
+  monedaOrigen : String
+  valor : BigDecimal
+  vigenteDesde : LocalDate
+  fuente : String
+}
+
+class Aviso <<record>> {
+  tipo : String
+  titulo : String
+  mensaje : String
+  textoAccion : String
+}
+
+enum Rol {
+  USUARIO
+  ADMINISTRADOR
+}
+
+enum TipoDocumento {
+  CC
+  CE
+  PA
+}
+
+enum TipoPqr {
+  PETICION
+  QUEJA
+  RECLAMO
+  SUGERENCIA
+}
+
+enum EstadoPqr {
+  RADICADA
+  EN_PROCESO
+  RESPONDIDA
+}
+
+enum OrdenResultados {
+  PRECIO_ASC
+  PRECIO_DESC
+  RELEVANCIA
+}
+
+Producto "1" o-- "0..*" Oferta : agrupa >
+Oferta "1" *-- "0..*" HistorialPrecio : contiene >
+Marketplace "1" -- "0..*" Oferta : publica >
+Marketplace "1" -- "0..*" ConsumoApi : registra >
+Usuario "1" -- "0..*" Pqr : radica >
+Usuario "1" -- "0..*" Busqueda : realiza >
+Usuario --> Rol
+Usuario --> TipoDocumento
+Pqr --> TipoPqr
+Pqr --> EstadoPqr
+ConsultaBusqueda --> OrdenResultados
+ResultadoBusqueda "1" o-- "0..*" OfertaNormalizada
+ResultadoBusqueda "1" o-- "0..1" ProductoMvp
+ProductoMvp --> OfertaNormalizada
+OfertaDestacada --> Oferta
+@enduml
