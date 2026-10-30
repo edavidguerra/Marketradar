@@ -159,7 +159,7 @@ Las peticiones que cambian datos deben enviar la cabecera `X-XSRF-TOKEN` con el 
 - [x] Ingreso con roles, registro con contraseña segura y validación de todos los campos.
 - [x] Interfaz de usuario (inicio, buscar, historial, perfil, PQR, tutorial y asistente) e interfaz de administrador.
 - [x] Producto MVP con enlace directo, conversión a COP con la TRM y chatbot con Spring AI.
-- [ ] Adaptador de AliExpress (pendiente de verificar la API de afiliados).
+- [x] Adaptador de AliExpress (se activa con sus claves; ver [docs/integraciones/aliexpress.md](docs/integraciones/aliexpress.md)).
 - [ ] Adaptador de Shopify (pendiente: Catalog API o Storefront MCP).
 - [x] Adaptador de Mercado Libre (se activa con sus credenciales; ver [docs/integraciones/mercadolibre.md](docs/integraciones/mercadolibre.md)).
 
