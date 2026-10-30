@@ -91,6 +91,11 @@ marketradar:
       habilitado: ${MERCADOLIBRE_HABILITADO:false}
       client-id: ${MERCADOLIBRE_CLIENT_ID:}
       client-secret: ${MERCADOLIBRE_CLIENT_SECRET:}
+      refresh-token: ${MERCADOLIBRE_REFRESH_TOKEN:}
+      archivo-token: ${MERCADOLIBRE_ARCHIVO_TOKEN:datos/mercadolibre-refresh-token.txt}
+      url-api: https://api.mercadolibre.com
+      sitio: MCO
+      resenas-por-busqueda: 5
   asistente:
     # "spring-ai" usa el modelo configurado en spring.ai.openai; "ninguno" apaga el chatbot.
     proveedor: ${ASISTENTE_PROVEEDOR:spring-ai}

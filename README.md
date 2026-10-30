@@ -161,7 +161,7 @@ Las peticiones que cambian datos deben enviar la cabecera `X-XSRF-TOKEN` con el 
 - [x] Producto MVP con enlace directo, conversión a COP con la TRM y chatbot con Spring AI.
 - [ ] Adaptador de AliExpress (pendiente de verificar la API de afiliados).
 - [ ] Adaptador de Shopify (pendiente: Catalog API o Storefront MCP).
-- [ ] Adaptador de Mercado Libre (pendiente: prueba de acceso OAuth).
+- [x] Adaptador de Mercado Libre (se activa con sus credenciales; ver [docs/integraciones/mercadolibre.md](docs/integraciones/mercadolibre.md)).
 
 Mientras no haya un adaptador activo, la búsqueda responde "Por ahora no hay tiendas disponibles" y el producto MVP no aparece.
 

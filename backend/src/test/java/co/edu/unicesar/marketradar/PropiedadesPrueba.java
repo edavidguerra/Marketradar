@@ -24,7 +24,7 @@ public final class PropiedadesPrueba {
                 new PropiedadesMarketradar.Marketplaces(
                         new PropiedadesMarketradar.AliExpress(false, "", "", ""),
                         new PropiedadesMarketradar.Shopify(false, ""),
-                        new PropiedadesMarketradar.MercadoLibre(false, "", "")),
+                        new PropiedadesMarketradar.MercadoLibre(false, "", "", "", "", "http://localhost/ml", "MCO", 2)),
                 new PropiedadesMarketradar.Asistente("ninguno", ""),
                 new PropiedadesMarketradar.Administrador("", "", "Administrador", "Marketradar"),
                 new PropiedadesMarketradar.Mvp(0.6, 0.3, 0.1, 20));

@@ -10,7 +10,7 @@ RUN mvn -f backend/pom.xml -q -DskipTests package
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
-RUN useradd --system marketradar
+RUN useradd --system marketradar && mkdir /app/datos && chown marketradar /app/datos
 USER marketradar
 COPY --from=compilacion /app/backend/target/marketradar-*.jar app.jar
 EXPOSE 8080

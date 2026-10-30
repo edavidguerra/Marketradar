@@ -9,6 +9,8 @@ target/
 *.env.local
 application-local.yml
 secrets/
+# Refresh token de Mercado Libre que guarda el backend
+datos/
 
 # IDE
 .idea/

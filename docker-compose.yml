@@ -27,9 +27,13 @@ services:
       DB_URL: jdbc:postgresql://db:5432/marketradar
     ports:
       - "8080:8080"
+    volumes:
+      # Guarda el refresh token de Mercado Libre entre reinicios del contenedor.
+      - datos-app:/app/datos
     depends_on:
       db:
         condition: service_healthy
 
 volumes:
   datos-postgres:
+  datos-app:
