@@ -13,6 +13,26 @@ aplica los scripts en orden cuando arranca la aplicación.
 | `V1__esquema_inicial.sql` | Tablas principales (marketplace, producto, oferta, historial_precio, busqueda y consumo_api) con sus llaves, restricciones e índices. |
 | `V2__marketplaces_iniciales.sql` | Datos iniciales: las tiendas que consulta Marketradar. |
 | `V3__usuarios_pqr_y_resenas.sql` | Usuarios con rol, PQR, búsquedas por usuario, calificación y reseñas de las ofertas, y tasas de cambio. |
+| `V4__vistas_reportes.sql` | Vistas de solo lectura para reportes: ofertas vigentes en pesos, bajadas de precio, resumen de PQR y disponibilidad de cada API. |
+
+## Vistas y consultas de reportes
+
+Las vistas de `V4` no cambian datos ni el backend; solo facilitan las consultas:
+
+| Vista | Qué muestra |
+| --- | --- |
+| `vista_ofertas_vigentes` | Cada oferta de una tienda activa con su tienda, el precio total con envío y ese total en pesos, usando la tasa de cambio más reciente. |
+| `vista_bajadas_precio` | Ofertas cuyo último precio registrado es menor que el anterior, con el ahorro y el porcentaje. |
+| `vista_resumen_pqr` | Cantidad de PQR por tipo y estado, y las horas promedio que tardó la respuesta. |
+| `vista_disponibilidad_api` | Consultas a la API de cada tienda, porcentaje de éxito y tiempo promedio de respuesta. |
+
+`consultas/reportes.sql` tiene once consultas que responden preguntas del negocio (lo más buscado, la tienda más
+barata por producto, ofertas bajo el promedio, registros por mes, PQR sin respuesta, entre otras) con `JOIN`,
+`GROUP BY`, `HAVING`, subconsultas y `NOT EXISTS`. Se ejecutan sobre una base que ya tenga V1 a V4:
+
+```bash
+psql -U marketradar -d marketradar -f consultas/reportes.sql
+```
 
 ## Reglas para cambiar el esquema
 
@@ -33,6 +53,7 @@ createdb -U postgres marketradar_revision
 psql -U postgres -d marketradar_revision -f migraciones/V1__esquema_inicial.sql
 psql -U postgres -d marketradar_revision -f migraciones/V2__marketplaces_iniciales.sql
 psql -U postgres -d marketradar_revision -f migraciones/V3__usuarios_pqr_y_resenas.sql
+psql -U postgres -d marketradar_revision -f migraciones/V4__vistas_reportes.sql
 ```
 
 ## Scripts de administración
