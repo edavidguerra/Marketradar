@@ -43,7 +43,7 @@ Cada vez que se fusiona un PR en `develop`, Render vuelve a construir y publicar
 - La web se duerme tras 15 minutos sin visitas. La primera visita después tarda cerca de un minuto en responder. Antes de una presentación, abrirla unos minutos antes.
 - La base de datos gratuita vence a los 30 días de creada. Render avisa por correo. Para no perder datos, pasarla a un plan pago o crear otra y volver a desplegar.
 - 512 MB de memoria. `JAVA_TOOL_OPTIONS` ya ajusta Java a ese límite.
-- No hay disco permanente. Si se activa Mercado Libre, el refresh token que se guarda en `datos/` se pierde en cada reinicio; después de un reinicio hay que poner en `MERCADOLIBRE_REFRESH_TOKEN` el último token vigente (ver `docs/integraciones/mercadolibre.md`).
+- No hay disco permanente. Por eso el refresh token de Mercado Libre, que cambia en cada renovación, se guarda en la base de datos (tabla `credencial_marketplace`) y no se pierde cuando la web se reinicia (ver `docs/integraciones/mercadolibre.md`).
 
 ## Si algo falla
 

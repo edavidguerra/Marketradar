@@ -64,3 +64,9 @@ services:
         value: "false"
       - key: MERCADOLIBRE_HABILITADO
         value: "false"
+      - key: MERCADOLIBRE_CLIENT_ID
+        sync: false
+      - key: MERCADOLIBRE_CLIENT_SECRET
+        sync: false
+      - key: MERCADOLIBRE_REFRESH_TOKEN
+        sync: false

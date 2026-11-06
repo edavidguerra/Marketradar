@@ -164,6 +164,18 @@ Valor de una moneda en pesos colombianos. Se guarda una fila por moneda y fecha.
 | `fuente` | VARCHAR(80) | No | | | De dónde salió el valor (TRM de datos abiertos del Gobierno, ExchangeRate-API...). |
 | `consultada_en` | TIMESTAMPTZ | No | | `DEFAULT now()` | Momento en que se consultó la fuente. |
 
+## credencial_marketplace
+
+Credenciales que el sistema renueva solo y que deben sobrevivir a un reinicio del servidor. Hoy guarda el refresh
+token de Mercado Libre, que cambia en cada renovación y solo se puede usar una vez. Creada en V6.
+
+| Columna | Tipo | Nulo | Llave | Restricciones y valor por defecto | Descripción |
+| --- | --- | --- | --- | --- | --- |
+| `codigo` | VARCHAR(60) | No | PK | `CHECK (codigo ~ '^[a-z0-9_.-]+$')` | Nombre de la credencial, por ejemplo `mercadolibre.refresh_token`. |
+| `valor` | TEXT | No | | | Valor vigente de la credencial. |
+| `valor_inicial_hash` | CHAR(64) | No | | `CHECK (valor_inicial_hash ~ '^[0-9a-f]{64}$')` | SHA-256 del valor configurado en las variables de entorno del que se partió. Si la variable cambia, el valor guardado se descarta. |
+| `actualizado_en` | TIMESTAMPTZ | No | | `DEFAULT now()` | Última vez que se renovó. |
+
 ## Índices
 
 | Índice | Tabla | Columnas | Para qué sirve |

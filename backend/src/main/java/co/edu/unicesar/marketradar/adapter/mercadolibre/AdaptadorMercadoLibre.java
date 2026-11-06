@@ -3,6 +3,7 @@ package co.edu.unicesar.marketradar.adapter.mercadolibre;
 import co.edu.unicesar.marketradar.adapter.AdaptadorMarketplaceBase;
 import co.edu.unicesar.marketradar.adapter.ConversorMoneda;
 import co.edu.unicesar.marketradar.config.PropiedadesMarketradar;
+import co.edu.unicesar.marketradar.dao.CredencialDao;
 import co.edu.unicesar.marketradar.domain.ConsultaBusqueda;
 import co.edu.unicesar.marketradar.domain.OfertaNormalizada;
 import co.edu.unicesar.marketradar.exception.MarketplaceException;
@@ -58,17 +59,25 @@ public class AdaptadorMercadoLibre extends AdaptadorMarketplaceBase {
      * @param propiedades configuración de Marketradar
      * @param conversor conversor de moneda
      * @param builder constructor de clientes HTTP de Spring
+     * @param credenciales tabla donde se guarda el refresh token si no se configuró un archivo
      */
     @Autowired
     public AdaptadorMercadoLibre(PropiedadesMarketradar propiedades, ConversorMoneda conversor,
-                                 RestClient.Builder builder) {
+                                 RestClient.Builder builder, CredencialDao credenciales) {
         this(propiedades, conversor, builder
                 .requestFactory(ClientHttpRequestFactoryBuilder.detect().build(
                         ClientHttpRequestFactorySettings.defaults()
                                 .withConnectTimeout(Duration.ofSeconds(3))
                                 .withReadTimeout(Duration.ofSeconds(4))))
                 .baseUrl(propiedades.marketplaces().mercadolibre().urlApi())
-                .build(), Clock.systemUTC());
+                .build(), Clock.systemUTC(), almacen(propiedades.marketplaces().mercadolibre(), credenciales));
+    }
+
+    /** Con {@code MERCADOLIBRE_ARCHIVO_TOKEN} se usa ese archivo; si no, la base de datos. */
+    private static AlmacenToken almacen(PropiedadesMarketradar.MercadoLibre configuracion, CredencialDao credenciales) {
+        return tieneValor(configuracion.archivoToken())
+                ? new AlmacenTokenArchivo(Path.of(configuracion.archivoToken()))
+                : new AlmacenTokenBaseDatos(credenciales);
     }
 
     /**
@@ -78,14 +87,15 @@ public class AdaptadorMercadoLibre extends AdaptadorMarketplaceBase {
      * @param conversor conversor de moneda
      * @param cliente cliente HTTP con la dirección base de la API
      * @param reloj reloj para el vencimiento del token
+     * @param almacen dónde se guarda el refresh token vigente
      */
-    AdaptadorMercadoLibre(PropiedadesMarketradar propiedades, ConversorMoneda conversor, RestClient cliente, Clock reloj) {
+    AdaptadorMercadoLibre(PropiedadesMarketradar propiedades, ConversorMoneda conversor, RestClient cliente, Clock reloj,
+                          AlmacenToken almacen) {
         super(CODIGO, conversor, 5);
         this.configuracion = propiedades.marketplaces().mercadolibre();
         this.cliente = cliente;
-        Path archivo = tieneValor(configuracion.archivoToken()) ? Path.of(configuracion.archivoToken()) : null;
         this.token = new TokenMercadoLibre(cliente, configuracion.clientId(), configuracion.clientSecret(),
-                configuracion.refreshToken(), archivo, reloj);
+                configuracion.refreshToken(), almacen, reloj);
     }
 
     @Override

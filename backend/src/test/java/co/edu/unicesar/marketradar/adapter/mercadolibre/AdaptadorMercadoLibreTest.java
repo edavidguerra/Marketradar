@@ -141,6 +141,29 @@ class AdaptadorMercadoLibreTest {
     }
 
     @Test
+    void elRefreshTokenRenovadoSeConservaEnLaBaseDeDatosAlReiniciar() {
+        AlmacenTokenBaseDatos baseDeDatos = new AlmacenTokenBaseDatos(new CredencialesEnMemoria());
+        servidor = MockRestServiceServer.bindTo(builder).build();
+        servidor.expect(once(), requestTo("http://localhost/ml/oauth/token"))
+                .andExpect(content().formDataContains(java.util.Map.of("refresh_token", "TG-inicial")))
+                .andRespond(withSuccess(TOKEN, MediaType.APPLICATION_JSON));
+        servidor.expect(once(), requestTo("http://localhost/ml/sites/MCO/search?q=lupa&limit=50"))
+                .andRespond(withSuccess("{\"results\":[]}", MediaType.APPLICATION_JSON));
+        servidor.expect(once(), requestTo("http://localhost/ml/oauth/token"))
+                .andExpect(content().formDataContains(java.util.Map.of("refresh_token", "TG-nuevo")))
+                .andRespond(withSuccess(TOKEN.replace("TG-nuevo", "TG-otro"), MediaType.APPLICATION_JSON));
+        servidor.expect(once(), requestTo("http://localhost/ml/sites/MCO/search?q=lupa&limit=50"))
+                .andRespond(withSuccess("{\"results\":[]}", MediaType.APPLICATION_JSON));
+
+        crearAdaptador(true, baseDeDatos).consultarApi(consulta("lupa"));
+        // Un adaptador nuevo es como reiniciar el servidor: debe usar el token guardado, no el de la configuración.
+        crearAdaptador(true, baseDeDatos).consultarApi(consulta("lupa"));
+
+        servidor.verify();
+        assertEquals(java.util.Optional.of("TG-otro"), baseDeDatos.leer("TG-inicial"));
+    }
+
+    @Test
     void conRespuesta401PideOtroTokenYRepiteLaBusqueda() {
         servidor = MockRestServiceServer.bindTo(builder).build();
         servidor.expect(once(), requestTo("http://localhost/ml/oauth/token"))
@@ -196,6 +219,10 @@ class AdaptadorMercadoLibreTest {
     }
 
     private AdaptadorMercadoLibre crearAdaptador(boolean conRefreshToken) {
+        return crearAdaptador(conRefreshToken, new AlmacenTokenArchivo(archivoToken));
+    }
+
+    private AdaptadorMercadoLibre crearAdaptador(boolean conRefreshToken, AlmacenToken almacen) {
         PropiedadesMarketradar base = PropiedadesPrueba.crear();
         PropiedadesMarketradar.MercadoLibre mercadoLibre = new PropiedadesMarketradar.MercadoLibre(true, "123",
                 "secreto", conRefreshToken ? "TG-inicial" : "", archivoToken.toString(), "http://localhost/ml", "MCO", 2);
@@ -205,7 +232,7 @@ class AdaptadorMercadoLibreTest {
                         base.marketplaces().shopify(), mercadoLibre),
                 base.asistente(), base.administrador(), base.mvp());
         Clock reloj = Clock.fixed(Instant.parse("2026-10-30T12:00:00Z"), ZoneOffset.UTC);
-        return new AdaptadorMercadoLibre(propiedades, null, builder.build(), reloj);
+        return new AdaptadorMercadoLibre(propiedades, null, builder.build(), reloj, almacen);
     }
 
     private static ConsultaBusqueda consulta(String termino) {

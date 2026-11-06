@@ -84,7 +84,8 @@ public record PropiedadesMarketradar(
      * @param clientId identificador de la aplicación OAuth
      * @param clientSecret secreto de la aplicación OAuth
      * @param refreshToken refresh token inicial, obtenido una vez con el flujo de autorización
-     * @param archivoToken archivo donde se guarda el refresh token vigente, porque Mercado Libre lo cambia en cada renovación
+     * @param archivoToken archivo donde se guarda el refresh token vigente, porque Mercado Libre lo cambia en cada
+     *                     renovación; vacío para guardarlo en la base de datos
      * @param urlApi dirección base de la API
      * @param sitio sitio de Mercado Libre que se consulta ({@code MCO} es Colombia)
      * @param resenasPorBusqueda resultados a los que se les consultan las reseñas; 0 para no consultarlas
