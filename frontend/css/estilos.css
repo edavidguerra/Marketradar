@@ -898,6 +898,15 @@ main > section:not([hidden]) { animation: aparecer .45s var(--curva) both; }
 .tarjeta-cuerpo p { margin: 0; }
 .tarjeta .acciones { margin-top: .5rem; }
 
+/* Página de la tienda de demostración */
+.demostracion { padding-block: 2rem 3rem; }
+.tarjeta.demostracion-tarjeta { grid-template-columns: 1fr; max-width: 42rem; margin-inline: auto; padding: 1.5rem; }
+.demostracion-tarjeta:hover { transform: none; box-shadow: var(--sombra); }
+.demostracion-tarjeta h1 { margin: 0; }
+.demostracion-tarjeta .sobretitulo { justify-self: start; }
+.demostracion-tarjeta .tarjeta-cuerpo { gap: 1rem; }
+.demostracion-tarjeta .acciones { align-items: flex-start; }
+
 .etiqueta-mejor {
     justify-self: start;
     padding: .15rem .75rem;

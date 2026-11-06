@@ -202,11 +202,12 @@ public class ServicioBusqueda {
      * @param codigo código del marketplace
      * @return nombre para mostrar
      */
-    static String nombreVisible(String codigo) {
+    public static String nombreVisible(String codigo) {
         return switch (codigo) {
             case "aliexpress" -> "AliExpress";
             case "shopify" -> "Shopify";
             case "mercadolibre" -> "Mercado Libre";
+            case "demostracion" -> "Tienda de demostración";
             default -> codigo;
         };
     }

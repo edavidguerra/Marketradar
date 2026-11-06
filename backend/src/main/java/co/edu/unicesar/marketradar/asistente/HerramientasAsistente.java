@@ -23,6 +23,9 @@ public class HerramientasAsistente {
 
     private static final int OFERTAS_A_MOSTRAR = 3;
     private static final Locale COLOMBIA = Locale.forLanguageTag("es-CO");
+    private static final String AVISO_DEMOSTRACION_CODIGO = "demostracion";
+    static final String AVISO_DEMOSTRACION = "AVISO: la Tienda de demostración tiene productos y precios de ejemplo "
+            + "para probar Marketradar; no se venden. Dígaselo a la persona si los menciona.";
 
     private final ServicioBusqueda servicioBusqueda;
     private final ServicioTasasCambio servicioTasas;
@@ -54,6 +57,13 @@ public class HerramientasAsistente {
                 .append("MEJOR OPCIÓN: ").append(describir(mvp.oferta()))
                 .append(". Razones: ").append(String.join(" ", mvp.razones()))
                 .append(" Enlace directo: ").append(mvp.oferta().getUrlDestino()).append('\n'));
+        boolean hayDemostracion = resultado.getOfertas().stream()
+                .anyMatch(oferta -> AVISO_DEMOSTRACION_CODIGO.equals(oferta.getCodigoMarketplace()))
+                || resultado.getProductoMvp()
+                .filter(mvp -> AVISO_DEMOSTRACION_CODIGO.equals(mvp.oferta().getCodigoMarketplace())).isPresent();
+        if (hayDemostracion) {
+            resumen.append(AVISO_DEMOSTRACION).append('\n');
+        }
         resumen.append("MÁS BARATAS:\n").append(resultado.getOfertas().stream()
                 .map(oferta -> "- " + describir(oferta) + " | " + oferta.getUrlDestino())
                 .collect(Collectors.joining("\n")));
@@ -70,7 +80,7 @@ public class HerramientasAsistente {
     }
 
     private static String describir(OfertaNormalizada oferta) {
-        return oferta.getTitulo() + " en " + oferta.getCodigoMarketplace() + " por " + pesos(oferta.precioTotal())
+        return oferta.getTitulo() + " en " + ServicioBusqueda.nombreVisible(oferta.getCodigoMarketplace()) + " por " + pesos(oferta.precioTotal())
                 + " con envío";
     }
 

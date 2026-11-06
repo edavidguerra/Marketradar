@@ -16,6 +16,7 @@ aplica los scripts en orden cuando arranca la aplicación.
 | `V4__vistas_reportes.sql` | Vistas de solo lectura para reportes: ofertas vigentes en pesos, bajadas de precio, resumen de PQR y disponibilidad de cada API. |
 | `V5__seguimiento_y_restricciones.sql` | Tabla `seguimiento_oferta` (relación muchos a muchos entre usuario y oferta), nombre propio para todas las restricciones, acción referencial explícita en cada llave foránea y reglas del negocio como `CHECK`. No cambia datos. |
 | `V6__credenciales_marketplace.sql` | Tabla `credencial_marketplace`, donde el backend guarda el refresh token de Mercado Libre que se renueva solo, para que no se pierda cuando el servidor se reinicia. |
+| `V7__tienda_demostracion.sql` | Datos: agrega la tienda de demostración, que muestra productos de ejemplo mientras las tiendas reales no tienen claves. |
 
 ## Vistas y consultas de reportes
 
@@ -91,6 +92,7 @@ psql -U postgres -d marketradar_revision -f migraciones/V3__usuarios_pqr_y_resen
 psql -U postgres -d marketradar_revision -f migraciones/V4__vistas_reportes.sql
 psql -U postgres -d marketradar_revision -f migraciones/V5__seguimiento_y_restricciones.sql
 psql -U postgres -d marketradar_revision -f migraciones/V6__credenciales_marketplace.sql
+psql -U postgres -d marketradar_revision -f migraciones/V7__tienda_demostracion.sql
 ```
 
 ## Scripts de administración

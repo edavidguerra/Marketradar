@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tienda de demostración de Marketradar</title>
+    <meta name="description" content="Los productos de la tienda de demostración son de ejemplo y no se venden.">
+    <meta name="robots" content="noindex">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="preload" href="fuentes/atkinson-hyperlegible-next.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="css/estilos.css">
+    <script type="module" src="js/demostracion/demostracion.js"></script>
+</head>
+<body>
+<a class="saltar" href="#contenido">Ir al contenido</a>
+
+<header class="encabezado">
+    <div class="contenedor encabezado-interno">
+        <p class="marca"><img src="favicon.svg" alt="" width="40" height="40"> Marketradar</p>
+        <div class="herramientas" role="group" aria-label="Tamaño de letra y contraste">
+            <button type="button" class="boton boton-chip" id="letra-menos" aria-label="Letra más pequeña">A−</button>
+            <button type="button" class="boton boton-chip" id="letra-mas" aria-label="Letra más grande">A+</button>
+            <button type="button" class="boton boton-chip" id="contraste" aria-pressed="false"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#contraste"></use></svg> Alto contraste</button>
+        </div>
+    </div>
+</header>
+
+<main id="contenido" class="contenedor demostracion" tabindex="-1">
+    <div class="tarjeta demostracion-tarjeta">
+        <div class="tarjeta-cuerpo">
+            <p class="sobretitulo">Tienda de demostración</p>
+            <h1>Este producto es de ejemplo</h1>
+            <p class="introduccion">La tienda de demostración sirve para probar Marketradar. Sus productos y
+                precios son inventados y <strong>no se venden</strong>, así que aquí no puede comprar nada.</p>
+            <p id="producto-codigo" class="ayuda" hidden></p>
+            <p>Cuando el equipo conecte las tiendas reales, como Mercado Libre, el botón «Ver en la tienda» lo llevará a la página
+                de la tienda para comprar.</p>
+            <p class="acciones">
+                <a class="boton boton-principal" href="usuario.html">Volver a Marketradar <svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#flecha"></use></svg></a>
+            </p>
+        </div>
+    </div>
+</main>
+</body>
+</html>
