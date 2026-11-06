@@ -80,8 +80,17 @@ public class HerramientasAsistente {
     }
 
     private static String describir(OfertaNormalizada oferta) {
-        return oferta.getTitulo() + " en " + ServicioBusqueda.nombreVisible(oferta.getCodigoMarketplace()) + " por " + pesos(oferta.precioTotal())
+        return oferta.getTitulo() + " en " + tienda(oferta) + " por " + pesos(oferta.precioTotal())
                 + " con envío";
+    }
+
+    /** En Google Shopping la tienda real va en el vendedor, por ejemplo "Éxito (por Google Shopping)". */
+    private static String tienda(OfertaNormalizada oferta) {
+        String nombre = ServicioBusqueda.nombreVisible(oferta.getCodigoMarketplace());
+        if ("googleshopping".equals(oferta.getCodigoMarketplace()) && oferta.getVendedor() != null) {
+            return oferta.getVendedor() + " (por " + nombre + ")";
+        }
+        return nombre;
     }
 
     private static String pesos(BigDecimal valor) {

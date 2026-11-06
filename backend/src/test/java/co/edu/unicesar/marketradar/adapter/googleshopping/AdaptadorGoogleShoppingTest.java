@@ -1,0 +1,169 @@
+package co.edu.unicesar.marketradar.adapter.googleshopping;
+
+import co.edu.unicesar.marketradar.domain.ConsultaBusqueda;
+import co.edu.unicesar.marketradar.domain.OfertaNormalizada;
+import co.edu.unicesar.marketradar.exception.MarketplaceException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.RestClient;
+
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.client.ExpectedCount.once;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.queryParam;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withException;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+import static org.hamcrest.Matchers.startsWith;
+
+class AdaptadorGoogleShoppingTest {
+
+    private static final String URL = "http://localhost/serpapi";
+    private static final String CLAVE = "clave-secreta-de-prueba";
+
+    private static final String RESPUESTA = """
+            {"search_metadata":{"status":"Success"},
+             "shopping_results":[
+               {"position":1,"title":"Olla Arrocera 1,8 L Antiadherente","product_id":"111",
+                "product_link":"https://www.google.com.co/shopping/product/111","source":"Éxito",
+                "price":"$ 159.900","extracted_price":159900,"rating":4.6,"reviews":312,
+                "thumbnail":"https://serpapi.com/images/111.jpg","delivery":"Envío gratis"},
+               {"position":2,"title":"Olla Arrocera Importada","product_id":"222",
+                "product_link":"https://www.google.com.co/shopping/product/222","source":"Tienda Internacional",
+                "price":"US$ 25,00","extracted_price":25.0},
+               {"position":3,"title":"Sin precio","product_id":"333",
+                "product_link":"https://www.google.com.co/shopping/product/333"},
+               {"position":4,"title":"Sin enlace","extracted_price":1000}
+             ]}""";
+
+    private RestClient.Builder builder;
+    private MockRestServiceServer servidor;
+
+    @BeforeEach
+    void preparar() {
+        // Mismo formato JSON que la aplicación (spring.jackson.property-naming-strategy: SNAKE_CASE).
+        ObjectMapper mapper = new ObjectMapper().setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
+        builder = RestClient.builder().baseUrl(URL)
+                .messageConverters(convertidores -> convertidores.addFirst(new MappingJackson2HttpMessageConverter(mapper)));
+        servidor = MockRestServiceServer.bindTo(builder).build();
+    }
+
+    private AdaptadorGoogleShopping crear(String clave) {
+        return new AdaptadorGoogleShopping(null, builder.build(), true, clave);
+    }
+
+    private static ConsultaBusqueda consulta(String termino) {
+        return ConsultaBusqueda.crear(termino, null, Set.of(), 1, 10);
+    }
+
+    @Test
+    void convierteLosResultadosEnOfertasConLaTiendaReal() {
+        servidor.expect(once(), requestTo(startsWith(URL + "/search.json")))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(queryParam("engine", "google_shopping"))
+                .andExpect(queryParam("q", "olla%20arrocera"))
+                .andExpect(queryParam("gl", "co"))
+                .andExpect(queryParam("hl", "es"))
+                .andExpect(queryParam("api_key", CLAVE))
+                .andRespond(withSuccess(RESPUESTA, MediaType.APPLICATION_JSON));
+
+        List<OfertaNormalizada> ofertas = crear(CLAVE).consultarApi(consulta("olla arrocera"));
+
+        servidor.verify();
+        assertEquals(2, ofertas.size());
+        OfertaNormalizada primera = ofertas.get(0);
+        assertEquals("googleshopping", primera.getCodigoMarketplace());
+        assertEquals("111", primera.getIdExterno());
+        assertEquals("Olla Arrocera 1,8 L Antiadherente", primera.getTitulo());
+        assertEquals(0, new BigDecimal("159900").compareTo(primera.getPrecio()));
+        assertEquals("COP", primera.getMoneda());
+        assertEquals(0, BigDecimal.ZERO.compareTo(primera.getCostoEnvio()));
+        assertEquals("Éxito", primera.getVendedor());
+        assertEquals("https://www.google.com.co/shopping/product/111", primera.getUrlDestino());
+        assertEquals("https://serpapi.com/images/111.jpg", primera.getUrlImagen());
+        assertEquals(new BigDecimal("4.6"), primera.getCalificacion());
+        assertEquals(312, primera.getTotalResenas());
+
+        OfertaNormalizada segunda = ofertas.get(1);
+        assertEquals("USD", segunda.getMoneda());
+        assertNull(segunda.getCostoEnvio());
+        assertNull(segunda.getCalificacion());
+    }
+
+    @Test
+    void sinResultadosDeGoogleDevuelveVacio() {
+        servidor.expect(once(), requestTo(startsWith(URL)))
+                .andRespond(withSuccess("{\"error\":\"Google hasn't returned any results for this query.\"}",
+                        MediaType.APPLICATION_JSON));
+
+        assertTrue(crear(CLAVE).consultarApi(consulta("xyzxyz")).isEmpty());
+    }
+
+    @Test
+    void unaClaveMalaSeInformaComoErrorDeLaTienda() {
+        servidor.expect(once(), requestTo(startsWith(URL)))
+                .andRespond(withStatus(HttpStatus.UNAUTHORIZED)
+                        .body("{\"error\":\"Invalid API key.\"}").contentType(MediaType.APPLICATION_JSON));
+
+        MarketplaceException error = assertThrows(MarketplaceException.class,
+                () -> crear(CLAVE).consultarApi(consulta("lupa")));
+        assertTrue(error.getMessage().contains("401"));
+    }
+
+    @Test
+    void sinBusquedasDisponiblesAvisaElLimite() {
+        servidor.expect(once(), requestTo(startsWith(URL)))
+                .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS)
+                        .body("{\"error\":\"Your account has run out of searches.\"}")
+                        .contentType(MediaType.APPLICATION_JSON));
+
+        MarketplaceException error = assertThrows(MarketplaceException.class,
+                () -> crear(CLAVE).consultarApi(consulta("lupa")));
+        assertTrue(error.getMessage().contains("429"));
+    }
+
+    @Test
+    void unErrorDeConexionNoMuestraLaClave() {
+        servidor.expect(once(), requestTo(startsWith(URL)))
+                .andRespond(withException(new IOException("sin conexión")));
+
+        MarketplaceException error = assertThrows(MarketplaceException.class,
+                () -> crear(CLAVE).consultarApi(consulta("lupa")));
+        assertFalse(error.getMessage().contains(CLAVE));
+        assertNull(error.getCause());
+    }
+
+    @Test
+    void soloSeConsultaConClave() {
+        assertTrue(crear(CLAVE).estaHabilitado());
+        assertFalse(crear("").estaHabilitado());
+        assertFalse(new AdaptadorGoogleShopping(null, builder.build(), false, CLAVE).estaHabilitado());
+    }
+
+    @Test
+    void reconoceLaMonedaYElEnvioGratis() {
+        assertEquals("COP", AdaptadorGoogleShopping.moneda("$ 159.900"));
+        assertEquals("USD", AdaptadorGoogleShopping.moneda("US$ 25,00"));
+        assertEquals("COP", AdaptadorGoogleShopping.moneda(null));
+        assertEquals(BigDecimal.ZERO, AdaptadorGoogleShopping.costoEnvio("Free delivery"));
+        assertNull(AdaptadorGoogleShopping.costoEnvio("Envío: $ 10.000"));
+        assertNull(AdaptadorGoogleShopping.costoEnvio(null));
+    }
+}

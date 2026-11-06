@@ -66,6 +66,10 @@ services:
         value: "false"
       - key: DEMOSTRACION_HABILITADO
         value: "true"
+      - key: SERPAPI_HABILITADO
+        value: "false"
+      - key: SERPAPI_API_KEY
+        sync: false
       - key: MERCADOLIBRE_CLIENT_ID
         sync: false
       - key: MERCADOLIBRE_CLIENT_SECRET
