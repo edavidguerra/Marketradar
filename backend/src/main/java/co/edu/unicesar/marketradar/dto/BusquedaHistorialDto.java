@@ -11,8 +11,10 @@ import java.time.OffsetDateTime;
  * @param termino texto buscado
  * @param totalResultados ofertas encontradas
  * @param creadaEn fecha y hora de la búsqueda
+ * @param urlImagen foto de un producto que se encontró, para reconocer la búsqueda; puede ser {@code null}
  */
-public record BusquedaHistorialDto(Long id, String termino, int totalResultados, OffsetDateTime creadaEn) {
+public record BusquedaHistorialDto(Long id, String termino, int totalResultados, OffsetDateTime creadaEn,
+                                   String urlImagen) {
 
     /**
      * @param busqueda búsqueda guardada
@@ -20,6 +22,6 @@ public record BusquedaHistorialDto(Long id, String termino, int totalResultados,
      */
     public static BusquedaHistorialDto desde(Busqueda busqueda) {
         return new BusquedaHistorialDto(busqueda.getId(), busqueda.getTermino(), busqueda.getTotalResultados(),
-                busqueda.getCreadaEn());
+                busqueda.getCreadaEn(), busqueda.getUrlImagen());
     }
 }

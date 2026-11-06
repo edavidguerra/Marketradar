@@ -1204,6 +1204,39 @@ body:has(.asistente) { padding-bottom: 6rem; }
 .lista-simple > li:nth-child(n+4) { animation-delay: .15s; }
 
 .lista-simple p, #detalle-pqr p { margin: 0; }
+
+/* Historial con la foto de lo que se buscó. */
+.lista-simple > li.busqueda-historial {
+    grid-template-columns: 7rem 1fr;
+    align-items: center;
+    gap: 1rem 1.25rem;
+}
+
+.busqueda-historial-datos { display: grid; gap: .5rem; justify-items: start; }
+
+.busqueda-historial-foto {
+    display: grid;
+    place-items: center;
+    width: 7rem;
+    aspect-ratio: 1;
+    border-radius: 18px;
+    background: linear-gradient(135deg, var(--color-principal-suave), var(--color-info-suave));
+    color: var(--color-principal);
+    overflow: hidden;
+}
+
+.busqueda-historial-foto img { width: 100%; height: 100%; object-fit: contain; background: #ffffff; }
+.busqueda-historial-foto .icono { width: 2.5rem; height: 2.5rem; opacity: .6; }
+
+:root.alto-contraste .busqueda-historial-foto { background: #000000; color: var(--color-texto); border: 2px solid var(--color-borde); }
+
+/* En el celular la foto va junto al nombre y el botón ocupa todo el ancho, para que no quede apretado. */
+@media (max-width: 30rem) {
+    .lista-simple > li.busqueda-historial { grid-template-columns: 5rem 1fr; align-items: start; gap: .5rem 1rem; }
+    .busqueda-historial-datos { display: contents; }
+    .busqueda-historial-foto { width: 5rem; grid-row: span 2; }
+    .busqueda-historial-datos .boton { grid-column: 1 / -1; width: 100%; margin-top: .25rem; }
+}
 .lista-simple .precio { font-size: 1.2rem; }
 .lista-simple .acciones { margin-top: .25rem; }
 

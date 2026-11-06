@@ -93,12 +93,14 @@ class UsuarioPqrDaoJdbcTest {
         Usuario usuario = usuarioDao.insertar(new Usuario("luz@correo.com", "hash", Rol.USUARIO, "Luz", "Ortiz"));
         Busqueda primera = new Busqueda("tensiómetro", 4, 900);
         primera.setUsuarioId(usuario.getId());
+        primera.setUrlImagen("https://fotos.ejemplo.com/tensiometro.jpg");
         busquedaDao.insertar(primera);
         busquedaDao.insertar(new Busqueda("anónima", 1, 300));
 
         List<Busqueda> historial = busquedaDao.listarPorUsuario(usuario.getId(), 20);
         assertEquals(1, historial.size());
         assertEquals("tensiómetro", historial.get(0).getTermino());
+        assertEquals("https://fotos.ejemplo.com/tensiometro.jpg", historial.get(0).getUrlImagen());
         assertEquals(1, busquedaDao.eliminarPorUsuario(usuario.getId()));
     }
 }

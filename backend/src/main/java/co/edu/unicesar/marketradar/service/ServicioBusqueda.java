@@ -5,6 +5,7 @@ import co.edu.unicesar.marketradar.config.PropiedadesMarketradar;
 import co.edu.unicesar.marketradar.domain.ConsultaBusqueda;
 import co.edu.unicesar.marketradar.domain.OfertaNormalizada;
 import co.edu.unicesar.marketradar.domain.OrdenResultados;
+import co.edu.unicesar.marketradar.domain.ProductoMvp;
 import co.edu.unicesar.marketradar.domain.ResultadoBusqueda;
 import co.edu.unicesar.marketradar.exception.AccesoDatosException;
 import co.edu.unicesar.marketradar.service.mvp.EstrategiaSeleccionMvp;
@@ -25,6 +26,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 /**
  * Orquesta la búsqueda: consulta la caché, ejecuta los adaptadores en paralelo con timeout y
@@ -86,11 +88,13 @@ public class ServicioBusqueda {
         int hasta = Math.min(desde + consulta.getTamano(), ordenadas.size());
         BigDecimal mejorPrecio = ordenadas.stream().map(OfertaNormalizada::precioTotal)
                 .min(Comparator.naturalOrder()).orElse(null);
+        ProductoMvp mvp = seleccionMvp.elegir(ordenadas).orElse(null);
         if (consulta.getPagina() == 1) {
-            registrarBusquedaSinInterrumpir(consulta.getTermino(), ordenadas.size(), inicio, usuarioId);
+            registrarBusquedaSinInterrumpir(consulta.getTermino(), ordenadas.size(), inicio, usuarioId,
+                    imagenRepresentativa(mvp, ordenadas));
         }
         return new ResultadoBusqueda(ordenadas.subList(desde, hasta), completo.advertencias(), ordenadas.size(),
-                completo.idsPersistidos(), mejorPrecio, seleccionMvp.elegir(ordenadas).orElse(null));
+                completo.idsPersistidos(), mejorPrecio, mvp);
     }
 
     /**
@@ -161,9 +165,26 @@ public class ServicioBusqueda {
         }
     }
 
-    private void registrarBusquedaSinInterrumpir(String termino, int total, long inicio, Long usuarioId) {
+    /**
+     * Foto que representa una búsqueda en el historial: la del producto MVP o, si no tiene, la de la primera
+     * oferta que tenga una. Solo se aceptan fotos con {@code https}, igual que en los resultados.
+     *
+     * @param mvp mejor opción de compra, o {@code null}
+     * @param ordenadas ofertas en el orden en que se muestran
+     * @return dirección de la foto, o {@code null} si ninguna oferta tiene
+     */
+    static String imagenRepresentativa(ProductoMvp mvp, List<OfertaNormalizada> ordenadas) {
+        Stream<OfertaNormalizada> candidatas = Stream.concat(
+                mvp == null ? Stream.empty() : Stream.of(mvp.oferta()), ordenadas.stream());
+        return candidatas.map(OfertaNormalizada::getUrlImagen)
+                .filter(url -> url != null && url.startsWith("https://") && url.length() <= 2048)
+                .findFirst().orElse(null);
+    }
+
+    private void registrarBusquedaSinInterrumpir(String termino, int total, long inicio, Long usuarioId,
+                                                 String urlImagen) {
         try {
-            persistencia.registrarBusqueda(termino, total, milisegundosDesde(inicio), usuarioId);
+            persistencia.registrarBusqueda(termino, total, milisegundosDesde(inicio), usuarioId, urlImagen);
         } catch (AccesoDatosException e) {
             LOG.error("No se pudo registrar la búsqueda", e);
         }

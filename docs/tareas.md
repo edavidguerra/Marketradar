@@ -21,6 +21,7 @@ Actualícela al cierre de cada fase. Estados: completada, en progreso, pendiente
 | Tienda de demostración con productos de ejemplo (retirada después: los productos reales llegan por Google Shopping) | Ever Guerra | 3 | completada |
 | Precios reales con Google Shopping (SerpApi) | Ever Guerra | 3 | completada |
 | Sugerencias al escribir, "¿Quizás quiso decir?" y enlaces de compra seguros | Ever Guerra | 3 | completada |
+| Fotos de los productos en el historial de búsquedas | Ever Guerra | 3 | completada |
 | Integración del asistente con Claude | Ever Guerra | 3 | completada |
 | Ingreso con roles, registro y validaciones | Equipo | 3 | completada |
 | Perfil, historial, PQR y gestión de PQR del administrador | Equipo | 3 | completada |
