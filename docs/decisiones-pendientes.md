@@ -15,7 +15,7 @@ Estas decisiones le corresponden al equipo. El código está preparado para cual
 
 ## Por confirmar en la documentación oficial
 
-- AliExpress: método de búsqueda de afiliados, algoritmo de firma, parámetros y límites de uso.
+- AliExpress: límite diario de llamadas de la aplicación (el método, la firma y los parámetros están en [integraciones/aliexpress.md](integraciones/aliexpress.md)).
 - Shopify: requisitos de acceso y términos de uso de cada vía.
 - Mercado Libre: si las búsquedas sin OAuth responden 403 y los límites de uso.
 - Restricciones de cada API para guardar precios o imágenes.
