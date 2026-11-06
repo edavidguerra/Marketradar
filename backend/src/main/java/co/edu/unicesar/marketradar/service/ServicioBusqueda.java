@@ -126,7 +126,7 @@ public class ServicioBusqueda {
                 ofertas.addAll(tarea.join());
             } catch (RuntimeException e) {
                 LOG.warn("El marketplace {} no respondió: {}", codigo, e.getMessage());
-                advertencias.add("La tienda " + codigo + " no respondió a tiempo. Mostramos los resultados de las demás.");
+                advertencias.add("La tienda " + nombreVisible(codigo) + " no respondió a tiempo. Mostramos los resultados de las demás.");
             }
         });
 
@@ -194,5 +194,20 @@ public class ServicioBusqueda {
 
     private record ResultadoCompleto(List<OfertaNormalizada> ofertas, List<String> advertencias,
                                      Map<String, Long> idsPersistidos) {
+    }
+
+    /**
+     * Nombre de la tienda tal como lo ve la persona, por ejemplo {@code Mercado Libre} para {@code mercadolibre}.
+     *
+     * @param codigo código del marketplace
+     * @return nombre para mostrar
+     */
+    static String nombreVisible(String codigo) {
+        return switch (codigo) {
+            case "aliexpress" -> "AliExpress";
+            case "shopify" -> "Shopify";
+            case "mercadolibre" -> "Mercado Libre";
+            default -> codigo;
+        };
     }
 }

@@ -14,6 +14,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * Convierte las excepciones en respuestas con formato uniforme y mensajes en español sencillo,
@@ -51,6 +52,12 @@ public class ManejadorErrores {
     @ExceptionHandler(RecursoNoEncontradoException.class)
     public ResponseEntity<ErrorRespuestaDto> noEncontrado(RecursoNoEncontradoException e) {
         return respuesta(HttpStatus.NOT_FOUND, "NO_ENCONTRADO", e.getMessage(), e);
+    }
+
+    /** Un archivo o ruta que no existe responde 404, no 500, y no llena el registro de errores. */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorRespuestaDto> rutaInexistente(NoResourceFoundException e) {
+        return respuesta(HttpStatus.NOT_FOUND, "NO_ENCONTRADO", "La página que busca no existe.", e);
     }
 
     @ExceptionHandler(AccesoDatosException.class)
