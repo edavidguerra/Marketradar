@@ -42,6 +42,7 @@ Se cargan a mano en una base de desarrollo, nunca en la real, después de aplica
 ```bash
 psql -U marketradar -d marketradar -f datos-prueba/datos_demo.sql
 psql -U marketradar -d marketradar -f datos-prueba/casos_prueba.sql
+psql -U marketradar -d marketradar -f datos-prueba/datos_erroneos.sql
 ```
 
 `datos_demo.sql` deja cinco filas o más en cada tabla, con seis cuentas de prueba (contraseña `Demo2026*`).
@@ -58,6 +59,10 @@ psql -U marketradar -d marketradar -f datos-prueba/casos_prueba.sql
    ```text
    ERROR:  new row for relation "pqr" violates check constraint "ck_pqr_asunto_longitud"
    ```
+
+`datos_erroneos.sql` amplía el caso 3: 45 `INSERT` con datos malos que cubren las 10 tablas, cada uno con la
+restricción que lo debe rechazar. En pgAdmin se puede ejecutar uno por uno (seleccionar la línea y F5) o todos con el
+bloque final, que termina con `ROLLBACK` y muestra "45 de 45 casos rechazados".
 
    Cada intento va dentro de una transacción que se deshace, así que no cambia los datos.
 

@@ -156,13 +156,15 @@ Las peticiones que cambian datos deben enviar la cabecera `X-XSRF-TOKEN` con el 
 
 ## Estado actual
 
+Resumen de la entrega y ubicación de cada documento: [docs/entrega-final.md](docs/entrega-final.md).
+
 - [x] Estructura en 3 capas, modelo de datos, DAO JDBC y migraciones.
 - [x] Servicio de búsqueda en paralelo con caché, timeout de 4 s y advertencias por tienda.
 - [x] Ingreso con roles, registro con contraseña segura y validación de todos los campos.
 - [x] Interfaz de usuario (inicio, buscar, historial, perfil, PQR, tutorial y asistente) e interfaz de administrador.
 - [x] Producto MVP con enlace directo, conversión a COP con la TRM y chatbot con Spring AI.
 - [x] Adaptador de AliExpress (se activa con sus claves; ver [docs/integraciones/aliexpress.md](docs/integraciones/aliexpress.md)).
-- [ ] Adaptador de Shopify (pendiente: Catalog API o Storefront MCP).
+- [x] Adaptador de Shopify con el Global Catalog (se activa con su token; ver [docs/integraciones/shopify.md](docs/integraciones/shopify.md)).
 - [x] Adaptador de Mercado Libre (se activa con sus credenciales; ver [docs/integraciones/mercadolibre.md](docs/integraciones/mercadolibre.md)).
 
 Mientras no haya un adaptador activo, la búsqueda responde "Por ahora no hay tiendas disponibles" y el producto MVP no aparece.
