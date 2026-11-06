@@ -2,8 +2,10 @@ package co.edu.unicesar.marketradar.controller;
 
 import co.edu.unicesar.marketradar.domain.ConsultaBusqueda;
 import co.edu.unicesar.marketradar.dto.RespuestaBusquedaDto;
+import co.edu.unicesar.marketradar.dto.SugerenciasDto;
 import co.edu.unicesar.marketradar.seguridad.UsuarioAutenticado;
 import co.edu.unicesar.marketradar.service.ServicioBusqueda;
+import co.edu.unicesar.marketradar.service.ServicioSugerencias;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,9 +24,11 @@ import java.util.stream.Collectors;
 public class ControladorBusqueda {
 
     private final ServicioBusqueda servicioBusqueda;
+    private final ServicioSugerencias servicioSugerencias;
 
-    public ControladorBusqueda(ServicioBusqueda servicioBusqueda) {
+    public ControladorBusqueda(ServicioBusqueda servicioBusqueda, ServicioSugerencias servicioSugerencias) {
         this.servicioBusqueda = servicioBusqueda;
+        this.servicioSugerencias = servicioSugerencias;
     }
 
     /**
@@ -47,7 +51,20 @@ public class ControladorBusqueda {
                                        @AuthenticationPrincipal UsuarioAutenticado usuario) {
         ConsultaBusqueda consulta = ConsultaBusqueda.crear(q, orden, separarCodigos(marketplaces), pagina, tamano);
         Long usuarioId = usuario == null ? null : usuario.getId();
-        return RespuestaBusquedaDto.desde(consulta, servicioBusqueda.buscar(consulta, usuarioId));
+        String quizas = consulta.getPagina() == 1
+                ? servicioSugerencias.corregir(consulta.getTermino()).orElse(null) : null;
+        return RespuestaBusquedaDto.desde(consulta, servicioBusqueda.buscar(consulta, usuarioId), quizas);
+    }
+
+    /**
+     * Sugiere productos mientras la persona escribe. No consulta las tiendas, así que no gasta búsquedas.
+     *
+     * @param q lo escrito hasta ahora
+     * @return hasta 6 sugerencias
+     */
+    @GetMapping("/sugerencias")
+    public SugerenciasDto sugerencias(@RequestParam(required = false) String q) {
+        return new SugerenciasDto(servicioSugerencias.sugerir(q));
     }
 
     private static Set<String> separarCodigos(String marketplaces) {

@@ -27,8 +27,8 @@ Falabella, Alkosto, Mercado Libre y otras), así que reemplaza a las tiendas cuy
 | `price` | `moneda` | `COP`, o `USD` si el texto dice US$. |
 | `delivery` | `costoEnvio` | 0 si dice "gratis" o "free"; si no, queda sin valor. |
 | `source` | `vendedor` | La tienda real. En pantalla se ve "Éxito (por Google Shopping)". |
-| `product_link` (o `link`) | `urlDestino` | Abre el producto en Google Shopping, con las tiendas que lo venden. |
-| `thumbnail` | `urlImagen` | |
+| `link` (o `product_link`) | `urlDestino` | Si SerpApi trae el enlace directo de la tienda, se usa ese. Si no, se abre el producto en Google Shopping, con las tiendas que lo venden. Solo se aceptan enlaces `https`. |
+| `thumbnail` | `urlImagen` | Si llega con `http`, se cambia a `https`. |
 | `rating`, `reviews` | `calificacion`, `totalResenas` | |
 
 ### Errores
@@ -38,6 +38,13 @@ Falabella, Alkosto, Mercado Libre y otras), así que reemplaza a las tiendas cuy
 | 401 | La clave está mal. Revisar `SERPAPI_API_KEY`. |
 | 429 | Se acabaron las búsquedas del mes o se pasó el límite de 50 por hora. Esperar o subir de plan. |
 | 200 con "Google hasn't returned any results" | No es error: no hay productos con ese nombre. |
+
+### Enlaces seguros
+
+`AdaptadorGoogleShopping.esSeguro` solo acepta enlaces que empiezan por `https://`, con un dominio válido y de máximo
+2.048 caracteres. Si una oferta no tiene ningún enlace seguro, la página no muestra botón de compra y explica por qué.
+Antes de abrir la tienda, una ventana dice a qué dominio va la persona y le recuerda que Marketradar nunca pide datos
+bancarios.
 
 ## Cómo sacar la clave
 

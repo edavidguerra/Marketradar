@@ -7,6 +7,7 @@ import { buscar, obtenerHistorialPrecio, obtenerOferta } from '../comun/api.js';
 import { crear, crearIcono, boton, enlaceTienda, mostrarEstado } from '../comun/dom.js';
 import { decimal, estrellas, fechaCorta, haceCuanto, pesos, tiendaDeOferta } from '../comun/formato.js';
 import { irA } from './navegacion.js';
+import { iniciarSugerencias } from './sugerencias.js';
 
 const TAMANO_PAGINA = 10;
 const estado = { termino: '', pagina: 1 };
@@ -118,6 +119,19 @@ function mostrarMvp(mvp) {
     contenedor.hidden = false;
 }
 
+/** "¿Quizás quiso decir…?": un botón que repite la búsqueda con las palabras corregidas. */
+function mostrarQuizas(sugerencia) {
+    const parrafo = $('quizas');
+    if (!sugerencia) {
+        parrafo.replaceChildren();
+        parrafo.hidden = true;
+        return;
+    }
+    const opcion = boton(sugerencia, 'boton-enlace', () => buscarTermino(sugerencia));
+    parrafo.replaceChildren('¿Quizás quiso decir ', opcion, '?');
+    parrafo.hidden = false;
+}
+
 function mostrarAdvertencias(advertencias) {
     const lista = $('advertencias');
     lista.replaceChildren(...advertencias.map((texto) => crear('li', null, texto)));
@@ -133,7 +147,10 @@ async function cargarPagina() {
     try {
         const respuesta = await buscar(estado.termino, estado.pagina, TAMANO_PAGINA);
         mostrarAdvertencias(respuesta.advertencias || []);
-        if (estado.pagina === 1) mostrarMvp(respuesta.producto_mvp);
+        if (estado.pagina === 1) {
+            mostrarMvp(respuesta.producto_mvp);
+            mostrarQuizas(respuesta.quizas_quiso_decir);
+        }
         $('lista-resultados').append(...respuesta.ofertas.map(crearTarjeta));
         mostrarEstado(estadoResultados, respuesta.total_resultados === 0
             ? `No encontramos resultados para "${estado.termino}". Pruebe con otra palabra.`
@@ -154,6 +171,7 @@ export function buscarTermino(termino) {
     estado.pagina = 1;
     $('lista-resultados').replaceChildren();
     mostrarMvp(null);
+    mostrarQuizas(null);
     irA('buscar');
     cargarPagina();
 }
@@ -232,6 +250,11 @@ export function iniciarBusqueda() {
             return;
         }
         buscarTermino(termino);
+    });
+    iniciarSugerencias(campo, $('lista-sugerencias'), $('estado-sugerencias'), (texto) => {
+        error.hidden = true;
+        campo.setAttribute('aria-invalid', 'false');
+        buscarTermino(texto);
     });
     $('ver-mas').addEventListener('click', () => {
         estado.pagina += 1;

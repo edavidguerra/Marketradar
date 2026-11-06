@@ -29,8 +29,7 @@ Marketradar se publica en [Render](https://render.com) con el plan gratuito. El 
 4. Pulsar **Apply** y esperar. La primera construcción tarda entre 5 y 10 minutos.
 5. Cuando la web diga **Live**, abrir la dirección que muestra Render (algo como `https://marketradar.onrender.com`).
 6. Si la dirección final es distinta a la que se puso en `CORS_ORIGENES`, corregirla en la web > **Environment** y guardar.
-7. Mientras no haya claves de una tienda real, `DEMOSTRACION_HABILITADO=true` hace que la búsqueda muestre la **Tienda de demostración** con productos de ejemplo (ver `docs/integraciones/demostracion.md`). Si la variable no aparece en **Environment**, se agrega a mano.
-8. Para precios reales, crear la clave gratis de SerpApi y ponerla en `SERPAPI_API_KEY`, con `SERPAPI_HABILITADO=true` (ver `docs/integraciones/google-shopping.md`).
+7. Para que la búsqueda muestre productos reales, crear la clave gratis de SerpApi y ponerla en `SERPAPI_API_KEY`, con `SERPAPI_HABILITADO=true` (ver `docs/integraciones/google-shopping.md`).
 
 ## Activar una tienda
 

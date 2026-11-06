@@ -85,11 +85,6 @@ marketradar:
       habilitado: ${SERPAPI_HABILITADO:false}
       api-key: ${SERPAPI_API_KEY:}
       url-api: https://serpapi.com
-    demostracion:
-      # Productos de ejemplo para probar sin claves de tiendas reales (ver docs/integraciones/demostracion.md).
-      habilitado: ${DEMOSTRACION_HABILITADO:false}
-      # Dirección pública para los enlaces. Render la da sola en RENDER_EXTERNAL_URL.
-      url-base: ${DEMOSTRACION_URL:${RENDER_EXTERNAL_URL:http://localhost:8080}}
   asistente:
     # Chatbot con Claude (API de Anthropic). "ninguno" apaga el chatbot.
     proveedor: ${ASISTENTE_PROVEEDOR:claude}

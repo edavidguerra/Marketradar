@@ -64,8 +64,6 @@ services:
         value: "false"
       - key: MERCADOLIBRE_HABILITADO
         value: "false"
-      - key: DEMOSTRACION_HABILITADO
-        value: "true"
       - key: SERPAPI_HABILITADO
         value: "false"
       - key: SERPAPI_API_KEY

@@ -25,4 +25,23 @@ public interface BusquedaDao extends Dao<Busqueda> {
      * @return cantidad de registros borrados
      */
     int eliminarPorUsuario(long usuarioId);
+
+    /**
+     * Términos que buscaron varias personas y dieron resultados, del más buscado al menos buscado.
+     * Solo cuenta los que buscaron al menos dos personas distintas, para no mostrar a nadie
+     * la búsqueda privada de otra persona.
+     *
+     * @param limite cantidad máxima de términos
+     * @return términos en minúsculas con la cantidad de veces que se buscaron
+     */
+    List<TerminoPopular> terminosPopulares(int limite);
+
+    /**
+     * Término buscado y cuántas veces se buscó.
+     *
+     * @param termino texto buscado, en minúsculas
+     * @param veces cantidad de búsquedas
+     */
+    record TerminoPopular(String termino, int veces) {
+    }
 }
