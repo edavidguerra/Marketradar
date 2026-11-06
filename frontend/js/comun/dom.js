@@ -9,6 +9,19 @@ export function crear(etiqueta, clase, texto) {
     return elemento;
 }
 
+/** Ícono decorativo del archivo img/iconos.svg; el lector de pantalla lo ignora. */
+export function crearIcono(nombre) {
+    const svgNs = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNs, 'svg');
+    svg.setAttribute('class', 'icono');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    const uso = document.createElementNS(svgNs, 'use');
+    uso.setAttribute('href', `img/iconos.svg#${nombre}`);
+    svg.append(uso);
+    return svg;
+}
+
 export function boton(texto, clase, alPulsar) {
     const elemento = crear('button', `boton ${clase}`, texto);
     elemento.type = 'button';

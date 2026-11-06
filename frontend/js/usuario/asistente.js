@@ -3,14 +3,25 @@
  */
 
 import { preguntarAsistente } from '../comun/api.js';
+import { crear } from '../comun/dom.js';
 
 const historial = [];
 
 function agregarMensaje(lista, rol, texto) {
-    const elemento = document.createElement('li');
-    elemento.className = rol === 'usuario' ? 'mensaje-usuario' : 'mensaje-asistente';
-    elemento.textContent = `${rol === 'usuario' ? 'Usted' : 'Asistente'}: ${texto}`;
+    const elemento = crear('li', rol === 'usuario' ? 'mensaje-usuario' : 'mensaje-asistente');
+    elemento.append(crear('span', 'autor', `${rol === 'usuario' ? 'Usted' : 'Asistente'}: `), crear('span', null, texto));
     lista.append(elemento);
+    elemento.scrollIntoView({ block: 'nearest' });
+}
+
+/** Tres puntos animados mientras el asistente responde; el botón ya dice "Pensando…" al lector de pantalla. */
+function mostrarEscribiendo(lista) {
+    const elemento = crear('li', 'escribiendo');
+    elemento.setAttribute('aria-hidden', 'true');
+    elemento.append(crear('span'), crear('span'), crear('span'));
+    lista.append(elemento);
+    elemento.scrollIntoView({ block: 'nearest' });
+    return elemento;
 }
 
 export function iniciarAsistente() {
@@ -39,6 +50,7 @@ export function iniciarAsistente() {
         const enviar = formulario.querySelector('[type="submit"]');
         enviar.disabled = true;
         enviar.textContent = 'Pensando…';
+        const escribiendo = mostrarEscribiendo(conversacion);
         try {
             const { respuesta } = await preguntarAsistente(mensaje, historial.slice(-10));
             agregarMensaje(conversacion, 'asistente', respuesta);
@@ -46,6 +58,7 @@ export function iniciarAsistente() {
         } catch (error) {
             agregarMensaje(conversacion, 'asistente', error.message);
         } finally {
+            escribiendo.remove();
             enviar.disabled = false;
             enviar.textContent = 'Enviar pregunta';
             campo.focus();

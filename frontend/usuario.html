@@ -6,6 +6,7 @@
     <title>Inicio · Marketradar</title>
     <meta name="description" content="Busque un producto y vea en qué tienda está más barato.">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="preload" href="fuentes/atkinson-hyperlegible-next.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="css/estilos.css">
     <script type="module" src="js/usuario/app.js"></script>
 </head>
@@ -13,37 +14,44 @@
 <a class="saltar" href="#contenido">Ir al contenido</a>
 
 <header class="encabezado">
-    <p class="marca"><span aria-hidden="true">◎</span> Marketradar</p>
-    <div class="herramientas" role="group" aria-label="Tamaño de letra, contraste y salida">
-        <button type="button" class="boton boton-secundario" id="letra-menos" aria-label="Letra más pequeña">A−</button>
-        <button type="button" class="boton boton-secundario" id="letra-mas" aria-label="Letra más grande">A+</button>
-        <button type="button" class="boton boton-secundario" id="contraste" aria-pressed="false">Alto contraste</button>
-        <button type="button" class="boton boton-secundario" id="salir">Salir</button>
+    <div class="contenedor encabezado-interno">
+        <p class="marca"><img src="favicon.svg" alt="" width="40" height="40"> Marketradar</p>
+        <div class="herramientas" role="group" aria-label="Tamaño de letra, contraste y salida">
+            <button type="button" class="boton boton-chip" id="letra-menos" aria-label="Letra más pequeña">A−</button>
+            <button type="button" class="boton boton-chip" id="letra-mas" aria-label="Letra más grande">A+</button>
+            <button type="button" class="boton boton-chip" id="contraste" aria-pressed="false"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#contraste"></use></svg> Alto contraste</button>
+            <button type="button" class="boton boton-chip boton-salir" id="salir"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#salir"></use></svg> Salir</button>
+        </div>
     </div>
 </header>
 
-<nav class="menu" aria-label="Menú principal">
+<nav class="menu contenedor" aria-label="Menú principal">
     <ul>
-        <li><a href="#inicio"><span class="icono" aria-hidden="true">🏠</span> Inicio</a></li>
-        <li><a href="#buscar"><span class="icono" aria-hidden="true">🔍</span> Buscar</a></li>
-        <li><a href="#historial"><span class="icono" aria-hidden="true">🕘</span> Historial</a></li>
-        <li><a href="#perfil"><span class="icono" aria-hidden="true">👤</span> Mi perfil</a></li>
-        <li><a href="#pqr"><span class="icono" aria-hidden="true">✉️</span> PQR</a></li>
-        <li><a href="#tutorial"><span class="icono" aria-hidden="true">❓</span> Tutorial</a></li>
+        <li><a href="#inicio"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#casa"></use></svg> Inicio</a></li>
+        <li><a href="#buscar"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#buscar"></use></svg> Buscar</a></li>
+        <li><a href="#historial"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#reloj"></use></svg> Historial</a></li>
+        <li><a href="#perfil"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#persona"></use></svg> Mi perfil</a></li>
+        <li><a href="#pqr"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#sobre"></use></svg> PQR</a></li>
+        <li><a href="#tutorial"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#ayuda"></use></svg> Tutorial</a></li>
     </ul>
 </nav>
 
-<main id="contenido" tabindex="-1">
+<main id="contenido" class="contenedor" tabindex="-1">
     <!-- Inicio -->
     <section id="seccion-inicio" aria-labelledby="saludo" hidden>
-        <h1 id="saludo" tabindex="-1">Bienvenido</h1>
+        <div class="bienvenida">
+            <div class="radar" aria-hidden="true"><span></span><span></span><span></span><i></i></div>
+            <h1 id="saludo" tabindex="-1">Bienvenido</h1>
+            <p>Encuentre el mejor precio sin salir de casa.</p>
+            <a class="boton boton-claro" href="#buscar"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#buscar"></use></svg> Buscar un producto</a>
+        </div>
         <div id="aviso-inicio" class="aviso-inicio" aria-live="polite"></div>
         <h2>¿Qué quiere hacer hoy?</h2>
         <ul class="accesos">
-            <li><a href="#buscar"><strong>🔍 Buscar un producto</strong>Le mostramos la mejor opción de compra.</a></li>
-            <li><a href="#historial"><strong>🕘 Ver mis búsquedas</strong>Repita una búsqueda con un clic.</a></li>
-            <li><a href="#pqr"><strong>✉️ Enviar una PQR</strong>Peticiones, quejas, reclamos o sugerencias.</a></li>
-            <li><a href="#tutorial"><strong>❓ Aprender a usar Marketradar</strong>Explicación paso a paso.</a></li>
+            <li><a href="#buscar"><span class="acceso-icono"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#buscar"></use></svg></span><strong>Buscar un producto</strong>Le mostramos la mejor opción de compra.<svg class="icono acceso-flecha" aria-hidden="true" focusable="false"><use href="img/iconos.svg#flecha"></use></svg></a></li>
+            <li><a href="#historial"><span class="acceso-icono"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#reloj"></use></svg></span><strong>Ver mis búsquedas</strong>Repita una búsqueda con un clic.<svg class="icono acceso-flecha" aria-hidden="true" focusable="false"><use href="img/iconos.svg#flecha"></use></svg></a></li>
+            <li><a href="#pqr"><span class="acceso-icono"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#sobre"></use></svg></span><strong>Enviar una PQR</strong>Peticiones, quejas, reclamos o sugerencias.<svg class="icono acceso-flecha" aria-hidden="true" focusable="false"><use href="img/iconos.svg#flecha"></use></svg></a></li>
+            <li><a href="#tutorial"><span class="acceso-icono"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#ayuda"></use></svg></span><strong>Aprender a usar Marketradar</strong>Explicación paso a paso.<svg class="icono acceso-flecha" aria-hidden="true" focusable="false"><use href="img/iconos.svg#flecha"></use></svg></a></li>
         </ul>
     </section>
 
@@ -51,11 +59,14 @@
     <section id="seccion-buscar" aria-labelledby="titulo-buscar" hidden>
         <form id="formulario-busqueda" class="busqueda" novalidate>
             <h1 id="titulo-buscar" tabindex="-1"><label for="campo-busqueda">¿Qué producto quiere buscar?</label></h1>
-            <input id="campo-busqueda" name="q" type="search" autocomplete="off" required
-                   minlength="2" maxlength="100" aria-describedby="ayuda-busqueda error-busqueda">
+            <div class="barra-busqueda">
+                <svg class="icono barra-busqueda-icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#buscar"></use></svg>
+                <input id="campo-busqueda" name="q" type="search" autocomplete="off" required
+                       minlength="2" maxlength="100" aria-describedby="ayuda-busqueda error-busqueda">
+                <button type="submit" class="boton boton-principal">Buscar</button>
+            </div>
             <p id="ayuda-busqueda" class="ayuda">Por ejemplo: tensiómetro, licuadora, televisor.</p>
             <p id="error-busqueda" class="error" role="alert" hidden></p>
-            <button type="submit" class="boton boton-principal">Buscar</button>
         </form>
         <div id="estado-resultados" role="status" aria-live="polite"></div>
         <ul id="advertencias" class="advertencias" hidden></ul>
@@ -221,13 +232,13 @@
             mejor comprarlo. Estas son las opciones del menú:</p>
         <ol class="pasos">
             <li>
-                <h2>🏠 Inicio</h2>
+                <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#casa"></use></svg> Inicio</h2>
                 <p>Le saluda y le muestra un aviso con ofertas: productos que bajaron de precio o que usted buscó
                     hace poco. Pulse "Ver otro aviso" para ver más.</p>
                 <a class="boton boton-secundario" href="#inicio">Ir a Inicio</a>
             </li>
             <li>
-                <h2>🔍 Buscar</h2>
+                <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#buscar"></use></svg> Buscar</h2>
                 <p>Escriba el nombre del producto, por ejemplo "tensiómetro", y pulse "Buscar". Arriba verá la
                     <strong>mejor opción de compra</strong>, elegida por precio, opiniones de otros compradores y
                     envío, con las razones. Pulse "Comprar este producto" y se abrirá la página exacta del producto
@@ -237,35 +248,35 @@
                 <a class="boton boton-secundario" href="#buscar">Ir a Buscar</a>
             </li>
             <li>
-                <h2>🕘 Historial</h2>
+                <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#reloj"></use></svg> Historial</h2>
                 <p>Guarda las búsquedas que usted hizo. Pulse "Buscar otra vez" para ver los precios de hoy sin
                     volver a escribir. Si lo desea, puede borrar todo el historial.</p>
                 <a class="boton boton-secundario" href="#historial">Ir a Historial</a>
             </li>
             <li>
-                <h2>👤 Mi perfil</h2>
+                <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#persona"></use></svg> Mi perfil</h2>
                 <p>Allí puede revisar y corregir sus datos: nombres, documento, fecha de nacimiento, celular y
                     ciudad. También puede cambiar su contraseña.</p>
                 <a class="boton boton-secundario" href="#perfil">Ir a Mi perfil</a>
             </li>
             <li>
-                <h2>✉️ PQR</h2>
+                <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#sobre"></use></svg> PQR</h2>
                 <p>Si tiene una pregunta, una queja, un reclamo o una sugerencia, escríbala aquí. Le daremos un
                     número de solicitud y la respuesta aparecerá en la misma sección.</p>
                 <a class="boton boton-secundario" href="#pqr">Ir a PQR</a>
             </li>
             <li>
-                <h2>💬 Asistente</h2>
-                <p>Al final de cada página está el botón "¿Necesita ayuda?". Escriba su pregunta con sus palabras,
+                <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#chat"></use></svg> Asistente</h2>
+                <p>Abajo a la derecha de cada página está el botón "¿Necesita ayuda?". Escriba su pregunta con sus palabras,
                     por ejemplo "¿dónde está más barato un tensiómetro?", y el asistente le responderá.</p>
             </li>
             <li>
-                <h2>🔠 Letra y contraste</h2>
+                <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#letra"></use></svg> Letra y contraste</h2>
                 <p>Arriba a la derecha, "A+" agranda la letra, "A−" la achica y "Alto contraste" pone la pantalla en
                     negro y amarillo. Marketradar recuerda su preferencia.</p>
             </li>
             <li>
-                <h2>🔒 Su seguridad</h2>
+                <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#candado"></use></svg> Su seguridad</h2>
                 <p>Marketradar nunca le pedirá datos bancarios. La compra se hace en la página de la tienda.
                     Cuando termine, pulse "Salir".</p>
             </li>
@@ -275,10 +286,14 @@
 
 <!-- Asistente de IA -->
 <aside class="asistente" aria-labelledby="titulo-asistente">
-    <button type="button" class="boton boton-asistente" id="abrir-asistente" aria-expanded="false"
-            aria-controls="panel-asistente">💬 ¿Necesita ayuda? Pregúntele al asistente</button>
     <div id="panel-asistente" class="panel-asistente" hidden>
-        <h2 id="titulo-asistente">Asistente</h2>
+        <div class="panel-asistente-cabecera">
+            <span class="avatar-asistente"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#chat"></use></svg></span>
+            <div>
+                <h2 id="titulo-asistente">Asistente</h2>
+                <p class="ayuda">Pregunte por un producto o por cómo usar la página.</p>
+            </div>
+        </div>
         <ol id="conversacion" class="conversacion" aria-live="polite"></ol>
         <form id="formulario-asistente" class="formulario-asistente">
             <label for="campo-asistente">Escriba su pregunta</label>
@@ -289,12 +304,13 @@
             </div>
         </form>
     </div>
+    <button type="button" class="boton boton-asistente" id="abrir-asistente" aria-expanded="false"
+            aria-controls="panel-asistente"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#chat"></use></svg> ¿Necesita ayuda?</button>
 </aside>
 
 <footer class="pie">
-    <p>Los precios son informativos y pueden cambiar en la tienda. Algunos enlaces pueden generar una comisión
-        para este proyecto, sin costo adicional para usted.</p>
-    <p>Proyecto de aula · Programación de Computadores III · Universidad Popular del Cesar</p>
+    <p class="contenedor">Los precios son informativos y pueden cambiar en la tienda. Algunos enlaces pueden generar
+        una comisión para este proyecto, sin costo adicional para usted.</p>
 </footer>
 </body>
 </html>
