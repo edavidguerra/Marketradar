@@ -34,6 +34,9 @@
     --color-tarjeta: #000000;
 }
 
+/* Lo oculto se oculta siempre, aunque su clase defina display (por ejemplo .mvp). */
+[hidden] { display: none !important; }
+
 *, *::before, *::after {
     box-sizing: border-box;
 }

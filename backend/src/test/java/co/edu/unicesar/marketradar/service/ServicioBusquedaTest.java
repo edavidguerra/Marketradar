@@ -75,6 +75,14 @@ class ServicioBusquedaTest {
     }
 
     @Test
+    void laAdvertenciaUsaElNombreVisibleDeLaTienda() {
+        assertEquals("Mercado Libre", ServicioBusqueda.nombreVisible("mercadolibre"));
+        assertEquals("AliExpress", ServicioBusqueda.nombreVisible("aliexpress"));
+        assertEquals("Shopify", ServicioBusqueda.nombreVisible("shopify"));
+        assertEquals("otra", ServicioBusqueda.nombreVisible("otra"));
+    }
+
+    @Test
     void reutilizaLaCacheEnBusquedasRepetidas() {
         AdaptadorMarketplace tienda = adaptador("a", List.of(oferta("a", "1", "10000", null)));
         ServicioBusqueda servicio = servicio(tienda);
