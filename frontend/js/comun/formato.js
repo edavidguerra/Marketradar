@@ -12,6 +12,7 @@ const NOMBRES_TIENDA = {
     aliexpress: 'AliExpress',
     shopify: 'Shopify',
     mercadolibre: 'Mercado Libre',
+    demostracion: 'Tienda de demostración',
 };
 
 export function pesos(valor) {

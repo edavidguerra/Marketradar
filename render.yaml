@@ -64,6 +64,8 @@ services:
         value: "false"
       - key: MERCADOLIBRE_HABILITADO
         value: "false"
+      - key: DEMOSTRACION_HABILITADO
+        value: "true"
       - key: MERCADOLIBRE_CLIENT_ID
         sync: false
       - key: MERCADOLIBRE_CLIENT_SECRET

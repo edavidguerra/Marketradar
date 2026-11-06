@@ -15,12 +15,12 @@ Convenciones de las tablas:
 
 ## marketplace
 
-Tienda en línea que consulta Marketradar. Se crea con los datos iniciales de V2.
+Tienda en línea que consulta Marketradar. Se crea con los datos iniciales de V2; V7 agrega la tienda de demostración.
 
 | Columna | Tipo | Nulo | Llave | Restricciones y valor por defecto | Descripción |
 | --- | --- | --- | --- | --- | --- |
 | `id` | SMALLSERIAL | No | PK | | Identificador de la tienda. |
-| `codigo` | VARCHAR(30) | No | UQ | `UNIQUE` | Código interno que usa el backend para elegir el adaptador (`aliexpress`, `shopify`, `mercadolibre`). |
+| `codigo` | VARCHAR(30) | No | UQ | `UNIQUE` | Código interno que usa el backend para elegir el adaptador (`aliexpress`, `shopify`, `mercadolibre`, `demostracion`). |
 | `nombre` | VARCHAR(80) | No | | | Nombre que se muestra a la persona. |
 | `sitio_web` | VARCHAR(255) | No | | | Dirección principal de la tienda. |
 | `activo` | BOOLEAN | No | | `DEFAULT TRUE` | Si la tienda se muestra como disponible. V2 las deja en `FALSE` hasta validar su API. |

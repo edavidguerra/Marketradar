@@ -166,6 +166,7 @@ Resumen de la entrega y ubicación de cada documento: [docs/entrega-final.md](do
 - [x] Adaptador de AliExpress (se activa con sus claves; ver [docs/integraciones/aliexpress.md](docs/integraciones/aliexpress.md)).
 - [x] Adaptador de Shopify con el Global Catalog (se activa con su token; ver [docs/integraciones/shopify.md](docs/integraciones/shopify.md)).
 - [x] Adaptador de Mercado Libre (se activa con sus credenciales; ver [docs/integraciones/mercadolibre.md](docs/integraciones/mercadolibre.md)).
+- [x] Tienda de demostración con 42 productos de ejemplo para probar sin claves (`DEMOSTRACION_HABILITADO=true`; ver [docs/integraciones/demostracion.md](docs/integraciones/demostracion.md)).
 
 Mientras no haya un adaptador activo, la búsqueda responde "Por ahora no hay tiendas disponibles" y el producto MVP no aparece.
 

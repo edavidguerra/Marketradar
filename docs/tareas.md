@@ -18,6 +18,7 @@ Actualícela al cierre de cada fase. Estados: completada, en progreso, pendiente
 | Adaptador de Shopify | Juan Araujo | 3 | completada |
 | Adaptador de Mercado Libre | Luis Corzo | 3 | completada |
 | Guardar el token de Mercado Libre en la base de datos | Ever Guerra | 3 | completada |
+| Tienda de demostración con productos de ejemplo | Ever Guerra | 3 | completada |
 | Integración del asistente con Claude | Ever Guerra | 3 | completada |
 | Ingreso con roles, registro y validaciones | Equipo | 3 | completada |
 | Perfil, historial, PQR y gestión de PQR del administrador | Equipo | 3 | completada |
