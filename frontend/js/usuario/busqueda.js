@@ -5,7 +5,7 @@
 
 import { buscar, obtenerHistorialPrecio, obtenerOferta } from '../comun/api.js';
 import { crear, crearIcono, boton, enlaceTienda, mostrarEstado } from '../comun/dom.js';
-import { decimal, estrellas, fechaCorta, haceCuanto, nombreTienda, pesos } from '../comun/formato.js';
+import { decimal, estrellas, fechaCorta, haceCuanto, pesos, tiendaDeOferta } from '../comun/formato.js';
 import { irA } from './navegacion.js';
 
 const TAMANO_PAGINA = 10;
@@ -37,7 +37,7 @@ function crearDato(icono, texto) {
 }
 
 function crearTarjeta(oferta) {
-    const tienda = nombreTienda(oferta.tienda);
+    const tienda = tiendaDeOferta(oferta);
     const tarjeta = crear('li', oferta.mejor_precio ? 'tarjeta mejor' : 'tarjeta');
     const imagen = crear('div', 'tarjeta-imagen');
     if (oferta.url_imagen) {
@@ -94,7 +94,7 @@ function mostrarMvp(mvp) {
         return;
     }
     const { oferta } = mvp;
-    const tienda = nombreTienda(oferta.tienda);
+    const tienda = tiendaDeOferta(oferta);
     const razones = crear('ul');
     mvp.razones.forEach((razon) => razones.append(crear('li', null, razon)));
     const sello = crear('p', 'sello');

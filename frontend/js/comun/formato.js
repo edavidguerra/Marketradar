@@ -13,6 +13,7 @@ const NOMBRES_TIENDA = {
     shopify: 'Shopify',
     mercadolibre: 'Mercado Libre',
     demostracion: 'Tienda de demostración',
+    googleshopping: 'Google Shopping',
 };
 
 export function pesos(valor) {
@@ -21,6 +22,14 @@ export function pesos(valor) {
 
 export function nombreTienda(codigo) {
     return NOMBRES_TIENDA[codigo] || codigo;
+}
+
+/** Google Shopping reúne muchas tiendas: se muestra la tienda real, por ejemplo "Éxito (por Google Shopping)". */
+export function tiendaDeOferta(oferta) {
+    if (oferta.tienda === 'googleshopping' && oferta.vendedor) {
+        return `${oferta.vendedor} (por Google Shopping)`;
+    }
+    return nombreTienda(oferta.tienda);
 }
 
 export function haceCuanto(fechaIso) {

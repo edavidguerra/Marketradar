@@ -45,7 +45,7 @@ Los resultados sin `id`, `title`, `price`, `currency_id` o `permalink` se descar
 | --- | --- | --- |
 | 400 al renovar el token (`invalid_grant`) | Mercado Libre aparece como no disponible | El refresh token venció (dura unos 6 meses) o ya se usó. Generar uno nuevo con los pasos de abajo. |
 | 401 en la búsqueda | Nada: el backend renueva el token y repite | |
-| 403 en la búsqueda | Mercado Libre aparece como no disponible | Revisar que la aplicación tenga permiso de lectura. Varios desarrolladores reportan 403 en esta búsqueda; si persiste, se deja `MERCADOLIBRE_HABILITADO=false`. |
+| 403 en la búsqueda | Mercado Libre aparece como no disponible | Desde 2025 Mercado Libre cerró la búsqueda pública (`/sites/<sitio>/search`) para aplicaciones de terceros y responde 403 aunque el token sea válido. Si pasa, se deja `MERCADOLIBRE_HABILITADO=false` y se usan los precios de Mercado Libre que trae Google Shopping (ver `google-shopping.md`). |
 | 429 | Mercado Libre aparece como no disponible | Se superó el límite de consultas. El adaptador ya limita a 5 búsquedas por segundo. |
 
 ## Cómo obtener las credenciales

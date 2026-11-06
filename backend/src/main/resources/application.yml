@@ -39,7 +39,8 @@ springdoc:
 marketradar:
   modo-desarrollo: ${MODO_DESARROLLO:false}
   busqueda:
-    timeout-segundos: 4
+    # Google Shopping (SerpApi) puede tardar varios segundos en responder.
+    timeout-segundos: ${BUSQUEDA_TIMEOUT_SEGUNDOS:8}
     cache-minutos: 15
     tamano-maximo: 20
     hilos: 6
@@ -79,6 +80,11 @@ marketradar:
       url-api: https://api.mercadolibre.com
       sitio: MCO
       resenas-por-busqueda: 5
+    google-shopping:
+      # Precios reales de muchas tiendas colombianas con SerpApi (ver docs/integraciones/google-shopping.md).
+      habilitado: ${SERPAPI_HABILITADO:false}
+      api-key: ${SERPAPI_API_KEY:}
+      url-api: https://serpapi.com
     demostracion:
       # Productos de ejemplo para probar sin claves de tiendas reales (ver docs/integraciones/demostracion.md).
       habilitado: ${DEMOSTRACION_HABILITADO:false}

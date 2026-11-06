@@ -46,7 +46,7 @@ Navegador -> Spring Security (sesión HTTP, CSRF con cookie XSRF-TOKEN)
 | Concepto | Dónde |
 | --- | --- |
 | Encapsulamiento | Atributos privados con getters y setters validados en `domain` (por ejemplo `Oferta.setPrecioActual`) |
-| Herencia | `AdaptadorAliExpress`, `AdaptadorShopify`, `AdaptadorMercadoLibre` y `AdaptadorDemostracion` extienden `AdaptadorMarketplaceBase`; los DAO extienden `DaoJdbcBase` |
+| Herencia | `AdaptadorAliExpress`, `AdaptadorShopify`, `AdaptadorMercadoLibre`, `AdaptadorGoogleShopping` y `AdaptadorDemostracion` extienden `AdaptadorMarketplaceBase`; los DAO extienden `DaoJdbcBase` |
 | Polimorfismo | `ServicioBusqueda` trata a todos los adaptadores como `AdaptadorMarketplace` |
 | Interfaces | `AdaptadorMarketplace`, `Dao<T>`, `ProveedorIA`, `PoliticaContrasena`, `EstrategiaSeleccionMvp`, `FuenteTasaCambio` |
 | Composición | `Oferta` contiene su lista de `HistorialPrecio` |
