@@ -25,9 +25,9 @@ Navegador -> Spring Security (sesión HTTP, CSRF con cookie XSRF-TOKEN)
 
 `ServicioCuentas` aplica la política de contraseñas (`PoliticaContrasena`), cifra con BCrypt y bloquea 15 minutos tras 5 intentos fallidos (`ProteccionIntentosIngreso`). El frontend tiene tres páginas: `index.html` (ingreso y registro), `usuario.html` y `admin.html`; cada una verifica la sesión y lleva a cada rol a la suya.
 
-## Chatbot con Spring AI
+## Chatbot con Claude
 
-`ServicioAsistente` valida la pregunta, agrega las instrucciones y los últimos 10 mensajes, y llama a `ProveedorIA`. `ProveedorIASpringAi` usa `ChatClient` de Spring AI con el cliente compatible con OpenAI apuntando a Gemini, y le ofrece al modelo las herramientas de `HerramientasAsistente` (`buscarMejorOpcion` y `valorDelDolar`) para que responda con precios reales y enlaces directos en vez de inventarlos. Si el proveedor falla, la persona recibe un mensaje amable.
+`ServicioAsistente` valida la pregunta, agrega las instrucciones y los últimos 10 mensajes, y llama a `ProveedorIA`. `ProveedorIAClaude` usa el SDK oficial de Anthropic para Java (`anthropic-java`) y le ofrece a Claude las herramientas de `HerramientasAsistente` (`buscarMejorOpcion` y `valorDelDolar`) para que responda con precios reales y enlaces directos en vez de inventarlos. Cuando Claude pide una herramienta, la clase la ejecuta, le devuelve el resultado y repite hasta la respuesta final (máximo 4 vueltas por pregunta). Si el proveedor falla, la persona recibe un mensaje amable.
 
 ## Tasas de cambio
 

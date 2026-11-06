@@ -4,7 +4,7 @@ import java.util.List;
 
 /**
  * Contrato del modelo de lenguaje que usa el chatbot. La implementación principal es
- * {@link ProveedorIASpringAi}; cambiar de proveedor no afecta al resto del sistema.
+ * {@link ProveedorIAClaude}; cambiar de proveedor no afecta al resto del sistema.
  */
 public interface ProveedorIA {
 

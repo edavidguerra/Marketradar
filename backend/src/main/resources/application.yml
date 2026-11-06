@@ -11,26 +11,6 @@ spring:
       pool-name: marketradar-pool
   flyway:
     locations: classpath:db/migration
-  ai:
-    # Chatbot con Spring AI. Por defecto usa Gemini con su endpoint compatible con OpenAI; para usar OpenAI
-    # cambie ASISTENTE_URL_BASE=https://api.openai.com, ASISTENTE_RUTA=/v1/chat/completions y ASISTENTE_MODELO.
-    openai:
-      api-key: ${ASISTENTE_API_KEY:sin-configurar}
-      base-url: ${ASISTENTE_URL_BASE:https://generativelanguage.googleapis.com/v1beta/openai}
-      chat:
-        completions-path: ${ASISTENTE_RUTA:/chat/completions}
-        options:
-          model: ${ASISTENTE_MODELO:gemini-2.5-flash}
-          temperature: 0.3
-    retry:
-      max-attempts: 2
-    model:
-      embedding: none
-      image: none
-      moderation: none
-      audio:
-        speech: none
-        transcription: none
   http:
     client:
       connect-timeout: 5s
@@ -100,9 +80,10 @@ marketradar:
       sitio: MCO
       resenas-por-busqueda: 5
   asistente:
-    # "spring-ai" usa el modelo configurado en spring.ai.openai; "ninguno" apaga el chatbot.
-    proveedor: ${ASISTENTE_PROVEEDOR:spring-ai}
+    # Chatbot con Claude (API de Anthropic). "ninguno" apaga el chatbot.
+    proveedor: ${ASISTENTE_PROVEEDOR:claude}
     api-key: ${ASISTENTE_API_KEY:}
+    modelo: ${ASISTENTE_MODELO:claude-opus-5-5}
   administrador:
     # Cuenta de administrador que se crea al arrancar si no existe. La clave debe ser segura.
     correo: ${ADMIN_CORREO:}

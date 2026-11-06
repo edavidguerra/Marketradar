@@ -5,8 +5,8 @@ Estas decisiones le corresponden al equipo. El código está preparado para cual
 | # | Decisión | Opciones | Estado actual en el código |
 | --- | --- | --- | --- |
 | 1 | Interfaz gráfica exigida en la Fase 3 (la rúbrica menciona NetBeans) | (A) Frontend web y consultar al docente si lo acepta. (B) Agregar un cliente de escritorio Swing que consuma la misma API REST | Frontend web; la API REST permite agregar un cliente Swing sin cambiar el backend |
-| 2 | Proveedor de IA del asistente | Gemini u OpenAI con Spring AI | Gemini por defecto (`gemini-2.5-flash`); OpenAI cambiando tres variables |
-| 3 | Alcance del asistente | Solo responder dudas, o también lanzar búsquedas y explicar resultados | Responde dudas y busca precios reales con herramientas de Spring AI |
+| 2 | Proveedor de IA del asistente | Gemini u OpenAI con Spring AI, o Claude | **Decidido:** Claude (`claude-opus-5-5`) con los créditos de Anthropic del equipo (ver [asistente-claude.md](asistente-claude.md)) |
+| 3 | Alcance del asistente | Solo responder dudas, o también lanzar búsquedas y explicar resultados | Responde dudas y busca precios reales con herramientas que Claude puede llamar |
 | 4 | Vía de acceso a Shopify | Catalog API global o Storefront MCP por tienda | **Decidido:** Global Catalog (herramienta `search_catalog` por MCP). Falta decidir cómo cumplir que Shopify no permite guardar sus resultados (ver [integraciones/shopify.md](integraciones/shopify.md)) |
 | 5 | Mercado Libre | Incluirlo si la prueba de acceso OAuth funciona | **Decidido:** incluido, con OAuth y renovación del token |
 | 6 | Criterio para agrupar ofertas en `producto` | Ver [arquitectura.md](arquitectura.md) | Sin agrupar |

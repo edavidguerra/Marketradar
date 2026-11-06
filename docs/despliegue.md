@@ -11,7 +11,7 @@ Marketradar se publica en [Render](https://render.com) con el plan gratuito. El 
 
 - Una cuenta en Render. Se puede crear con la cuenta de GitHub del líder (`edavidguerra`).
 - El `render.yaml` ya debe estar en la rama `develop`.
-- A mano: el correo y la clave del administrador, y la clave de Gemini para el chatbot (<https://aistudio.google.com/apikey>).
+- A mano: el correo y la clave del administrador, y la clave de Claude para el chatbot (ver [asistente-claude.md](asistente-claude.md)).
 
 ## Pasos
 
@@ -24,7 +24,7 @@ Marketradar se publica en [Render](https://render.com) con el plan gratuito. El 
 | `CORS_ORIGENES` | `https://marketradar.onrender.com` (o la dirección que Render le dé a la web) |
 | `ADMIN_CORREO` | Correo del administrador |
 | `ADMIN_CLAVE` | Clave del administrador: mayúscula, minúscula, número y carácter especial, sin contener el correo |
-| `ASISTENTE_API_KEY` | Clave de Gemini. Si se deja vacía, el chatbot no responde, pero el resto funciona |
+| `ASISTENTE_API_KEY` | Clave de Claude (empieza por `sk-ant-`). Si se deja vacía, el chatbot no responde, pero el resto funciona |
 
 4. Pulsar **Apply** y esperar. La primera construcción tarda entre 5 y 10 minutos.
 5. Cuando la web diga **Live**, abrir la dirección que muestra Render (algo como `https://marketradar.onrender.com`).

@@ -6,8 +6,6 @@ import co.edu.unicesar.marketradar.domain.ResultadoBusqueda;
 import co.edu.unicesar.marketradar.exception.ValidacionException;
 import co.edu.unicesar.marketradar.service.ServicioBusqueda;
 import co.edu.unicesar.marketradar.service.ServicioTasasCambio;
-import org.springframework.ai.tool.annotation.Tool;
-import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -17,8 +15,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Funciones que el modelo de IA puede llamar para responder con datos reales de Marketradar,
- * en lugar de inventar precios (tool calling de Spring AI).
+ * Funciones que Claude puede llamar para responder con datos reales de Marketradar,
+ * en lugar de inventar precios. {@link ProveedorIAClaude} las declara como herramientas.
  */
 @Component
 public class HerramientasAsistente {
@@ -40,10 +38,7 @@ public class HerramientasAsistente {
      * @param producto nombre del producto
      * @return resumen en texto para el modelo
      */
-    @Tool(description = "Busca un producto en las tiendas conectadas a Marketradar y devuelve la mejor opción de "
-            + "compra (producto MVP) con su enlace directo, y las ofertas más baratas en pesos colombianos.")
-    public String buscarMejorOpcion(@ToolParam(description = "Nombre del producto, por ejemplo 'tensiómetro de brazo'")
-                                    String producto) {
+    public String buscarMejorOpcion(String producto) {
         ConsultaBusqueda consulta;
         try {
             consulta = ConsultaBusqueda.crear(producto, "precio_asc", Set.of(), 1, OFERTAS_A_MOSTRAR);
@@ -68,7 +63,6 @@ public class HerramientasAsistente {
     /**
      * @return valor del dólar usado para convertir precios
      */
-    @Tool(description = "Devuelve cuántos pesos colombianos vale hoy un dólar (TRM) según Marketradar.")
     public String valorDelDolar() {
         return servicioTasas.tasaVigente("USD")
                 .map(tasa -> "1 dólar = " + pesos(tasa.valor()) + " (" + tasa.fuente() + ", " + tasa.vigenteDesde() + ")")
