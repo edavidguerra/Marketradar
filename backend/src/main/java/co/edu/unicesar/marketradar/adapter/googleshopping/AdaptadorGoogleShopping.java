@@ -135,9 +135,12 @@ public class AdaptadorGoogleShopping extends AdaptadorMarketplaceBase {
     }
 
     private static OfertaNormalizada aOferta(Resultado resultado) {
-        String enlace = tieneValor(resultado.productLink()) ? resultado.productLink() : resultado.link();
+        // Se prefiere el enlace directo a la tienda; si no viene, la página del producto en Google Shopping.
+        // Solo se aceptan enlaces https, para que la compra sea en una conexión segura.
+        String enlace = esSeguro(resultado.link()) ? resultado.link()
+                : esSeguro(resultado.productLink()) ? resultado.productLink() : null;
         if (!tieneValor(resultado.titulo()) || resultado.precio() == null || resultado.precio().signum() <= 0
-                || !esWeb(enlace)) {
+                || enlace == null) {
             return null;
         }
         String id = tieneValor(resultado.productId()) ? resultado.productId()
@@ -151,7 +154,7 @@ public class AdaptadorGoogleShopping extends AdaptadorMarketplaceBase {
                 .costoEnvio(costoEnvio(resultado.envio()))
                 .vendedor(tieneValor(resultado.tienda()) ? recortar(resultado.tienda(), 150) : null)
                 .urlDestino(enlace)
-                .urlImagen(esWeb(resultado.imagen()) ? resultado.imagen() : null)
+                .urlImagen(imagenSegura(resultado.imagen()))
                 .calificacion(calificacion(resultado.calificacion()))
                 .totalResenas(resultado.resenas() != null && resultado.resenas() > 0 ? resultado.resenas() : null)
                 .build();
@@ -184,8 +187,25 @@ public class AdaptadorGoogleShopping extends AdaptadorMarketplaceBase {
         return valor.setScale(1, RoundingMode.HALF_UP);
     }
 
-    private static boolean esWeb(String url) {
-        return url != null && (url.startsWith("https://") || url.startsWith("http://")) && url.length() <= 2048;
+    /** Solo direcciones https válidas, de máximo 2048 letras. */
+    static boolean esSeguro(String url) {
+        if (url == null || url.length() > 2048 || !url.startsWith("https://")) {
+            return false;
+        }
+        try {
+            String servidor = java.net.URI.create(url).getHost();
+            return servidor != null && servidor.contains(".");
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    /** Las imágenes que llegan por http se piden por https; las que no son web se descartan. */
+    static String imagenSegura(String url) {
+        if (url != null && url.startsWith("http://")) {
+            url = "https://" + url.substring("http://".length());
+        }
+        return esSeguro(url) ? url : null;
     }
 
     private static String recortar(String texto, int maximo) {

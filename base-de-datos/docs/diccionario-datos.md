@@ -15,7 +15,7 @@ Convenciones de las tablas:
 
 ## marketplace
 
-Tienda en línea que consulta Marketradar. Se crea con los datos iniciales de V2; V7 agrega la tienda de demostración y V8 Google Shopping.
+Tienda en línea que consulta Marketradar. Se crea con los datos iniciales de V2; V7 agrega la tienda de demostración, V8 Google Shopping y V9 apaga la tienda de demostración (queda con `activo = FALSE` y sin ofertas).
 
 | Columna | Tipo | Nulo | Llave | Restricciones y valor por defecto | Descripción |
 | --- | --- | --- | --- | --- | --- |

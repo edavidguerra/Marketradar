@@ -45,14 +45,28 @@ export function avisar(zona, mensaje, tipo = 'exito') {
 }
 
 /** Abre un enlace de tienda en otra pestaña, después de avisar a la persona. */
+/** Devuelve el dominio si la dirección es https; si no, null (no se ofrece un enlace que no sea seguro). */
+export function dominioSeguro(url) {
+    try {
+        const direccion = new URL(url);
+        return direccion.protocol === 'https:' ? direccion.hostname.replace(/^www\./, '') : null;
+    } catch {
+        return null;
+    }
+}
+
 export function enlaceTienda(texto, url, nombreTienda, clase = 'boton boton-principal') {
+    const dominio = dominioSeguro(url);
+    if (!dominio) {
+        return crear('p', 'ayuda', 'Esta oferta no tiene un enlace seguro. Búsquela directamente en la tienda.');
+    }
     const enlace = crear('a', clase, texto);
     enlace.href = url;
     enlace.target = '_blank';
     enlace.rel = 'noopener noreferrer';
     enlace.addEventListener('click', (evento) => {
-        const continuar = window.confirm(`Va a abrir la página de ${nombreTienda} en otra pestaña. `
-            + 'Allí podrá comprar el producto.');
+        const continuar = window.confirm(`Va a abrir ${dominio} (${nombreTienda}) en otra pestaña, con conexión `
+            + 'segura. Allí podrá comprar el producto. Nunca le pediremos datos bancarios en Marketradar.');
         if (!continuar) evento.preventDefault();
     });
     return enlace;

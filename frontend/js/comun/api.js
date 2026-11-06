@@ -59,6 +59,9 @@ export function buscar(termino, pagina = 1, tamano = 10) {
     const parametros = new URLSearchParams({ q: termino, pagina, tamano });
     return pedir(`/busqueda?${parametros}`);
 }
+export function obtenerSugerencias(texto) {
+    return pedir(`/busqueda/sugerencias?${new URLSearchParams({ q: texto })}`);
+}
 export const obtenerOferta = (id) => pedir(`/ofertas/${encodeURIComponent(id)}`);
 export const obtenerHistorialPrecio = (id) => pedir(`/ofertas/${encodeURIComponent(id)}/historial`);
 export const obtenerTasas = () => pedir('/tasas');

@@ -87,4 +87,14 @@ public class BusquedaDaoJdbc extends DaoJdbcBase implements BusquedaDao {
         busqueda.setCreadaEn(fila.getObject("creada_en", OffsetDateTime.class));
         return busqueda;
     }
+
+    @Override
+    public List<TerminoPopular> terminosPopulares(int limite) {
+        return consultarLista("SELECT lower(btrim(termino)) AS termino, count(*) AS veces FROM busqueda "
+                        + "WHERE total_resultados > 0 AND usuario_id IS NOT NULL "
+                        + "GROUP BY lower(btrim(termino)) HAVING count(DISTINCT usuario_id) >= 2 "
+                        + "ORDER BY veces DESC, termino LIMIT ?",
+                sentencia -> sentencia.setInt(1, limite),
+                fila -> new TerminoPopular(fila.getString("termino"), fila.getInt("veces")));
+    }
 }

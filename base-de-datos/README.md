@@ -18,6 +18,7 @@ aplica los scripts en orden cuando arranca la aplicación.
 | `V6__credenciales_marketplace.sql` | Tabla `credencial_marketplace`, donde el backend guarda el refresh token de Mercado Libre que se renueva solo, para que no se pierda cuando el servidor se reinicia. |
 | `V7__tienda_demostracion.sql` | Datos: agrega la tienda de demostración, que muestra productos de ejemplo mientras las tiendas reales no tienen claves. |
 | `V8__google_shopping.sql` | Datos: agrega Google Shopping, que trae por SerpApi los precios de muchas tiendas colombianas. |
+| `V9__retira_tienda_demostracion.sql` | Datos: apaga la tienda de demostración y borra sus ofertas de ejemplo, porque los productos reales ya llegan por Google Shopping. |
 
 ## Vistas y consultas de reportes
 
@@ -95,6 +96,7 @@ psql -U postgres -d marketradar_revision -f migraciones/V5__seguimiento_y_restri
 psql -U postgres -d marketradar_revision -f migraciones/V6__credenciales_marketplace.sql
 psql -U postgres -d marketradar_revision -f migraciones/V7__tienda_demostracion.sql
 psql -U postgres -d marketradar_revision -f migraciones/V8__google_shopping.sql
+psql -U postgres -d marketradar_revision -f migraciones/V9__retira_tienda_demostracion.sql
 ```
 
 ## Scripts de administración

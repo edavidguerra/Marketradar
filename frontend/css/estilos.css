@@ -740,6 +740,7 @@ main > section:not([hidden]) { animation: aparecer .45s var(--curva) both; }
     translate: 0 -50%;
     color: var(--color-suave);
     pointer-events: none;
+    z-index: 1;
 }
 
 .busqueda input {
@@ -747,6 +748,65 @@ main > section:not([hidden]) { animation: aparecer .45s var(--curva) both; }
     padding-left: 3.2rem;
     border-radius: 999px;
     box-shadow: var(--sombra);
+}
+
+/* Sugerencias mientras escribe */
+.campo-sugerencias { position: relative; }
+
+.sugerencias {
+    position: absolute;
+    z-index: 50;
+    top: calc(100% + .35rem);
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding: .35rem;
+    list-style: none;
+    background: var(--color-superficie);
+    border: 2px solid var(--color-borde-campo);
+    border-radius: var(--radio-grande);
+    box-shadow: var(--sombra-alta);
+    max-height: 22rem;
+    overflow-y: auto;
+    animation: aparecer .18s var(--curva) both;
+}
+
+.sugerencias [role="option"] {
+    display: flex;
+    align-items: center;
+    min-height: 48px;
+    padding: .5rem 1rem;
+    border-radius: var(--radio);
+    cursor: pointer;
+    font-size: 1.05rem;
+}
+
+.sugerencias [role="option"]:hover,
+.sugerencias [role="option"][aria-selected="true"] {
+    background: var(--color-principal-claro, #e7f5ef);
+    color: var(--color-texto);
+    outline: 2px solid var(--color-principal);
+    outline-offset: -2px;
+}
+
+:root.alto-contraste .sugerencias { box-shadow: none; border-color: var(--color-borde); }
+:root.alto-contraste .sugerencias [role="option"][aria-selected="true"],
+:root.alto-contraste .sugerencias [role="option"]:hover { background: #ffff00; color: #000000; outline-color: #000000; }
+
+.quizas { margin: 0 0 1rem; font-size: 1.1rem; }
+.quizas .boton-enlace { display: inline; min-height: 0; padding: 0; font-size: inherit; font-weight: 700; }
+
+/* Texto solo para lectores de pantalla */
+.solo-lectores {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 #estado-resultados p { margin: 0 0 1rem; color: var(--color-suave); }
@@ -898,14 +958,6 @@ main > section:not([hidden]) { animation: aparecer .45s var(--curva) both; }
 .tarjeta-cuerpo p { margin: 0; }
 .tarjeta .acciones { margin-top: .5rem; }
 
-/* Página de la tienda de demostración */
-.demostracion { padding-block: 2rem 3rem; }
-.tarjeta.demostracion-tarjeta { grid-template-columns: 1fr; max-width: 42rem; margin-inline: auto; padding: 1.5rem; }
-.demostracion-tarjeta:hover { transform: none; box-shadow: var(--sombra); }
-.demostracion-tarjeta h1 { margin: 0; }
-.demostracion-tarjeta .sobretitulo { justify-self: start; }
-.demostracion-tarjeta .tarjeta-cuerpo { gap: 1rem; }
-.demostracion-tarjeta .acciones { align-items: flex-start; }
 
 .etiqueta-mejor {
     justify-self: start;
@@ -1007,6 +1059,9 @@ body:has(.asistente) { padding-bottom: 6rem; }
     gap: .75rem;
     max-width: calc(100vw - 2rem);
 }
+
+/* Mientras la lista de sugerencias está abierta, el botón de ayuda no la tapa. */
+.sugerencias-abiertas .asistente:not(:has([aria-expanded="true"])) { visibility: hidden; }
 
 .boton-asistente {
     min-height: 56px;

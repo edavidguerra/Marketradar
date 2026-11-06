@@ -28,7 +28,7 @@ public class ConfiguracionSeguridad {
 
     /** Rutas que no exigen sesión: páginas, recursos estáticos, ingreso, registro y salud. */
     private static final String[] RUTAS_PUBLICAS = {
-            "/", "/index.html", "/usuario.html", "/admin.html", "/tienda-demostracion.html", "/favicon.ico", "/css/**", "/js/**", "/img/**",
+            "/", "/index.html", "/usuario.html", "/admin.html", "/favicon.ico", "/css/**", "/js/**", "/img/**",
             "/api/v1/auth/**", "/api/v1/marketplaces", "/api/v1/salud", "/actuator/health",
             "/api/docs/**", "/swagger-ui/**", "/v3/api-docs/**", "/error"
     };

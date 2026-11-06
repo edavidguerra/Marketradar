@@ -61,13 +61,21 @@
             <h1 id="titulo-buscar" tabindex="-1"><label for="campo-busqueda">¿Qué producto quiere buscar?</label></h1>
             <div class="barra-busqueda">
                 <svg class="icono barra-busqueda-icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#buscar"></use></svg>
-                <input id="campo-busqueda" name="q" type="search" autocomplete="off" required
-                       minlength="2" maxlength="100" aria-describedby="ayuda-busqueda error-busqueda">
+                <div class="campo-sugerencias">
+                    <input id="campo-busqueda" name="q" type="search" autocomplete="off" required
+                           minlength="2" maxlength="100" aria-describedby="ayuda-busqueda error-busqueda"
+                           role="combobox" aria-autocomplete="list" aria-expanded="false"
+                           aria-controls="lista-sugerencias">
+                    <ul id="lista-sugerencias" class="sugerencias" role="listbox" aria-label="Sugerencias de búsqueda" hidden></ul>
+                </div>
                 <button type="submit" class="boton boton-principal">Buscar</button>
             </div>
-            <p id="ayuda-busqueda" class="ayuda">Por ejemplo: tensiómetro, licuadora, televisor.</p>
+            <p id="ayuda-busqueda" class="ayuda">Por ejemplo: tensiómetro, licuadora, televisor. Mientras escribe le
+                sugerimos productos; use las flechas para elegir uno.</p>
+            <p id="estado-sugerencias" class="solo-lectores" role="status" aria-live="polite"></p>
             <p id="error-busqueda" class="error" role="alert" hidden></p>
         </form>
+        <p id="quizas" class="quizas" hidden></p>
         <div id="estado-resultados" role="status" aria-live="polite"></div>
         <ul id="advertencias" class="advertencias" hidden></ul>
         <section id="producto-mvp" class="mvp" aria-label="Mejor opción de compra" hidden></section>

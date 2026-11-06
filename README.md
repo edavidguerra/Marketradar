@@ -13,7 +13,7 @@ Integrantes: Ever Guerra, Gustavo Rodriguez, Luis Corzo y Juan Araujo.
 **Interfaz de usuario** (letra grande, alto contraste, botones grandes y lenguaje sencillo):
 
 - **Inicio:** saludo y un aviso dinámico que invita a comprar (lo que buscó hace poco, productos que bajaron de precio o una invitación a buscar).
-- **Buscar:** compara el producto en todas las tiendas activas y muestra primero la **mejor opción de compra (producto MVP)**, elegida por precio total, reseñas y envío, con las razones y un botón que abre exactamente ese producto en la tienda. Después lista todas las ofertas y su historial de precio.
+- **Buscar:** compara el producto en todas las tiendas activas y muestra primero la **mejor opción de compra (producto MVP)**, elegida por precio total, reseñas y envío, con las razones y un botón que abre exactamente ese producto en la tienda. Después lista todas las ofertas y su historial de precio. Mientras la persona escribe aparecen sugerencias, y si escribe mal una palabra ("licuadorra", "oya arrosera") la página pregunta "¿Quizás quiso decir…?". Los enlaces de compra siempre abren con conexión segura (https) y antes se muestra a qué página va.
 - **Historial:** las búsquedas de la persona, para repetirlas con un clic o borrarlas.
 - **Mi perfil:** formulario estándar (nombres, apellidos, documento, fecha de nacimiento, celular y ciudad) y cambio de contraseña.
 - **PQR:** peticiones, quejas, reclamos y sugerencias, con número de radicado y la respuesta del administrador.
@@ -129,7 +129,8 @@ Las peticiones que cambian datos deben enviar la cabecera `X-XSRF-TOKEN` con el 
 | POST | `/api/v1/auth/ingreso` | Público | Inicia sesión (bloqueo de 15 min tras 5 intentos fallidos) |
 | POST | `/api/v1/auth/salida` | Con sesión | Cierra la sesión |
 | GET | `/api/v1/auth/sesion` | Público | Persona con sesión y su interfaz (204 si no hay sesión) |
-| GET | `/api/v1/busqueda?q=&orden=&marketplaces=&pagina=&tamano=` | Usuario | Busca en las tiendas activas y devuelve el producto MVP |
+| GET | `/api/v1/busqueda?q=&orden=&marketplaces=&pagina=&tamano=` | Usuario | Busca en las tiendas activas y devuelve el producto MVP y, si el término parece mal escrito, `quizas_quiso_decir` |
+| GET | `/api/v1/busqueda/sugerencias?q=` | Usuario | Hasta 6 sugerencias mientras la persona escribe (no consulta las tiendas) |
 | GET | `/api/v1/ofertas/{id}` y `/{id}/historial` | Usuario | Detalle e historial de precios |
 | POST | `/api/v1/asistente/mensajes` | Usuario | Pregunta al chatbot |
 | GET | `/api/v1/usuario/avisos` | Usuario | Avisos del inicio |
@@ -167,7 +168,7 @@ Resumen de la entrega y ubicación de cada documento: [docs/entrega-final.md](do
 - [x] Adaptador de Shopify con el Global Catalog (se activa con su token; ver [docs/integraciones/shopify.md](docs/integraciones/shopify.md)).
 - [x] Adaptador de Mercado Libre (se activa con sus credenciales; ver [docs/integraciones/mercadolibre.md](docs/integraciones/mercadolibre.md)).
 - [x] Google Shopping con SerpApi: precios reales de muchas tiendas colombianas (se activa con su clave; ver [docs/integraciones/google-shopping.md](docs/integraciones/google-shopping.md)).
-- [x] Tienda de demostración con 42 productos de ejemplo para probar sin claves (`DEMOSTRACION_HABILITADO=true`; ver [docs/integraciones/demostracion.md](docs/integraciones/demostracion.md)).
+- [x] Sugerencias al escribir y "¿Quizás quiso decir?" (ver [docs/busqueda-flexible.md](docs/busqueda-flexible.md)).
 
 Mientras no haya un adaptador activo, la búsqueda responde "Por ahora no hay tiendas disponibles" y el producto MVP no aparece.
 

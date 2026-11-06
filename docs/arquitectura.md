@@ -11,8 +11,13 @@ Navegador -> GET /api/v1/busqueda?q=...
     -> ServicioPersistenciaOfertas guarda ofertas e historial (solo si el precio cambia)
     -> EstrategiaSeleccionMvp elige la mejor opción de compra entre todas las ofertas
     -> la búsqueda queda en el historial de la persona
+  -> ServicioSugerencias revisa si el término parece mal escrito (quizas_quiso_decir)
   -> respuesta JSON con el producto MVP y las ofertas ordenadas, más las advertencias de las tiendas que fallaron
 ```
+
+Mientras la persona escribe, el navegador pide `GET /api/v1/busqueda/sugerencias?q=...`. Esas sugerencias salen del
+vocabulario de Marketradar y de lo que más se busca, no de las tiendas, así que no gastan consultas de SerpApi. Ver
+[busqueda-flexible.md](busqueda-flexible.md).
 
 ## Seguridad y roles
 
@@ -46,7 +51,7 @@ Navegador -> Spring Security (sesión HTTP, CSRF con cookie XSRF-TOKEN)
 | Concepto | Dónde |
 | --- | --- |
 | Encapsulamiento | Atributos privados con getters y setters validados en `domain` (por ejemplo `Oferta.setPrecioActual`) |
-| Herencia | `AdaptadorAliExpress`, `AdaptadorShopify`, `AdaptadorMercadoLibre`, `AdaptadorGoogleShopping` y `AdaptadorDemostracion` extienden `AdaptadorMarketplaceBase`; los DAO extienden `DaoJdbcBase` |
+| Herencia | `AdaptadorAliExpress`, `AdaptadorShopify`, `AdaptadorMercadoLibre` y `AdaptadorGoogleShopping` extienden `AdaptadorMarketplaceBase`; los DAO extienden `DaoJdbcBase` |
 | Polimorfismo | `ServicioBusqueda` trata a todos los adaptadores como `AdaptadorMarketplace` |
 | Interfaces | `AdaptadorMarketplace`, `Dao<T>`, `ProveedorIA`, `PoliticaContrasena`, `EstrategiaSeleccionMvp`, `FuenteTasaCambio` |
 | Composición | `Oferta` contiene su lista de `HistorialPrecio` |

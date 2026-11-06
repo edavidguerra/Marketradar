@@ -1,0 +1,204 @@
+# Productos comunes para sugerir mientras la persona escribe y para "¿Quizás quiso decir?".
+# Una búsqueda por línea, en minúsculas y con tildes. Las líneas que empiezan con # se ignoran.
+olla arrocera
+olla a presión
+olla
+sartén
+juego de ollas
+licuadora
+batidora
+procesador de alimentos
+cafetera
+cafetera eléctrica
+tostadora
+sanduchera
+freidora de aire
+horno microondas
+horno eléctrico
+estufa
+estufa de inducción
+nevera
+nevecón
+congelador
+lavadora
+secadora
+lavavajillas
+dispensador de agua
+filtro de agua
+ventilador
+ventilador de techo
+aire acondicionado
+calentador
+plancha
+plancha de ropa
+aspiradora
+aspiradora robot
+brilladora
+televisor
+televisor 32 pulgadas
+televisor 43 pulgadas
+televisor 50 pulgadas
+televisor 55 pulgadas
+smart tv
+control remoto
+decodificador
+barra de sonido
+parlante
+parlante bluetooth
+radio
+radio portátil
+equipo de sonido
+audífonos
+audífonos inalámbricos
+audífono para sordera
+celular
+celular samsung
+celular motorola
+celular xiaomi
+celular iphone
+celular de teclas grandes
+teléfono fijo
+teléfono inalámbrico
+cargador de celular
+cable usb
+power bank
+forro para celular
+vidrio templado
+reloj inteligente
+tableta
+tablet samsung
+ipad
+computador
+computador portátil
+computador de mesa
+portátil
+portátil lenovo
+portátil hp
+portátil asus
+portátil acer
+macbook
+monitor
+teclado
+teclado inalámbrico
+mouse
+mouse inalámbrico
+impresora
+impresora multifuncional
+tinta para impresora
+memoria usb
+disco duro externo
+router wifi
+cámara de seguridad
+cámara web
+cámara fotográfica
+consola de videojuegos
+playstation
+xbox
+nintendo switch
+tensiómetro
+tensiómetro digital
+glucómetro
+tiras para glucómetro
+termómetro
+termómetro digital
+oxímetro
+nebulizador
+báscula
+gramera
+pastillero
+bastón
+bastón plegable
+caminador
+silla de ruedas
+silla de ducha
+barra de apoyo para baño
+cama hospitalaria
+colchón antiescaras
+pañales para adulto
+faja lumbar
+rodillera
+medias de compresión
+lupa
+lupa con luz
+gafas de lectura
+almohada
+almohada ortopédica
+colchón
+colchón sencillo
+colchón doble
+colchón semidoble
+sábanas
+cobija
+toallas
+cortinas
+lámpara
+lámpara de mesa
+bombillo led
+linterna
+pilas
+pilas recargables
+extensión eléctrica
+regulador de voltaje
+silla
+silla de oficina
+silla reclinable
+sofá
+mesa
+comedor
+escritorio
+cama
+cama doble
+nochero
+armario
+zapatero
+espejo
+reloj de pared
+despertador
+máquina de coser
+herramientas
+taladro
+caja de herramientas
+bicicleta
+bicicleta estática
+caminadora
+pesas
+colchoneta de yoga
+zapatos
+tenis
+tenis para caminar
+pantuflas
+chaqueta
+camisa
+pantalón
+ropa interior
+morral
+maleta
+maleta de viaje
+bolso
+billetera
+reloj
+perfume
+crema
+protector solar
+shampoo
+secador de pelo
+plancha para el pelo
+máquina de afeitar
+cepillo de dientes eléctrico
+juguetes
+muñeca
+carro de juguete
+libros
+cuaderno
+lápices
+calculadora
+comida para perro
+comida para gato
+cama para perro
+arena para gato
+café
+arroz
+aceite
+leche
+azúcar
+chocolate
