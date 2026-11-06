@@ -9,9 +9,12 @@ Este documento explica cómo funciona y cómo conseguir las credenciales para ac
    *refresh token* en `POST https://api.mercadolibre.com/oauth/token` (`grant_type=refresh_token`) y lo reutiliza
    hasta cinco minutos antes de que venza (la documentación indica una vigencia de 6 horas).
 2. **El refresh token cambia en cada renovación.** Mercado Libre solo deja usar cada refresh token una vez y devuelve
-   uno nuevo. El backend guarda el nuevo en el archivo `MERCADOLIBRE_ARCHIVO_TOKEN`
-   (por defecto `datos/mercadolibre-refresh-token.txt`) y al arrancar lo lee de ahí antes que del `.env`.
-   En Docker ese archivo queda en el volumen `datos-app`, así que se conserva al reiniciar el contenedor.
+   uno nuevo. El backend guarda el nuevo en la tabla `credencial_marketplace` de la base de datos (migración V6)
+   y al arrancar lo lee de ahí antes que de la variable `MERCADOLIBRE_REFRESH_TOKEN`. Así no se pierde cuando
+   Render reinicia la web, porque Render borra el disco pero no la base de datos.
+   Junto al token se guarda el SHA-256 del `MERCADOLIBRE_REFRESH_TOKEN` del que se partió: si alguien genera un
+   refresh token nuevo y cambia la variable, el guardado se descarta y se usa el nuevo.
+   Para guardarlo en un archivo en vez de la base de datos se pone la ruta en `MERCADOLIBRE_ARCHIVO_TOKEN`.
 3. **Búsqueda.** `GET /sites/MCO/search?q=<término>&limit=50` con la cabecera `Authorization: Bearer <token>`.
    Si responde 401, el backend pide otro token y repite la búsqueda una vez.
 4. **Reseñas.** La búsqueda no trae calificaciones. Para los primeros resultados (5 por defecto, propiedad
@@ -88,8 +91,14 @@ MERCADOLIBRE_CLIENT_SECRET=<CLAVE_SECRETA>
 MERCADOLIBRE_REFRESH_TOKEN=<REFRESH_TOKEN>
 ```
 
-El `.env` nunca se sube al repositorio. Si se borra el archivo `datos/mercadolibre-refresh-token.txt` (o el volumen
-de Docker), el backend vuelve a usar el del `.env`, que ya está gastado, y hay que repetir los pasos 2 a 4.
+El `.env` nunca se sube al repositorio. Si se borra la fila `mercadolibre.refresh_token` de `credencial_marketplace`
+(o la base de datos), el backend vuelve a usar el del `.env`, que ya está gastado, y hay que repetir los pasos 2 a 4.
+
+### 4b. Configurar Render
+
+En <https://dashboard.render.com>, servicio **marketradar** > **Environment**, se agregan con **Add Environment Variable**
+las mismas cuatro variables del paso 4 (`MERCADOLIBRE_HABILITADO` ya existe: se cambia a `true`) y se guarda con
+**Save Changes**. No hay que hacer nada más cuando Render reinicie la web: el token renovado queda en la base de datos.
 
 ### 5. Probar
 

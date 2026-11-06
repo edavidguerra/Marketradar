@@ -15,6 +15,7 @@ aplica los scripts en orden cuando arranca la aplicación.
 | `V3__usuarios_pqr_y_resenas.sql` | Usuarios con rol, PQR, búsquedas por usuario, calificación y reseñas de las ofertas, y tasas de cambio. |
 | `V4__vistas_reportes.sql` | Vistas de solo lectura para reportes: ofertas vigentes en pesos, bajadas de precio, resumen de PQR y disponibilidad de cada API. |
 | `V5__seguimiento_y_restricciones.sql` | Tabla `seguimiento_oferta` (relación muchos a muchos entre usuario y oferta), nombre propio para todas las restricciones, acción referencial explícita en cada llave foránea y reglas del negocio como `CHECK`. No cambia datos. |
+| `V6__credenciales_marketplace.sql` | Tabla `credencial_marketplace`, donde el backend guarda el refresh token de Mercado Libre que se renueva solo, para que no se pierda cuando el servidor se reinicia. |
 
 ## Vistas y consultas de reportes
 
@@ -37,7 +38,7 @@ psql -U marketradar -d marketradar -f consultas/reportes.sql
 
 ## Datos de prueba
 
-Se cargan a mano en una base de desarrollo, nunca en la real, después de aplicar V1 a V5:
+Se cargan a mano en una base de desarrollo, nunca en la real, después de aplicar todas las migraciones:
 
 ```bash
 psql -U marketradar -d marketradar -f datos-prueba/datos_demo.sql
@@ -89,6 +90,7 @@ psql -U postgres -d marketradar_revision -f migraciones/V2__marketplaces_inicial
 psql -U postgres -d marketradar_revision -f migraciones/V3__usuarios_pqr_y_resenas.sql
 psql -U postgres -d marketradar_revision -f migraciones/V4__vistas_reportes.sql
 psql -U postgres -d marketradar_revision -f migraciones/V5__seguimiento_y_restricciones.sql
+psql -U postgres -d marketradar_revision -f migraciones/V6__credenciales_marketplace.sql
 ```
 
 ## Scripts de administración

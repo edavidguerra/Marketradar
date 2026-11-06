@@ -3,18 +3,12 @@ package co.edu.unicesar.marketradar.adapter.mercadolibre;
 import co.edu.unicesar.marketradar.exception.MarketplaceException;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -23,18 +17,18 @@ import java.time.Instant;
  * Token de acceso de Mercado Libre. Lo renueva con el refresh token antes de que venza.
  *
  * <p>Mercado Libre solo permite usar cada refresh token una vez y entrega uno nuevo en cada renovación,
- * así que el nuevo se guarda en un archivo. Al arrancar se usa el del archivo, si existe, y si no, el
- * de la configuración.</p>
+ * así que el nuevo se guarda en un {@link AlmacenToken} (la base de datos, o un archivo). Al arrancar se
+ * usa el guardado, si existe, y si no, el de la configuración.</p>
  */
 class TokenMercadoLibre {
 
-    private static final Logger LOG = LoggerFactory.getLogger(TokenMercadoLibre.class);
     private static final Duration MARGEN = Duration.ofMinutes(5);
 
     private final RestClient cliente;
     private final String clientId;
     private final String clientSecret;
-    private final Path archivo;
+    private final AlmacenToken almacen;
+    private final String refreshTokenInicial;
     private final Clock reloj;
 
     private String refreshToken;
@@ -46,18 +40,17 @@ class TokenMercadoLibre {
      * @param clientId identificador de la aplicación
      * @param clientSecret secreto de la aplicación
      * @param refreshTokenInicial refresh token de la configuración
-     * @param archivo archivo donde se guarda el refresh token vigente; {@code null} para no guardarlo
+     * @param almacen dónde se guarda el refresh token vigente; {@code null} para no guardarlo
      * @param reloj reloj para calcular el vencimiento
      */
     TokenMercadoLibre(RestClient cliente, String clientId, String clientSecret, String refreshTokenInicial,
-                      Path archivo, Clock reloj) {
+                      AlmacenToken almacen, Clock reloj) {
         this.cliente = cliente;
         this.clientId = clientId;
         this.clientSecret = clientSecret;
-        this.archivo = archivo;
+        this.almacen = almacen;
+        this.refreshTokenInicial = refreshTokenInicial;
         this.reloj = reloj;
-        String guardado = leerArchivo();
-        this.refreshToken = guardado != null ? guardado : refreshTokenInicial;
     }
 
     /**
@@ -81,6 +74,11 @@ class TokenMercadoLibre {
     }
 
     private void renovar() {
+        if (refreshToken == null) {
+            // Se lee en la primera renovación y no al crear el objeto: así la base de datos ya tiene las migraciones.
+            refreshToken = almacen == null ? refreshTokenInicial
+                    : almacen.leer(refreshTokenInicial).orElse(refreshTokenInicial);
+        }
         MultiValueMap<String, String> formulario = new LinkedMultiValueMap<>();
         formulario.add("grant_type", "refresh_token");
         formulario.add("client_id", clientId);
@@ -106,36 +104,9 @@ class TokenMercadoLibre {
         venceEn = reloj.instant().plusSeconds(respuesta.expiresIn());
         if (respuesta.refreshToken() != null && !respuesta.refreshToken().equals(refreshToken)) {
             refreshToken = respuesta.refreshToken();
-            guardarArchivo(refreshToken);
-        }
-    }
-
-    private String leerArchivo() {
-        if (archivo == null || !Files.isRegularFile(archivo)) {
-            return null;
-        }
-        try {
-            String contenido = Files.readString(archivo, StandardCharsets.UTF_8).strip();
-            return contenido.isEmpty() ? null : contenido;
-        } catch (IOException e) {
-            LOG.warn("No se pudo leer el refresh token de Mercado Libre en {}", archivo, e);
-            return null;
-        }
-    }
-
-    private void guardarArchivo(String token) {
-        if (archivo == null) {
-            return;
-        }
-        try {
-            Path carpeta = archivo.toAbsolutePath().getParent();
-            if (carpeta != null) {
-                Files.createDirectories(carpeta);
+            if (almacen != null) {
+                almacen.guardar(refreshToken, refreshTokenInicial);
             }
-            Files.writeString(archivo, token, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            LOG.error("No se pudo guardar el refresh token de Mercado Libre en {}. Al reiniciar habrá que generar otro.",
-                    archivo, e);
         }
     }
 
