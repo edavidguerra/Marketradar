@@ -18,7 +18,7 @@ Integrantes: Ever Guerra, Gustavo Rodriguez, Luis Corzo y Juan Araujo.
 - **Mi perfil:** formulario estándar (nombres, apellidos, documento, fecha de nacimiento, celular y ciudad) y cambio de contraseña.
 - **PQR:** peticiones, quejas, reclamos y sugerencias, con número de radicado y la respuesta del administrador.
 - **Tutorial:** explica paso a paso para qué sirve cada opción.
-- **Asistente:** chatbot con Spring AI que consulta precios reales y responde en frases cortas.
+- **Asistente:** chatbot con Claude que consulta precios reales y responde en frases cortas.
 
 **Interfaz de administrador:** resumen de PQR y usuarios, lista de PQR con el nombre y el correo de quien la envió, filtro por estado y respuesta.
 
@@ -33,7 +33,7 @@ No incluye pagos ni carrito: la compra se hace en la página de la tienda.
 | Frontend | HTML5, CSS3 y JavaScript sin frameworks (mobile-first, WCAG 2.1 AA) |
 | Backend | Java 21, Maven, Spring Boot 3 |
 | Seguridad | Spring Security (sesión, BCrypt, roles USUARIO y ADMINISTRADOR, CSRF) |
-| Chatbot | Spring AI 1.0 con Gemini (endpoint compatible con OpenAI) |
+| Chatbot | Claude (Anthropic) con el SDK oficial de Java y herramientas propias |
 | Acceso a datos | JDBC con patrón DAO (sin JPA), HikariCP |
 | Base de datos | PostgreSQL 16 con migraciones Flyway |
 | Caché y resiliencia | Caffeine (15 min), Resilience4j (circuit breaker y límite de uso) |
@@ -66,7 +66,7 @@ marketradar/
 │       │   ├── validacion/        Validación de campos y política de contraseñas
 │       │   ├── seguridad/         Usuario autenticado, bloqueo por intentos y respuestas 401/403
 │       │   ├── adapter/           Un adaptador por tienda y fuentes de tasas de cambio
-│       │   ├── asistente/         Proveedor de IA con Spring AI y sus herramientas
+│       │   ├── asistente/         Proveedor de IA con Claude y sus herramientas
 │       │   ├── dao/               Interfaces DAO y sus implementaciones JDBC
 │       │   ├── config/            Configuración, seguridad, CORS y tareas programadas
 │       │   └── exception/         Excepciones propias de cada capa
@@ -105,7 +105,7 @@ aplica. Si cambia el esquema, solo cambia `base-de-datos/`; si cambia la lógica
 
 **Con Docker (recomendado):**
 
-1. Copie `.env.example` como `.env`, cambie la clave de la base de datos y complete `ADMIN_CORREO`, `ADMIN_CLAVE` (cuenta de administrador que se crea al arrancar) y `ASISTENTE_API_KEY` (clave de Gemini, gratis en <https://aistudio.google.com/apikey>).
+1. Copie `.env.example` como `.env`, cambie la clave de la base de datos y complete `ADMIN_CORREO`, `ADMIN_CLAVE` (cuenta de administrador que se crea al arrancar) y `ASISTENTE_API_KEY` (clave de Claude, ver [docs/asistente-claude.md](docs/asistente-claude.md)).
 2. Ejecute `docker compose up --build`.
 3. Abra <http://localhost:8080>. La documentación de la API está en <http://localhost:8080/api/docs>.
 
@@ -162,7 +162,7 @@ Resumen de la entrega y ubicación de cada documento: [docs/entrega-final.md](do
 - [x] Servicio de búsqueda en paralelo con caché, timeout de 4 s y advertencias por tienda.
 - [x] Ingreso con roles, registro con contraseña segura y validación de todos los campos.
 - [x] Interfaz de usuario (inicio, buscar, historial, perfil, PQR, tutorial y asistente) e interfaz de administrador.
-- [x] Producto MVP con enlace directo, conversión a COP con la TRM y chatbot con Spring AI.
+- [x] Producto MVP con enlace directo, conversión a COP con la TRM y chatbot con Claude.
 - [x] Adaptador de AliExpress (se activa con sus claves; ver [docs/integraciones/aliexpress.md](docs/integraciones/aliexpress.md)).
 - [x] Adaptador de Shopify con el Global Catalog (se activa con su token; ver [docs/integraciones/shopify.md](docs/integraciones/shopify.md)).
 - [x] Adaptador de Mercado Libre (se activa con sus credenciales; ver [docs/integraciones/mercadolibre.md](docs/integraciones/mercadolibre.md)).

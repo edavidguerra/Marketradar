@@ -10,8 +10,7 @@ import java.util.List;
  * Responde con un mensaje amable para que la interfaz funcione de punta a punta.
  */
 @Component
-@ConditionalOnProperty(prefix = "marketradar.asistente", name = "proveedor", havingValue = "ninguno",
-        matchIfMissing = true)
+@ConditionalOnProperty(prefix = "marketradar.asistente", name = "proveedor", havingValue = "ninguno")
 public class ProveedorIANoConfigurado implements ProveedorIA {
 
     @Override

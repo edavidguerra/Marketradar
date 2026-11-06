@@ -94,10 +94,11 @@ public record PropiedadesMarketradar(
     }
 
     /**
-     * @param proveedor proveedor de IA del chatbot ({@code ninguno} mientras no se decida)
-     * @param apiKey clave de la API del proveedor
+     * @param proveedor {@code claude} para usar Claude; {@code ninguno} apaga el chatbot
+     * @param apiKey clave de la API de Anthropic
+     * @param modelo modelo de Claude, por ejemplo {@code claude-opus-5-5}
      */
-    public record Asistente(String proveedor, String apiKey) {
+    public record Asistente(String proveedor, String apiKey, String modelo) {
     }
 
     /**

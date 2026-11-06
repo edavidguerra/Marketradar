@@ -53,7 +53,9 @@ services:
       - key: ADMIN_CLAVE
         sync: false
       - key: ASISTENTE_PROVEEDOR
-        value: spring-ai
+        value: claude
+      - key: ASISTENTE_MODELO
+        value: claude-opus-5-5
       - key: ASISTENTE_API_KEY
         sync: false
       - key: ALIEXPRESS_HABILITADO
