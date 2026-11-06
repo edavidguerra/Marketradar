@@ -6,11 +6,13 @@ import co.edu.unicesar.marketradar.domain.ConsultaBusqueda;
 import co.edu.unicesar.marketradar.domain.OfertaNormalizada;
 import co.edu.unicesar.marketradar.exception.MarketplaceException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
@@ -57,7 +59,10 @@ class AdaptadorShopifyTest {
 
     @BeforeEach
     void preparar() {
-        builder = RestClient.builder().baseUrl(URL);
+        // Mismo formato JSON que la aplicación (spring.jackson.property-naming-strategy: SNAKE_CASE).
+        ObjectMapper mapper = new ObjectMapper().setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
+        builder = RestClient.builder().baseUrl(URL)
+                .messageConverters(convertidores -> convertidores.addFirst(new MappingJackson2HttpMessageConverter(mapper)));
         servidor = MockRestServiceServer.bindTo(builder).build();
     }
 

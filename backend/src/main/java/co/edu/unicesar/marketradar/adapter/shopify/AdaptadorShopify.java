@@ -233,9 +233,12 @@ public class AdaptadorShopify extends AdaptadorMarketplaceBase {
     record RespuestaRpc(Resultado result, ErrorRpc error) {
     }
 
-    /** @param structuredContent contenido estructurado de la herramienta */
+    /**
+     * @param structuredContent contenido estructurado de la herramienta. MCP lo nombra en camelCase, así que
+     *                          se indica el nombre exacto: Marketradar usa snake_case por defecto en su JSON.
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record Resultado(StructuredContent structuredContent) {
+    record Resultado(@JsonProperty("structuredContent") StructuredContent structuredContent) {
     }
 
     /** @param message descripción del error */
