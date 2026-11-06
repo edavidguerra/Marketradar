@@ -1,0 +1,64 @@
+# Despliegue en Render (https://render.com) con un Blueprint: crea la base PostgreSQL y la web.
+# Guía paso a paso en docs/despliegue.md. Las claves marcadas con sync: false se escriben en el
+# panel de Render al crear el Blueprint; nunca van en este archivo.
+databases:
+  - name: marketradar-db
+    plan: free
+    region: virginia
+    databaseName: marketradar
+    user: marketradar
+    postgresMajorVersion: "16"
+
+services:
+  - type: web
+    name: marketradar
+    runtime: docker
+    plan: free
+    region: virginia
+    branch: develop
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: DB_HOST
+        fromDatabase:
+          name: marketradar-db
+          property: host
+      - key: DB_PUERTO
+        fromDatabase:
+          name: marketradar-db
+          property: port
+      - key: DB_NOMBRE
+        fromDatabase:
+          name: marketradar-db
+          property: database
+      - key: DB_USUARIO
+        fromDatabase:
+          name: marketradar-db
+          property: user
+      - key: DB_CLAVE
+        fromDatabase:
+          name: marketradar-db
+          property: password
+      - key: PUERTO
+        value: "8080"
+      - key: JAVA_TOOL_OPTIONS
+        value: "-XX:MaxRAMPercentage=75 -XX:+UseSerialGC -Xss512k"
+      - key: MODO_DESARROLLO
+        value: "false"
+      - key: CORS_ORIGENES
+        sync: false
+      - key: ADMIN_CORREO
+        sync: false
+      - key: ADMIN_CLAVE
+        sync: false
+      - key: ASISTENTE_PROVEEDOR
+        value: spring-ai
+      - key: ASISTENTE_API_KEY
+        sync: false
+      - key: ALIEXPRESS_HABILITADO
+        value: "false"
+      - key: SHOPIFY_HABILITADO
+        value: "false"
+      - key: MERCADOLIBRE_HABILITADO
+        value: "false"

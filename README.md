@@ -117,6 +117,8 @@ mvn spring-boot:run
 
 **Pruebas:** `mvn -f backend/pom.xml verify`. La prueba de los DAO usa Testcontainers y se omite si Docker no está disponible.
 
+**En internet (Render):** el archivo `render.yaml` crea la base de datos y la web en Render. Pasos en [docs/despliegue.md](docs/despliegue.md).
+
 ## API REST
 
 Las peticiones que cambian datos deben enviar la cabecera `X-XSRF-TOKEN` con el valor de la cookie `XSRF-TOKEN`.
