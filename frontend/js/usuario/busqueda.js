@@ -4,7 +4,7 @@
  */
 
 import { buscar, obtenerHistorialPrecio, obtenerOferta } from '../comun/api.js';
-import { crear, boton, enlaceTienda, mostrarEstado } from '../comun/dom.js';
+import { crear, crearIcono, boton, enlaceTienda, mostrarEstado } from '../comun/dom.js';
 import { decimal, estrellas, fechaCorta, haceCuanto, nombreTienda, pesos } from '../comun/formato.js';
 import { irA } from './navegacion.js';
 
@@ -30,24 +30,40 @@ function crearCalificacion(oferta) {
     return parrafo;
 }
 
+function crearDato(icono, texto) {
+    const dato = crear('li', 'dato');
+    dato.append(crearIcono(icono), texto);
+    return dato;
+}
+
 function crearTarjeta(oferta) {
     const tienda = nombreTienda(oferta.tienda);
     const tarjeta = crear('li', oferta.mejor_precio ? 'tarjeta mejor' : 'tarjeta');
-    if (oferta.mejor_precio) tarjeta.append(crear('p', 'etiqueta-mejor', '★ Precio más bajo'));
+    const imagen = crear('div', 'tarjeta-imagen');
     if (oferta.url_imagen) {
-        const imagen = document.createElement('img');
-        imagen.src = oferta.url_imagen;
-        imagen.alt = oferta.titulo;
-        imagen.loading = 'lazy';
-        tarjeta.append(imagen);
+        const foto = document.createElement('img');
+        foto.src = oferta.url_imagen;
+        foto.alt = oferta.titulo;
+        foto.loading = 'lazy';
+        imagen.append(foto);
+    } else {
+        imagen.append(crearIcono('etiqueta'));
     }
-    tarjeta.append(
-        crear('h2', null, oferta.titulo),
-        crear('p', 'precio', `${pesos(oferta.precio_total)} en total`),
-        crear('p', null, oferta.costo_envio == null ? 'Envío: consultar en la tienda'
+    const cuerpo = crear('div', 'tarjeta-cuerpo');
+    if (oferta.mejor_precio) cuerpo.append(crear('p', 'etiqueta-mejor', '★ Precio más bajo'));
+    const precio = crear('p', 'precio', pesos(oferta.precio_total));
+    precio.append(crear('span', 'precio-nota', ' en total'));
+    const datos = crear('ul', 'datos');
+    datos.append(
+        crearDato('tienda', `Tienda: ${tienda}`),
+        crearDato('camion', oferta.costo_envio == null ? 'Envío: consultar en la tienda'
             : Number(oferta.costo_envio) === 0 ? 'Envío gratis' : `Incluye envío de ${pesos(oferta.costo_envio)}`),
+    );
+    cuerpo.append(
+        crear('h2', null, oferta.titulo),
+        precio,
         crearCalificacion(oferta),
-        crear('p', null, `Tienda: ${tienda}`),
+        datos,
         crear('p', 'ayuda', `Precio consultado ${haceCuanto(oferta.consultado_en)}. Puede cambiar en la tienda.`),
     );
     const acciones = crear('div', 'acciones');
@@ -55,8 +71,19 @@ function crearTarjeta(oferta) {
     if (oferta.id != null) {
         acciones.append(boton('Ver historial de precio', 'boton-secundario', () => verHistorial(oferta.id)));
     }
-    tarjeta.append(acciones);
+    cuerpo.append(acciones);
+    tarjeta.append(imagen, cuerpo);
     return tarjeta;
+}
+
+/** Tarjetas grises animadas que ocupan el lugar de los resultados mientras llegan. */
+function crearEsqueletos(cantidad) {
+    return Array.from({ length: cantidad }, () => {
+        const esqueleto = crear('li', 'tarjeta esqueleto');
+        esqueleto.setAttribute('aria-hidden', 'true');
+        esqueleto.append(crear('div', 'tarjeta-imagen'), crear('div', 'tarjeta-cuerpo'));
+        return esqueleto;
+    });
 }
 
 function mostrarMvp(mvp) {
@@ -70,14 +97,22 @@ function mostrarMvp(mvp) {
     const tienda = nombreTienda(oferta.tienda);
     const razones = crear('ul');
     mvp.razones.forEach((razon) => razones.append(crear('li', null, razon)));
+    const sello = crear('p', 'sello');
+    sello.append(crearIcono('estrella'), 'Nuestra recomendación: la mejor opción de compra');
+    const barra = crear('div', 'puntaje');
+    barra.setAttribute('aria-hidden', 'true');
+    const relleno = crear('span');
+    relleno.style.setProperty('--puntaje', `${Math.max(0, Math.min(100, Number(mvp.puntaje)))}%`);
+    barra.append(relleno);
     contenedor.replaceChildren(
-        crear('p', 'sello', '⭐ Nuestra recomendación: la mejor opción de compra'),
+        sello,
         crear('h2', null, oferta.titulo),
         crear('p', 'precio', `${pesos(oferta.precio_total)} en ${tienda}`),
         crearCalificacion(oferta),
-        crear('p', null, '¿Por qué se la recomendamos?'),
+        crear('p', 'razones-titulo', '¿Por qué se la recomendamos?'),
         razones,
         crear('p', 'ayuda', `Puntaje de compra: ${mvp.puntaje} de 100, según precio, opiniones y envío.`),
+        barra,
         enlaceTienda(`Comprar este producto en ${tienda}`, mvp.enlace_compra, tienda),
     );
     contenedor.hidden = false;
@@ -93,6 +128,8 @@ async function cargarPagina() {
     const estadoResultados = $('estado-resultados');
     mostrarEstado(estadoResultados, 'Buscando los mejores precios, un momento por favor…');
     $('ver-mas').hidden = true;
+    const esqueletos = crearEsqueletos(estado.pagina === 1 ? 3 : 1);
+    $('lista-resultados').append(...esqueletos);
     try {
         const respuesta = await buscar(estado.termino, estado.pagina, TAMANO_PAGINA);
         mostrarAdvertencias(respuesta.advertencias || []);
@@ -105,6 +142,8 @@ async function cargarPagina() {
         $('ver-mas').hidden = estado.pagina * TAMANO_PAGINA >= respuesta.total_resultados;
     } catch (error) {
         mostrarEstado(estadoResultados, error.message, cargarPagina);
+    } finally {
+        esqueletos.forEach((esqueleto) => esqueleto.remove());
     }
 }
 
@@ -140,6 +179,7 @@ function crearGrafico(historial) {
     svg.setAttribute('aria-label', 'Gráfico del precio a lo largo del tiempo');
     const linea = document.createElementNS(svgNs, 'polyline');
     linea.setAttribute('points', puntos.join(' '));
+    linea.setAttribute('pathLength', '1');
     svg.append(linea);
     return svg;
 }

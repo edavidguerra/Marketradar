@@ -61,6 +61,24 @@ Las pantallas con sesión (usuario y administrador) no se pudieron medir con Lig
 
 El problema 1 no lo detecta ninguna herramienta automática: solo se vio en la captura. Por eso esta auditoría no reemplaza la prueba con personas del [guion de usabilidad](../usabilidad/guion-usabilidad.md).
 
+## Revisión después del rediseño (6 de noviembre de 2026)
+
+La interfaz se rediseñó con tarjetas, íconos, la fuente Atkinson Hyperlegible Next (hecha para personas con baja visión) y animaciones. Se repitió la misma revisión:
+
+| Herramienta | Resultado |
+|---|---|
+| axe (14 pantallas) | 630 reglas aprobadas, **0 fallas** |
+| Lighthouse, ingreso en celular | Accesibilidad 100, buenas prácticas 100, SEO 100, rendimiento 99 |
+| Lighthouse, ingreso en computador | 100 en las cuatro categorías |
+
+Reglas que sigue el diseño nuevo:
+
+- Contraste de 4.5:1 o más en los textos, también sobre el degradado verde (blanco sobre `#047857`, `#0f766e` y `#155e75`).
+- Bordes de los campos en gris `#6b7280` (4.8:1 contra el blanco) y foco con doble anillo: borde oscuro y anillo ámbar.
+- Ninguna animación dura más de 5 segundos: el radar da dos vueltas y se detiene, y las tarjetas solo aparecen. Con "reducir movimiento" activado en el sistema no hay animaciones.
+- El modo alto contraste quita degradados, sombras y transparencias.
+- Los íconos son decorativos (`aria-hidden`); cada botón y enlace conserva su texto.
+
 ## Lo que ya cumplía el diseño
 
 - Enlace "Ir al contenido" al inicio de cada página.

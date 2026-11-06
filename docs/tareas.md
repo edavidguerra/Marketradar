@@ -23,6 +23,7 @@ Actualícela al cierre de cada fase. Estados: completada, en progreso, pendiente
 | Producto MVP y conversión con la TRM | Equipo | 3 | completada |
 | Frontend accesible (usuario, tutorial y administrador) | Equipo | 3 | completada |
 | Auditoría Lighthouse y axe | Ever Guerra | 3 | completada |
+| Rediseño de la interfaz con animaciones | Ever Guerra | 3 | completada |
 | Guion de usabilidad con adultos mayores | Ever Guerra | 3 | en progreso: guion listo, falta aplicarlo y llenar [usabilidad/resultados.md](usabilidad/resultados.md) |
 | Despliegue en Render | Ever Guerra | 3 | completada |
 | Datos de prueba, MER, diccionario de datos y normalización | Jean Mercado | 4 | completada |

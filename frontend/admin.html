@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Administración · Marketradar</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="preload" href="fuentes/atkinson-hyperlegible-next.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="css/estilos.css">
     <script type="module" src="js/admin/app.js"></script>
 </head>
@@ -12,16 +13,18 @@
 <a class="saltar" href="#contenido">Ir al contenido</a>
 
 <header class="encabezado">
-    <p class="marca"><span aria-hidden="true">◎</span> Marketradar · Administración</p>
-    <div class="herramientas" role="group" aria-label="Tamaño de letra, contraste y salida">
-        <button type="button" class="boton boton-secundario" id="letra-menos" aria-label="Letra más pequeña">A−</button>
-        <button type="button" class="boton boton-secundario" id="letra-mas" aria-label="Letra más grande">A+</button>
-        <button type="button" class="boton boton-secundario" id="contraste" aria-pressed="false">Alto contraste</button>
-        <button type="button" class="boton boton-secundario" id="salir">Salir</button>
+    <div class="contenedor encabezado-interno">
+        <p class="marca"><img src="favicon.svg" alt="" width="40" height="40"> Marketradar <span class="marca-detalle">Administración</span></p>
+        <div class="herramientas" role="group" aria-label="Tamaño de letra, contraste y salida">
+            <button type="button" class="boton boton-chip" id="letra-menos" aria-label="Letra más pequeña">A−</button>
+            <button type="button" class="boton boton-chip" id="letra-mas" aria-label="Letra más grande">A+</button>
+            <button type="button" class="boton boton-chip" id="contraste" aria-pressed="false"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#contraste"></use></svg> Alto contraste</button>
+            <button type="button" class="boton boton-chip boton-salir" id="salir"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#salir"></use></svg> Salir</button>
+        </div>
     </div>
 </header>
 
-<main id="contenido" tabindex="-1">
+<main id="contenido" class="contenedor" tabindex="-1">
     <section id="seccion-lista" aria-labelledby="titulo-admin">
         <h1 id="titulo-admin" tabindex="-1">Panel del administrador</h1>
         <p id="saludo-admin" class="saludo"></p>
@@ -58,8 +61,5 @@
     </section>
 </main>
 
-<footer class="pie">
-    <p>Proyecto de aula · Programación de Computadores III · Universidad Popular del Cesar</p>
-</footer>
 </body>
 </html>
