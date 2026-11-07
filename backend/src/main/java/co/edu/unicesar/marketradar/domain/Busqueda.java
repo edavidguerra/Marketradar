@@ -13,6 +13,7 @@ public class Busqueda {
     private int totalResultados;
     private int duracionMs;
     private OffsetDateTime creadaEn;
+    private String urlImagen;
 
     /** Constructor vacío requerido por los DAO. */
     public Busqueda() {
@@ -77,5 +78,16 @@ public class Busqueda {
 
     public void setCreadaEn(OffsetDateTime creadaEn) {
         this.creadaEn = creadaEn;
+    }
+
+    /**
+     * @return foto de un producto que se encontró en esta búsqueda, o {@code null} si no hubo
+     */
+    public String getUrlImagen() {
+        return urlImagen;
+    }
+
+    public void setUrlImagen(String urlImagen) {
+        this.urlImagen = urlImagen;
     }
 }

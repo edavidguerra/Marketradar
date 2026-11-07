@@ -17,7 +17,7 @@ import java.util.Optional;
 @Repository
 public class BusquedaDaoJdbc extends DaoJdbcBase implements BusquedaDao {
 
-    private static final String COLUMNAS = "id, usuario_id, termino, total_resultados, duracion_ms, creada_en";
+    private static final String COLUMNAS = "id, usuario_id, termino, total_resultados, duracion_ms, creada_en, url_imagen";
 
     public BusquedaDaoJdbc(DataSource dataSource) {
         super(dataSource);
@@ -25,13 +25,14 @@ public class BusquedaDaoJdbc extends DaoJdbcBase implements BusquedaDao {
 
     @Override
     public Busqueda insertar(Busqueda busqueda) {
-        long id = insertarYObtenerId("INSERT INTO busqueda (usuario_id, termino, total_resultados, duracion_ms) "
-                        + "VALUES (?, ?, ?, ?)",
+        long id = insertarYObtenerId("INSERT INTO busqueda (usuario_id, termino, total_resultados, duracion_ms, url_imagen) "
+                        + "VALUES (?, ?, ?, ?, ?)",
                 sentencia -> {
                     asignarLongNulable(sentencia, 1, busqueda.getUsuarioId());
                     sentencia.setString(2, busqueda.getTermino());
                     sentencia.setInt(3, busqueda.getTotalResultados());
                     sentencia.setInt(4, busqueda.getDuracionMs());
+                    sentencia.setString(5, busqueda.getUrlImagen());
                 });
         busqueda.setId(id);
         return busqueda;
@@ -85,6 +86,7 @@ public class BusquedaDaoJdbc extends DaoJdbcBase implements BusquedaDao {
         busqueda.setId(fila.getLong("id"));
         busqueda.setUsuarioId(leerLongNulable(fila, "usuario_id"));
         busqueda.setCreadaEn(fila.getObject("creada_en", OffsetDateTime.class));
+        busqueda.setUrlImagen(fila.getString("url_imagen"));
         return busqueda;
     }
 

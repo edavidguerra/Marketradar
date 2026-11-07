@@ -82,6 +82,7 @@ Cada búsqueda hecha en la aplicación. Sirve para el historial de cada persona 
 | `duracion_ms` | INTEGER | No | | | Tiempo total de la búsqueda en milisegundos. |
 | `creada_en` | TIMESTAMPTZ | No | | `DEFAULT now()` | Momento de la búsqueda. |
 | `usuario_id` | BIGINT | Sí | FK | `fk_busqueda_usuario`: `REFERENCES usuario(id) ON DELETE SET NULL`, índice con `creada_en` | Persona que buscó. Agregada en V3. Queda en nulo si se borra la cuenta, para conservar las estadísticas. |
+| `url_imagen` | TEXT | Sí | | `ck_busqueda_url_imagen_segura`: nulo o `https://` de máximo 2.048 caracteres | Foto del producto MVP (o de la primera oferta con foto) que se ve en el historial. Agregada en V10. |
 
 ## consumo_api
 
@@ -210,6 +211,7 @@ mensaje del servidor trae su nombre, por ejemplo `violates check constraint "ck_
 | --- | --- | --- | --- |
 | `busqueda` | `ck_busqueda_duracion_no_negativa` | Regla (CHECK) | `CHECK ((duracion_ms >= 0))` |
 | `busqueda` | `ck_busqueda_resultados_no_negativos` | Regla (CHECK) | `CHECK ((total_resultados >= 0))` |
+| `busqueda` | `ck_busqueda_url_imagen_segura` | Regla (CHECK) | `CHECK (((url_imagen IS NULL) OR ((url_imagen ~~ 'https://%'::text) AND (char_length(url_imagen) <= 2048))))` |
 | `busqueda` | `ck_busqueda_termino_longitud` | Regla (CHECK) | `CHECK (((char_length(btrim((termino)::text)) >= 2) AND (char_length(btrim((termino)::text)) <= 100)))` |
 | `busqueda` | `fk_busqueda_usuario` | Llave foránea | `FOREIGN KEY (usuario_id) REFERENCES usuario(id) ON UPDATE CASCADE ON DELETE SET NULL` |
 | `busqueda` | `pk_busqueda` | Llave primaria | `PRIMARY KEY (id)` |

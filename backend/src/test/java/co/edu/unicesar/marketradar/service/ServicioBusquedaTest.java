@@ -4,6 +4,7 @@ import co.edu.unicesar.marketradar.PropiedadesPrueba;
 import co.edu.unicesar.marketradar.adapter.AdaptadorMarketplace;
 import co.edu.unicesar.marketradar.domain.ConsultaBusqueda;
 import co.edu.unicesar.marketradar.domain.OfertaNormalizada;
+import co.edu.unicesar.marketradar.domain.ProductoMvp;
 import co.edu.unicesar.marketradar.domain.ResultadoBusqueda;
 import co.edu.unicesar.marketradar.exception.MarketplaceException;
 import co.edu.unicesar.marketradar.service.mvp.SeleccionPonderadaMvp;
@@ -20,8 +21,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -99,6 +103,40 @@ class ServicioBusquedaTest {
 
         assertEquals(0, resultado.getTotalResultados());
         assertEquals(1, resultado.getAdvertencias().size());
+    }
+
+    @Test
+    void guardaEnElHistorialLaFotoDeUnProductoEncontrado() {
+        OfertaNormalizada sinFoto = oferta("a", "1", "10000", null);
+        OfertaNormalizada conFoto = conImagen(oferta("a", "2", "20000", null), "https://fotos.ejemplo.com/2.jpg");
+        ServicioBusqueda servicio = servicio(adaptador("a", List.of(sinFoto, conFoto)));
+
+        servicio.buscar(consulta(null), 7L);
+
+        verify(persistencia).registrarBusqueda(eq("licuadora"), eq(2), anyInt(), eq(7L),
+                eq("https://fotos.ejemplo.com/2.jpg"));
+    }
+
+    @Test
+    void laFotoDelHistorialSoloAceptaEnlacesSeguros() {
+        OfertaNormalizada insegura = conImagen(oferta("a", "1", "10000", null), "http://fotos.ejemplo.com/1.jpg");
+        OfertaNormalizada segura = conImagen(oferta("a", "2", "20000", null), "https://fotos.ejemplo.com/2.jpg");
+        OfertaNormalizada otra = conImagen(oferta("a", "3", "30000", null), "https://fotos.ejemplo.com/3.jpg");
+        ProductoMvp mvp = new ProductoMvp(otra, 90, List.of("Mejor precio"));
+
+        assertEquals("https://fotos.ejemplo.com/3.jpg",
+                ServicioBusqueda.imagenRepresentativa(mvp, List.of(insegura, segura)));
+        assertEquals("https://fotos.ejemplo.com/2.jpg",
+                ServicioBusqueda.imagenRepresentativa(null, List.of(insegura, segura)));
+        assertNull(ServicioBusqueda.imagenRepresentativa(null, List.of(insegura)));
+    }
+
+    private static OfertaNormalizada conImagen(OfertaNormalizada oferta, String urlImagen) {
+        return OfertaNormalizada.builder()
+                .codigoMarketplace(oferta.getCodigoMarketplace()).idExterno(oferta.getIdExterno())
+                .titulo(oferta.getTitulo()).precio(oferta.getPrecio()).moneda(oferta.getMoneda())
+                .condicion("nuevo").vendedor("Vendedor").urlDestino(oferta.getUrlDestino()).urlImagen(urlImagen)
+                .build();
     }
 
     private ServicioBusqueda servicio(AdaptadorMarketplace... adaptadores) {

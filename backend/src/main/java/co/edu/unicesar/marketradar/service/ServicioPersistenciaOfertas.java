@@ -68,10 +68,13 @@ public class ServicioPersistenciaOfertas {
      * @param totalResultados cantidad de ofertas encontradas
      * @param duracionMs duración total en milisegundos
      * @param usuarioId persona con sesión, o {@code null}
+     * @param urlImagen foto de un producto encontrado, para mostrarla en el historial; puede ser {@code null}
      */
-    public void registrarBusqueda(String termino, int totalResultados, int duracionMs, Long usuarioId) {
+    public void registrarBusqueda(String termino, int totalResultados, int duracionMs, Long usuarioId,
+                                  String urlImagen) {
         Busqueda busqueda = new Busqueda(termino, totalResultados, duracionMs);
         busqueda.setUsuarioId(usuarioId);
+        busqueda.setUrlImagen(urlImagen);
         busquedaDao.insertar(busqueda);
     }
 
