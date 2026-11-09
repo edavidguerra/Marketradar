@@ -5,6 +5,7 @@ import co.edu.unicesar.marketradar.domain.OfertaNormalizada;
 import co.edu.unicesar.marketradar.domain.ResultadoBusqueda;
 import co.edu.unicesar.marketradar.exception.ValidacionException;
 import co.edu.unicesar.marketradar.service.ServicioBusqueda;
+import co.edu.unicesar.marketradar.service.ServicioBusquedaFlexible;
 import co.edu.unicesar.marketradar.service.ServicioTasasCambio;
 import org.springframework.stereotype.Component;
 
@@ -24,16 +25,18 @@ public class HerramientasAsistente {
     private static final int OFERTAS_A_MOSTRAR = 3;
     private static final Locale COLOMBIA = Locale.forLanguageTag("es-CO");
 
-    private final ServicioBusqueda servicioBusqueda;
+    private final ServicioBusquedaFlexible servicioBusqueda;
     private final ServicioTasasCambio servicioTasas;
 
-    public HerramientasAsistente(ServicioBusqueda servicioBusqueda, ServicioTasasCambio servicioTasas) {
+    public HerramientasAsistente(ServicioBusquedaFlexible servicioBusqueda, ServicioTasasCambio servicioTasas) {
         this.servicioBusqueda = servicioBusqueda;
         this.servicioTasas = servicioTasas;
     }
 
     /**
-     * Busca un producto en las tiendas y resume la mejor opción y las más baratas.
+     * Busca un producto en las tiendas (entendiendo errores al escribir) y resume la mejor opción y las más
+     * baratas. Cada oferta trae su enlace ya escrito como [Ver en tienda](https://...), que es la forma en que la
+     * página lo convierte en un botón que la persona puede presionar.
      *
      * @param producto nombre del producto
      * @return resumen en texto para el modelo
@@ -45,17 +48,22 @@ public class HerramientasAsistente {
         } catch (ValidacionException e) {
             return e.getMessage();
         }
-        ResultadoBusqueda resultado = servicioBusqueda.buscar(consulta);
-        if (resultado.getOfertas().isEmpty()) {
-            return "No se encontraron ofertas. " + String.join(" ", resultado.getAdvertencias());
-        }
+        ServicioBusquedaFlexible.Resultado flexible = servicioBusqueda.buscar(consulta, null, false);
+        ResultadoBusqueda resultado = flexible.resultado();
         StringBuilder resumen = new StringBuilder();
+        if (flexible.terminoOriginal() != null) {
+            resumen.append("SE BUSCÓ: \"").append(flexible.consulta().getTermino())
+                    .append("\" (la persona escribió \"").append(flexible.terminoOriginal()).append("\").\n");
+        }
+        if (resultado.getOfertas().isEmpty()) {
+            return resumen + "No se encontraron ofertas. " + String.join(" ", resultado.getAdvertencias());
+        }
         resultado.getProductoMvp().ifPresent(mvp -> resumen
                 .append("MEJOR OPCIÓN: ").append(describir(mvp.oferta()))
                 .append(". Razones: ").append(String.join(" ", mvp.razones()))
-                .append(" Enlace directo: ").append(mvp.oferta().getUrlDestino()).append('\n'));
+                .append(". Enlace: ").append(enlace(mvp.oferta())).append('\n'));
         resumen.append("MÁS BARATAS:\n").append(resultado.getOfertas().stream()
-                .map(oferta -> "- " + describir(oferta) + " | " + oferta.getUrlDestino())
+                .map(oferta -> "- " + describir(oferta) + ". Enlace: " + enlace(oferta))
                 .collect(Collectors.joining("\n")));
         return resumen.toString();
     }
@@ -67,6 +75,23 @@ public class HerramientasAsistente {
         return servicioTasas.tasaVigente("USD")
                 .map(tasa -> "1 dólar = " + pesos(tasa.valor()) + " (" + tasa.fuente() + ", " + tasa.vigenteDesde() + ")")
                 .orElse("No hay una tasa del dólar disponible en este momento.");
+    }
+
+    /**
+     * Enlace en el formato que la página convierte en botón. Solo se ofrecen enlaces https.
+     *
+     * @param oferta oferta con su enlace de compra
+     * @return "[Ver en Éxito](https://...)" o un aviso si el enlace no es seguro
+     */
+    static String enlace(OfertaNormalizada oferta) {
+        String url = oferta.getUrlDestino();
+        if (url == null || !url.startsWith("https://") || url.contains(")") || url.contains(" ")) {
+            return "(sin enlace seguro; búsquelo en la página de Buscar)";
+        }
+        String tienda = oferta.getVendedor() != null && !oferta.getVendedor().isBlank()
+                ? oferta.getVendedor().replaceAll("[\\[\\]()]", "").strip()
+                : ServicioBusqueda.nombreVisible(oferta.getCodigoMarketplace());
+        return "[Ver en " + tienda + "](" + url + ")";
     }
 
     private static String describir(OfertaNormalizada oferta) {

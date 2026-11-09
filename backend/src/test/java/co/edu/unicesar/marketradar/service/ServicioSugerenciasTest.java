@@ -98,6 +98,33 @@ class ServicioSugerenciasTest {
     }
 
     @Test
+    void quitaElRellenoDeLasFrases() {
+        assertEquals("olla arrocera", ServicioSugerencias.limpiarFrase("quiero comprar una olla arrocera por favor"));
+        assertEquals("tensiómetro", ServicioSugerencias.limpiarFrase("¿Cuánto cuesta un tensiómetro?"));
+        assertEquals("licuadora", ServicioSugerencias.limpiarFrase("dónde puedo comprar la licuadora"));
+        assertEquals("olla de presión", ServicioSugerencias.limpiarFrase("precio de olla de presión"));
+        assertEquals("la", ServicioSugerencias.limpiarFrase("la"));
+    }
+
+    @Test
+    void encuentraLaPalabraPrincipal() {
+        assertEquals(Optional.of("licuadora"), ServicioSugerencias.nucleo("licuadora oster roja 10 velocidades"));
+        assertEquals(Optional.of("celular"), ServicioSugerencias.nucleo("el celular de teclas grandes"));
+        assertTrue(ServicioSugerencias.nucleo("licuadora").isEmpty());
+    }
+
+    @Test
+    void noCorrigePalabrasComunesNiMarcas() {
+        ServicioSugerencias completo = new ServicioSugerencias(ServicioSugerencias.leerVocabulario(),
+                ServicioSugerencias.leerLista("/busqueda/palabras-comunes.txt"), List::of, RELOJ);
+
+        assertTrue(completo.corregir("licuadora oster roja").isEmpty());
+        assertTrue(completo.corregir("celular para abuelo").isEmpty());
+        assertEquals(Optional.of("licuadora negra"), completo.corregir("licuadorra negra"));
+        assertEquals(Optional.of("televisor samsung"), completo.corregir("telebisor samsumg"));
+    }
+
+    @Test
     void calculaLaDistanciaEntrePalabras() {
         assertEquals(0, ServicioSugerencias.distancia("olla", "olla", 2));
         assertEquals(1, ServicioSugerencias.distancia("oya", "olla", 2) - 1);

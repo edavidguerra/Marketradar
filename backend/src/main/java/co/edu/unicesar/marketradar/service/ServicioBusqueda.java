@@ -81,6 +81,22 @@ public class ServicioBusqueda {
      * @return ofertas de la página pedida, advertencias, total y producto MVP
      */
     public ResultadoBusqueda buscar(ConsultaBusqueda consulta, Long usuarioId) {
+        return buscar(consulta, usuarioId, true);
+    }
+
+    /**
+     * Busca sin guardar nada en el historial. Sirve para probar una búsqueda antes de decidir cuál se muestra;
+     * el resultado queda en caché, así que repetirla después con {@link #buscar(ConsultaBusqueda, Long)} no
+     * vuelve a consultar las tiendas.
+     *
+     * @param consulta parámetros validados
+     * @return ofertas de la página pedida, advertencias, total y producto MVP
+     */
+    public ResultadoBusqueda consultar(ConsultaBusqueda consulta) {
+        return buscar(consulta, null, false);
+    }
+
+    private ResultadoBusqueda buscar(ConsultaBusqueda consulta, Long usuarioId, boolean registrar) {
         long inicio = System.nanoTime();
         ResultadoCompleto completo = cache.get(consulta.claveCache(), clave -> consultarMarketplaces(consulta));
         List<OfertaNormalizada> ordenadas = ordenar(completo.ofertas(), consulta.getOrden());
@@ -89,7 +105,7 @@ public class ServicioBusqueda {
         BigDecimal mejorPrecio = ordenadas.stream().map(OfertaNormalizada::precioTotal)
                 .min(Comparator.naturalOrder()).orElse(null);
         ProductoMvp mvp = seleccionMvp.elegir(ordenadas).orElse(null);
-        if (consulta.getPagina() == 1) {
+        if (registrar && consulta.getPagina() == 1) {
             registrarBusquedaSinInterrumpir(consulta.getTermino(), ordenadas.size(), inicio, usuarioId,
                     imagenRepresentativa(mvp, ordenadas));
         }

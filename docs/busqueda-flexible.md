@@ -1,4 +1,4 @@
-# Búsqueda flexible: sugerencias y "¿Quizás quiso decir?"
+# Búsqueda flexible: sugerencias y corrección de errores
 
 Muchas personas mayores escriben despacio o con errores de ortografía ("oya arrosera", "licuadorra"). Para que igual
 encuentren lo que buscan, la página de **Buscar** ayuda de dos formas. Las dos las hace `ServicioSugerencias` y **no
@@ -36,22 +36,33 @@ El campo sigue el patrón *combobox* de ARIA 1.2 (`frontend/js/usuario/sugerenci
 - Cada opción mide al menos 48 px de alto. En alto contraste la opción elegida se ve en amarillo.
 - Mientras la lista está abierta, el botón flotante "¿Necesita ayuda?" se oculta para no taparla en el celular.
 
-## 2. "¿Quizás quiso decir...?"
+## 2. Búsqueda que entiende errores, al estilo de Google
 
-Cuando la persona busca, el controlador revisa el término. Cada palabra de 3 letras o más, sin números, que no esté en
-el diccionario se compara con las palabras conocidas:
+`ServicioBusquedaFlexible` decide qué buscar antes de consultar las tiendas:
+
+1. **Quita el relleno** del comienzo y del final: "quiero comprar una olla arrocera por favor", "¿cuánto cuesta un
+   tensiómetro?" o "dónde puedo comprar la licuadora" buscan solo el producto. Las palabras del medio no se tocan
+   ("olla de presión"). Esto no se le avisa a la persona.
+2. **Corrige las palabras mal escritas y busca directamente lo corregido.** "licuadorra" busca "licuadora" y "telebisor
+   samsumg" busca "televisor samsung". Arriba de los resultados sale "Le mostramos resultados de **licuadora**" y un
+   botón "Buscar "licuadorra" tal como lo escribió", que repite la búsqueda sin corregir (`exacto=true`).
+3. **Si no hay resultados y la búsqueda tiene varias palabras**, prueba con la palabra principal: "licuadora oster roja
+   10 velocidades" muestra licuadoras y avisa "No encontramos ... exacto".
+
+Cómo se corrige cada palabra de 3 letras o más, sin números, que no esté en el diccionario:
 
 - **Distancia de Levenshtein:** cuántas letras hay que cambiar, quitar o poner. Se permite 1 cambio hasta 6 letras y 2
   desde 7.
 - **Cómo suena en español:** antes de comparar se igualan ll/y, v/b, z/s, c suave/s, qu/k, c fuerte/k y se quita la h
   muda. Así "oya" se corrige a "olla" y "arrosera" a "arrocera".
 
-Si alguna palabra cambió, la respuesta trae `quizas_quiso_decir` (por ejemplo `"olla arrocera"`) y la página muestra un
-botón "¿Quizás quiso decir olla arrocera?" que repite la búsqueda con un clic. Solo se revisa en la primera página de
-resultados.
+El diccionario tiene los productos de `vocabulario.txt`, los términos populares y `palabras-comunes.txt` (colores,
+tamaños, marcas y palabras como "para" o "con"). Las palabras comunes nunca se "corrigen", así "licuadora oster roja"
+se busca tal cual. Para que un error frecuente no se vuelva "correcto", un término popular entra al diccionario solo si
+se buscó **5 veces o más**.
 
-Para que un error frecuente no se vuelva "correcto", un término popular entra al diccionario de correcciones solo si se
-buscó **5 veces o más**.
+Solo la búsqueda que se muestra queda en el historial, con el texto corregido. Los intentos quedan en caché; el único
+gasto extra de SerpApi es el segundo intento cuando una búsqueda larga no da resultados.
 
 ## 3. Enlaces de compra seguros
 
@@ -63,7 +74,8 @@ buscó **5 veces o más**.
 
 ## Pruebas
 
-`ServicioSugerenciasTest` cubre los prefijos, las tildes, los errores de escritura, la segunda palabra, el mínimo de
+`ServicioBusquedaFlexibleTest` cubre la corrección directa, las frases, el intento con la palabra principal y la búsqueda
+exacta. `ServicioSugerenciasTest` cubre los prefijos, las tildes, los errores de escritura, la segunda palabra, el mínimo de
 letras, el orden por popularidad, las correcciones (licuadorra, oya arrosera, conputador portatil), que no corrija
 palabras bien escritas, que no confíe en términos populares mal escritos y que siga funcionando si la base de datos
 falla.

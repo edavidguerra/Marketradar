@@ -1,15 +1,18 @@
 /**
- * Panel del asistente de IA: conversación en texto sencillo.
+ * Panel del asistente de IA: conversación en texto sencillo, con enlaces de compra que se pueden presionar.
  */
 
 import { preguntarAsistente } from '../comun/api.js';
 import { crear } from '../comun/dom.js';
+import { formatearRespuesta } from './formato-asistente.js';
 
 const historial = [];
 
 function agregarMensaje(lista, rol, texto) {
     const elemento = crear('li', rol === 'usuario' ? 'mensaje-usuario' : 'mensaje-asistente');
-    elemento.append(crear('span', 'autor', `${rol === 'usuario' ? 'Usted' : 'Asistente'}: `), crear('span', null, texto));
+    const autor = crear('span', 'autor', `${rol === 'usuario' ? 'Usted' : 'Asistente'}: `);
+    // La respuesta del asistente se muestra con negritas y con enlaces que se pueden presionar.
+    elemento.append(autor, rol === 'usuario' ? crear('span', null, texto) : formatearRespuesta(texto));
     lista.append(elemento);
     elemento.scrollIntoView({ block: 'nearest' });
 }

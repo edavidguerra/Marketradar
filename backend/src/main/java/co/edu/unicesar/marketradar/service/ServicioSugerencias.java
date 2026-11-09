@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 
 /**
@@ -49,7 +50,22 @@ public class ServicioSugerencias {
     /** Un término popular entra al diccionario de corrección solo si se buscó varias veces (puede venir mal escrito). */
     private static final int VECES_PARA_CORREGIR = 5;
 
+    /** Palabras que se quitan al comienzo de una frase: "quiero comprar una licuadora" busca "licuadora". */
+    private static final Set<String> RELLENO_INICIAL = Set.of("hola", "buenas", "buenos", "dias", "tardes", "noches",
+            "quiero", "quisiera", "necesito", "busco", "buscar", "buscando", "comprar", "compro", "compra", "me",
+            "gustaria", "regalar", "ver", "mostrar", "muestreme", "muestrame", "donde", "puedo", "consigo", "encuentro",
+            "hay", "algun", "alguna", "cuanto", "cuesta", "cuestan", "vale", "valen", "precio", "precios", "el", "la",
+            "los", "las", "un", "una", "unos", "unas", "de", "del", "por", "favor", "porfa", "porfavor");
+
+    /** Palabras que se quitan al final: "licuadora por favor" busca "licuadora". */
+    private static final Set<String> RELLENO_FINAL = Set.of("por", "favor", "porfa", "porfavor", "gracias");
+
+    /** Palabras de unión que no sirven solas como búsqueda. */
+    private static final Set<String> UNIONES = Set.of("de", "del", "la", "el", "los", "las", "un", "una", "unos", "unas",
+            "para", "por", "con", "sin", "y", "o", "en", "a", "al", "que", "mas", "muy", "tipo", "marca", "modelo");
+
     private final List<String> vocabulario;
+    private final List<String> palabrasComunes;
     private final Supplier<List<TerminoPopular>> fuentePopulares;
     private final Clock reloj;
 
@@ -63,7 +79,8 @@ public class ServicioSugerencias {
      */
     @Autowired
     public ServicioSugerencias(BusquedaDao busquedaDao) {
-        this(leerVocabulario(), () -> busquedaDao.terminosPopulares(TERMINOS_POPULARES), Clock.systemUTC());
+        this(leerVocabulario(), leerLista("/busqueda/palabras-comunes.txt"),
+                () -> busquedaDao.terminosPopulares(TERMINOS_POPULARES), Clock.systemUTC());
     }
 
     /**
@@ -74,7 +91,21 @@ public class ServicioSugerencias {
      * @param reloj reloj para renovar los términos populares
      */
     ServicioSugerencias(List<String> vocabulario, Supplier<List<TerminoPopular>> fuentePopulares, Clock reloj) {
+        this(vocabulario, List.of(), fuentePopulares, reloj);
+    }
+
+    /**
+     * Constructor para las pruebas, con palabras comunes que nunca se corrigen.
+     *
+     * @param vocabulario productos comunes
+     * @param palabrasComunes palabras bien escritas que no son productos (colores, marcas, "para"...)
+     * @param fuentePopulares términos más buscados
+     * @param reloj reloj para renovar los términos populares
+     */
+    ServicioSugerencias(List<String> vocabulario, List<String> palabrasComunes,
+                        Supplier<List<TerminoPopular>> fuentePopulares, Clock reloj) {
         this.vocabulario = List.copyOf(vocabulario);
+        this.palabrasComunes = List.copyOf(palabrasComunes);
         this.fuentePopulares = fuentePopulares;
         this.reloj = reloj;
     }
@@ -132,6 +163,52 @@ public class ServicioSugerencias {
             }
         }
         return cambio ? Optional.of(String.join(" ", corregidas)) : Optional.empty();
+    }
+
+    /**
+     * Quita las palabras de relleno con que muchas personas empiezan o terminan una búsqueda, como en
+     * "quiero comprar una olla arrocera por favor". Las palabras del medio no se tocan ("olla de presión").
+     *
+     * @param texto lo que escribió la persona
+     * @return el producto, o el texto original si al quitar el relleno no queda nada
+     */
+    public static String limpiarFrase(String texto) {
+        if (texto == null) {
+            return "";
+        }
+        List<String> palabras = new ArrayList<>(List.of(texto.strip().split("\\s+")));
+        while (!palabras.isEmpty() && RELLENO_INICIAL.contains(normalizar(palabras.get(0)))) {
+            palabras.remove(0);
+        }
+        while (!palabras.isEmpty() && RELLENO_FINAL.contains(normalizar(palabras.get(palabras.size() - 1)))) {
+            palabras.remove(palabras.size() - 1);
+        }
+        String limpio = String.join(" ", palabras).replaceAll("[¿?¡!.,;:]+$", "").strip();
+        return limpio.length() >= 2 ? limpio : texto.strip();
+    }
+
+    /**
+     * Palabra principal de una búsqueda larga, para intentar de nuevo cuando no hay resultados:
+     * "licuadora oster roja de 10 velocidades" queda en "licuadora".
+     *
+     * @param termino búsqueda de dos o más palabras
+     * @return la primera palabra que no es de unión, o vacío si la búsqueda ya es de una sola palabra
+     */
+    public static Optional<String> nucleo(String termino) {
+        if (termino == null) {
+            return Optional.empty();
+        }
+        String[] palabras = termino.strip().split("\\s+");
+        if (palabras.length < 2) {
+            return Optional.empty();
+        }
+        for (String palabra : palabras) {
+            String normal = normalizar(palabra);
+            if (normal.length() >= 3 && !UNIONES.contains(normal) && normal.chars().noneMatch(Character::isDigit)) {
+                return Optional.of(palabra.replaceAll("[¿?¡!.,;:]", ""));
+            }
+        }
+        return Optional.empty();
     }
 
     private static String corregirPalabra(String palabra, Indice indice) {
@@ -285,6 +362,17 @@ public class ServicioSugerencias {
         for (String producto : vocabulario) {
             agregar(producto, PESO_VOCABULARIO, true, terminos, palabras, visibles);
         }
+        // Las palabras comunes se reconocen como bien escritas, pero no se sugieren ni ganan a un producto.
+        for (String comun : palabrasComunes) {
+            String normal = normalizar(comun);
+            if (!normal.isEmpty() && !normal.contains(" ")) {
+                palabras.putIfAbsent(normal, 0);
+                String visible = comun.strip().toLowerCase(Locale.ROOT);
+                if (!visible.equals(normal)) {
+                    visibles.putIfAbsent(normal, visible);
+                }
+            }
+        }
         return new Indice(List.copyOf(terminos.values()), palabras, visibles);
     }
 
@@ -318,7 +406,11 @@ public class ServicioSugerencias {
     }
 
     static List<String> leerVocabulario() {
-        try (InputStream entrada = ServicioSugerencias.class.getResourceAsStream("/busqueda/vocabulario.txt")) {
+        return leerLista("/busqueda/vocabulario.txt");
+    }
+
+    static List<String> leerLista(String recurso) {
+        try (InputStream entrada = ServicioSugerencias.class.getResourceAsStream(recurso)) {
             if (entrada == null) {
                 return List.of();
             }
@@ -328,7 +420,7 @@ public class ServicioSugerencias {
                     .filter(linea -> !linea.isEmpty() && !linea.startsWith("#"))
                     .toList();
         } catch (IOException e) {
-            throw new UncheckedIOException("No se pudo leer el vocabulario de búsqueda", e);
+            throw new UncheckedIOException("No se pudo leer " + recurso, e);
         }
     }
 

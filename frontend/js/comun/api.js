@@ -55,8 +55,10 @@ export const registrar = (datos) => pedir('/auth/registro', { metodo: 'POST', cu
 export const salir = () => pedir('/auth/salida', { metodo: 'POST', redirigirSinSesion: false });
 
 /* Búsqueda y ofertas */
-export function buscar(termino, pagina = 1, tamano = 10) {
+/** Con exacto = true se busca el texto tal cual, sin corregir errores de escritura. */
+export function buscar(termino, pagina = 1, tamano = 10, exacto = false) {
     const parametros = new URLSearchParams({ q: termino, pagina, tamano });
+    if (exacto) parametros.set('exacto', 'true');
     return pedir(`/busqueda?${parametros}`);
 }
 export function obtenerSugerencias(texto) {
