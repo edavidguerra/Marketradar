@@ -84,6 +84,16 @@ public final class ConsultaBusqueda {
     }
 
     /**
+     * La misma consulta con otro texto, por ejemplo con las palabras corregidas.
+     *
+     * @param otroTermino texto nuevo
+     * @return consulta nueva con el mismo orden, tiendas, página y tamaño
+     */
+    public ConsultaBusqueda conTermino(String otroTermino) {
+        return crear(otroTermino, orden.getValor(), marketplaces, pagina, tamano);
+    }
+
+    /**
      * Clave de caché: dos consultas con el mismo término y marketplaces comparten resultados.
      *
      * @return clave normalizada

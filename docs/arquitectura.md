@@ -4,14 +4,14 @@
 
 ```text
 Navegador -> GET /api/v1/busqueda?q=...
-  -> ControladorBusqueda -> ServicioBusqueda
+  -> ControladorBusqueda -> ServicioBusquedaFlexible (quita relleno, corrige errores y, sin resultados, prueba la palabra principal)
+    -> ServicioBusqueda
     -> caché Caffeine (si hay resultado vigente, responde)
     -> adaptadores en paralelo con CompletableFuture (timeout 4 s y circuit breaker por tienda)
     -> normalización a OfertaNormalizada y conversión a COP
     -> ServicioPersistenciaOfertas guarda ofertas e historial (solo si el precio cambia)
     -> EstrategiaSeleccionMvp elige la mejor opción de compra entre todas las ofertas
     -> la búsqueda queda en el historial de la persona
-  -> ServicioSugerencias revisa si el término parece mal escrito (quizas_quiso_decir)
   -> respuesta JSON con el producto MVP y las ofertas ordenadas, más las advertencias de las tiendas que fallaron
 ```
 

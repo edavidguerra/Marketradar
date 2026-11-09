@@ -10,7 +10,8 @@ El chatbot de Marketradar usa **Claude**, el modelo de IA de Anthropic, con los 
    - `buscarMejorOpcion`: busca el producto en las tiendas y devuelve la mejor opción y las más baratas.
    - `valorDelDolar`: devuelve la TRM del día.
 4. Si Claude pide una herramienta, Marketradar la ejecuta, le devuelve el resultado y Claude responde con precios reales y enlaces directos. Se permiten máximo 4 vueltas por pregunta para no gastar créditos de más.
-5. Si Claude no responde o la clave está mal, la persona ve un mensaje amable y el resto de la página sigue funcionando.
+5. La herramienta entrega cada enlace ya escrito como `[Ver en Falabella](https://...)` y las instrucciones le piden a Claude copiarlo así, sin pegar direcciones sueltas. En la página, `frontend/js/usuario/formato-asistente.js` convierte ese formato en un botón "Ver en Falabella" que abre la tienda en otra pestaña después de avisar a qué página va. Si aun así llega una dirección suelta, se muestra como un botón "Abrir en dominio". También convierte `**negrita**` y las listas cortas. Todo se arma con nodos de texto, nunca con `innerHTML`, y solo se aceptan enlaces `https`.
+6. Si Claude no responde o la clave está mal, la persona ve un mensaje amable y el resto de la página sigue funcionando.
 
 ## Cómo sacar la clave
 

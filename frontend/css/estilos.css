@@ -1143,6 +1143,32 @@ body:has(.asistente) { padding-bottom: 6rem; }
 
 .conversacion .autor { display: block; font-size: .8rem; font-weight: 800; }
 
+/* Respuesta del asistente: párrafos cortos, listas y botones para abrir la tienda. */
+.respuesta-asistente { display: grid; gap: .5rem; white-space: normal; }
+.respuesta-asistente p, .respuesta-asistente ol, .respuesta-asistente ul { margin: 0; }
+.respuesta-asistente ol, .respuesta-asistente ul { padding-left: 1.25rem; display: grid; gap: .35rem; }
+.respuesta-asistente strong { font-weight: 800; }
+
+.enlace-chat {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    min-height: 44px;
+    margin: .25rem 0;
+    padding: .35rem .9rem;
+    border-radius: 999px;
+    background: var(--color-principal);
+    color: var(--color-principal-texto);
+    font-weight: 800;
+    text-decoration: none;
+    overflow-wrap: normal;
+}
+
+.enlace-chat:hover { text-decoration: underline; }
+.enlace-chat .icono { width: 1.1rem; height: 1.1rem; flex: none; }
+
+:root.alto-contraste .enlace-chat { background: #ffff00; color: #000000; border: 2px solid #000000; }
+
 .escribiendo { align-self: flex-start; background: var(--color-tarjeta); display: flex; gap: .3rem; }
 
 .escribiendo span {

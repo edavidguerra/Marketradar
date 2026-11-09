@@ -10,7 +10,7 @@ import { irA } from './navegacion.js';
 import { iniciarSugerencias } from './sugerencias.js';
 
 const TAMANO_PAGINA = 10;
-const estado = { termino: '', pagina: 1 };
+const estado = { termino: '', pagina: 1, exacto: false };
 
 const $ = (id) => document.getElementById(id);
 
@@ -119,16 +119,25 @@ function mostrarMvp(mvp) {
     contenedor.hidden = false;
 }
 
-/** "¿Quizás quiso decir…?": un botón que repite la búsqueda con las palabras corregidas. */
-function mostrarQuizas(sugerencia) {
+/**
+ * Como Google: si la persona escribió con errores, se buscó directamente lo que quiso decir y aquí se le cuenta,
+ * con un botón por si de verdad quería buscar lo que escribió.
+ */
+function mostrarCorreccion(respuesta) {
     const parrafo = $('quizas');
-    if (!sugerencia) {
+    const original = respuesta && respuesta.termino_original;
+    if (!original) {
         parrafo.replaceChildren();
         parrafo.hidden = true;
         return;
     }
-    const opcion = boton(sugerencia, 'boton-enlace', () => buscarTermino(sugerencia));
-    parrafo.replaceChildren('¿Quizás quiso decir ', opcion, '?');
+    const buscado = crear('strong', null, respuesta.termino);
+    const primeraParte = respuesta.busqueda_ampliada
+        ? [`No encontramos "${original}" exacto. Le mostramos resultados de `, buscado, '.']
+        : ['Le mostramos resultados de ', buscado, '.'];
+    const exacto = boton(`Buscar "${original}" tal como lo escribió`, 'boton-enlace',
+        () => buscarTermino(original, { exacto: true }));
+    parrafo.replaceChildren(...primeraParte, ' ', exacto);
     parrafo.hidden = false;
 }
 
@@ -145,11 +154,17 @@ async function cargarPagina() {
     const esqueletos = crearEsqueletos(estado.pagina === 1 ? 3 : 1);
     $('lista-resultados').append(...esqueletos);
     try {
-        const respuesta = await buscar(estado.termino, estado.pagina, TAMANO_PAGINA);
+        const respuesta = await buscar(estado.termino, estado.pagina, TAMANO_PAGINA, estado.exacto);
         mostrarAdvertencias(respuesta.advertencias || []);
         if (estado.pagina === 1) {
             mostrarMvp(respuesta.producto_mvp);
-            mostrarQuizas(respuesta.quizas_quiso_decir);
+            mostrarCorreccion(respuesta);
+            if (respuesta.termino_original) {
+                // Las páginas siguientes y el campo usan lo que se buscó de verdad, sin volver a corregir.
+                estado.termino = respuesta.termino;
+                estado.exacto = true;
+                $('campo-busqueda').value = respuesta.termino;
+            }
         }
         $('lista-resultados').append(...respuesta.ofertas.map(crearTarjeta));
         mostrarEstado(estadoResultados, respuesta.total_resultados === 0
@@ -165,13 +180,14 @@ async function cargarPagina() {
 }
 
 /** Busca un término; se usa también desde Inicio e Historial. */
-export function buscarTermino(termino) {
+export function buscarTermino(termino, { exacto = false } = {}) {
     $('campo-busqueda').value = termino;
     estado.termino = termino;
     estado.pagina = 1;
+    estado.exacto = exacto;
     $('lista-resultados').replaceChildren();
     mostrarMvp(null);
-    mostrarQuizas(null);
+    mostrarCorreccion(null);
     irA('buscar');
     cargarPagina();
 }
