@@ -39,7 +39,8 @@ public class AdaptadorGoogleShopping extends AdaptadorMarketplaceBase {
 
     public static final String CODIGO = "googleshopping";
 
-    static final int LIMITE_RESULTADOS = 20;
+    /** Se piden más de los que caben en una página, para que el filtro de complementos tenga de dónde elegir. */
+    static final int LIMITE_RESULTADOS = 40;
 
     private final boolean habilitado;
     private final String apiKey;
@@ -135,20 +136,21 @@ public class AdaptadorGoogleShopping extends AdaptadorMarketplaceBase {
 
     /**
      * Google no siempre entrega los productos en la misma lista. Con productos populares ("playstation 5",
-     * "iphone 15") los agrupa por categoría y {@code shopping_results} llega vacío; arriba de la página a veces
-     * hay otros productos destacados. Se juntan todas las listas, sin repetir.
+     * "iphone 15") los agrupa por categoría y {@code shopping_results} llega vacío o lleno de juegos y
+     * accesorios; arriba de la página a veces hay otros productos destacados. Se juntan todas las listas, sin
+     * repetir, y van primero las categorías, que es donde Google pone el producto en sí (la consola).
      */
     private static List<Resultado> todosLosResultados(Respuesta respuesta) {
         List<Resultado> todos = new ArrayList<>();
-        if (respuesta.resultados() != null) {
-            todos.addAll(respuesta.resultados());
-        }
         if (respuesta.porCategoria() != null) {
             for (Categoria categoria : respuesta.porCategoria()) {
                 if (categoria != null && categoria.resultados() != null) {
                     todos.addAll(categoria.resultados());
                 }
             }
+        }
+        if (respuesta.resultados() != null) {
+            todos.addAll(respuesta.resultados());
         }
         if (respuesta.destacados() != null) {
             todos.addAll(respuesta.destacados());
