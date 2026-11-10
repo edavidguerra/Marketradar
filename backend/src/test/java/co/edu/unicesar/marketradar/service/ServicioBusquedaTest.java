@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -93,6 +94,42 @@ class ServicioBusquedaTest {
 
         servicio.buscar(consulta("precio_asc"));
         servicio.buscar(consulta("precio_desc"));
+
+        verify(tienda, times(1)).buscar(any());
+    }
+
+    @Test
+    void unaBusquedaQueFallaSeVuelveAIntentarPronto() {
+        AtomicLong nanos = new AtomicLong();
+        AdaptadorMarketplace sana = adaptador("sana", List.of(oferta("sana", "1", "10000", null)));
+        AdaptadorMarketplace rota = mock(AdaptadorMarketplace.class);
+        when(rota.codigo()).thenReturn("rota");
+        when(rota.estaHabilitado()).thenReturn(true);
+        when(rota.buscar(any())).thenThrow(new MarketplaceException("rota", "caída"));
+        ServicioBusqueda servicio = new ServicioBusqueda(List.of(sana, rota), ejecutor,
+                CircuitBreakerRegistry.ofDefaults(), persistencia, PropiedadesPrueba.crear(),
+                new SeleccionPonderadaMvp(PropiedadesPrueba.crear()), nanos::get);
+
+        servicio.buscar(consulta(null));
+        servicio.buscar(consulta(null));
+        verify(sana, times(1)).buscar(any());
+
+        nanos.addAndGet(ServicioBusqueda.VIGENCIA_CON_FALLAS.plusSeconds(1).toNanos());
+        servicio.buscar(consulta(null));
+        verify(sana, times(2)).buscar(any());
+    }
+
+    @Test
+    void unaBusquedaSinFallasSeRecuerdaLaHoraCompleta() {
+        AtomicLong nanos = new AtomicLong();
+        AdaptadorMarketplace tienda = adaptador("a", List.of(oferta("a", "1", "10000", null)));
+        ServicioBusqueda servicio = new ServicioBusqueda(List.of(tienda), ejecutor,
+                CircuitBreakerRegistry.ofDefaults(), persistencia, PropiedadesPrueba.crear(),
+                new SeleccionPonderadaMvp(PropiedadesPrueba.crear()), nanos::get);
+
+        servicio.buscar(consulta(null));
+        nanos.addAndGet(ServicioBusqueda.VIGENCIA_CON_FALLAS.plusSeconds(1).toNanos());
+        servicio.buscar(consulta(null));
 
         verify(tienda, times(1)).buscar(any());
     }

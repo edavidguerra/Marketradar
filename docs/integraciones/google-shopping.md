@@ -10,12 +10,12 @@ Falabella, Alkosto, Mercado Libre y otras), así que reemplaza a las tiendas cuy
 - AliExpress y Shopify piden aprobar la aplicación, lo que tarda días.
 - SerpApi da la clave al registrarse. El plan gratis trae 250 búsquedas al mes (máximo 50 por hora) y el plan
   Starter cuesta 25 USD por 1.000 búsquedas ([precios](https://serpapi.com/pricing)).
-- Marketradar guarda cada búsqueda en caché, así que repetir la misma búsqueda no gasta otra consulta.
+- Marketradar guarda cada búsqueda en caché, así que repetir la misma búsqueda no gasta otra consulta. Si SerpApi falla o no responde a tiempo, el resultado solo se recuerda 30 segundos, para volver a intentarlo pronto.
 
 ## Cómo funciona
 
 1. `GET https://serpapi.com/search.json?engine=google_shopping&q=<término>&gl=co&hl=es&google_domain=google.com.co&api_key=<clave>`.
-2. De `shopping_results` se toman máximo 20 productos.
+2. Se toman máximo 20 productos, sin repetir, de `shopping_results`, de `categorized_shopping_results` (con productos populares como "playstation 5" Google los agrupa por categoría y `shopping_results` llega vacío) y de `inline_shopping_results`.
 3. Si la API falla, la persona ve "La tienda Google Shopping no respondió" y el resto de tiendas sigue funcionando.
    Los mensajes de error nunca incluyen la URL, porque lleva la clave.
 
