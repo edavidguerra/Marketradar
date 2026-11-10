@@ -9,7 +9,7 @@ Comparador de precios accesible para adultos mayores. Proyecto de aula de **Prog
 1. La persona escribe un producto, por ejemplo "olla arrocera".
 2. Marketradar consulta al mismo tiempo AliExpress, Shopify y Mercado Libre, convierte los precios a pesos con la TRM del día y los ordena por precio total.
 3. Muestra el **producto MVP**: la mejor compra según precio (60 %), opiniones (30 %) y envío (10 %), con las razones en palabras sencillas y un enlace directo a la tienda.
-4. Además: historial de búsquedas, historial de precio por oferta, perfil, PQR, tutorial y un asistente con IA.
+4. Además: historial de búsquedas, reseñas de compradores por oferta, perfil, PQR, tutorial y un asistente con IA.
 5. El administrador ve y responde las PQR.
 
 ## Dónde está cada entregable
@@ -64,7 +64,7 @@ Comparador de precios accesible para adultos mayores. Proyecto de aula de **Prog
 
 | Qué | Resultado |
 |---|---|
-| Pruebas automáticas (`mvn -f backend/pom.xml verify`) | 154 pruebas; las 7 de DAO con Testcontainers corren en GitHub Actions |
+| Pruebas automáticas (`mvn -f backend/pom.xml verify`) | 166 pruebas; las 7 de DAO con Testcontainers corren en GitHub Actions |
 | Integración continua | Check `pruebas` obligatorio en cada PR hacia `develop` |
 | Accesibilidad con axe (WCAG 2.1 AA) | 0 fallas en 14 pantallas |
 | Lighthouse en la pantalla de ingreso | 100 en accesibilidad, buenas prácticas, rendimiento y SEO |

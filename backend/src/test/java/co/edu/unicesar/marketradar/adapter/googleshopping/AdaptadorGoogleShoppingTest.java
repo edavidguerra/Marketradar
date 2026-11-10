@@ -2,6 +2,7 @@ package co.edu.unicesar.marketradar.adapter.googleshopping;
 
 import co.edu.unicesar.marketradar.domain.ConsultaBusqueda;
 import co.edu.unicesar.marketradar.domain.OfertaNormalizada;
+import co.edu.unicesar.marketradar.domain.ResenasProducto;
 import co.edu.unicesar.marketradar.exception.MarketplaceException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
@@ -44,7 +45,8 @@ class AdaptadorGoogleShoppingTest {
                {"position":1,"title":"Olla Arrocera 1,8 L Antiadherente","product_id":"111",
                 "product_link":"https://www.google.com.co/shopping/product/111","source":"Éxito",
                 "price":"$ 159.900","extracted_price":159900,"rating":4.6,"reviews":312,
-                "thumbnail":"https://serpapi.com/images/111.jpg","delivery":"Envío gratis"},
+                "thumbnail":"https://serpapi.com/images/111.jpg","delivery":"Envío gratis",
+                "immersive_product_page_token":"token-111"},
                {"position":2,"title":"Olla Arrocera Importada","product_id":"222",
                 "product_link":"https://www.google.com.co/shopping/product/222","source":"Tienda Internacional",
                 "price":"US$ 25,00","extracted_price":25.0},
@@ -184,6 +186,74 @@ class AdaptadorGoogleShoppingTest {
         assertTrue(crear(CLAVE).estaHabilitado());
         assertFalse(crear("").estaHabilitado());
         assertFalse(new AdaptadorGoogleShopping(null, builder.build(), false, CLAVE).estaHabilitado());
+    }
+
+    @Test
+    void guardaLaClaveParaPedirLasResenasDespues() {
+        servidor.expect(once(), requestTo(startsWith(URL)))
+                .andRespond(withSuccess(RESPUESTA, MediaType.APPLICATION_JSON));
+
+        List<OfertaNormalizada> ofertas = crear(CLAVE).consultarApi(consulta("olla arrocera"));
+
+        assertEquals("token-111", ofertas.get(0).getTokenResenas());
+        assertNull(ofertas.get(1).getTokenResenas());
+    }
+
+    @Test
+    void traeLasResenasDelProductoConSuCalificacion() {
+        StringBuilder opiniones = new StringBuilder();
+        for (int i = 1; i <= 12; i++) {
+            opiniones.append(i > 1 ? "," : "").append("""
+                    {"title":"Muy buena %d","text":"  Cocina el arroz perfecto.  ","user_name":"Rosa","source":"Éxito",
+                     "rating":5,"date":"hace 2 meses"}""".formatted(i));
+        }
+        String respuesta = """
+                {"product_results":{"title":"Olla Arrocera","rating":4.6,"reviews":312,
+                  "ratings":[{"stars":1,"amount":4},{"stars":5,"amount":250},{"stars":3,"amount":10},
+                             {"stars":4,"amount":40},{"stars":2,"amount":8}],
+                  "user_reviews":[{"title":"Sin texto","rating":2},%s]}}""".formatted(opiniones);
+        servidor.expect(once(), requestTo(startsWith(URL + "/search.json")))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(queryParam("engine", "google_immersive_product"))
+                .andExpect(queryParam("page_token", "token-111"))
+                .andExpect(queryParam("gl", "co"))
+                .andExpect(queryParam("hl", "es"))
+                .andExpect(queryParam("api_key", CLAVE))
+                .andRespond(withSuccess(respuesta, MediaType.APPLICATION_JSON));
+
+        ResenasProducto resenas = crear(CLAVE).resenas("token-111");
+
+        servidor.verify();
+        assertEquals(new BigDecimal("4.6"), resenas.calificacion());
+        assertEquals(312, resenas.totalResenas());
+        assertEquals(List.of(5, 4, 3, 2, 1), resenas.distribucion().stream().map(ResenasProducto.Estrellas::estrellas).toList());
+        assertEquals(250, resenas.distribucion().get(0).cantidad());
+        assertEquals(10, resenas.resenas().size(), "máximo 10 opiniones, y sin las que no tienen texto");
+        ResenasProducto.Resena primera = resenas.resenas().get(0);
+        assertEquals("Muy buena 1", primera.titulo());
+        assertEquals("Cocina el arroz perfecto.", primera.texto());
+        assertEquals("Rosa", primera.autor());
+        assertEquals("Éxito", primera.fuente());
+        assertEquals("hace 2 meses", primera.fecha());
+    }
+
+    @Test
+    void unProductoSinResenasDevuelveVacio() {
+        servidor.expect(once(), requestTo(startsWith(URL)))
+                .andRespond(withSuccess("{\"error\":\"Google hasn't returned any results for this query.\"}",
+                        MediaType.APPLICATION_JSON));
+
+        assertTrue(crear(CLAVE).resenas("token").estaVacia());
+    }
+
+    @Test
+    void unErrorAlPedirLasResenasNoMuestraLaClave() {
+        servidor.expect(once(), requestTo(startsWith(URL)))
+                .andRespond(withException(new IOException("sin conexión")));
+
+        MarketplaceException error = assertThrows(MarketplaceException.class, () -> crear(CLAVE).resenas("token"));
+        assertFalse(error.getMessage().contains(CLAVE));
+        assertNull(error.getCause());
     }
 
     @Test

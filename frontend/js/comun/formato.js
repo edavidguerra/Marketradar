@@ -23,10 +23,10 @@ export function nombreTienda(codigo) {
     return NOMBRES_TIENDA[codigo] || codigo;
 }
 
-/** Google Shopping reúne muchas tiendas: se muestra la tienda real, por ejemplo "Éxito (por Google Shopping)". */
+/** Google Shopping reúne muchas tiendas: se muestra solo la tienda real, por ejemplo "Éxito". */
 export function tiendaDeOferta(oferta) {
     if (oferta.tienda === 'googleshopping' && oferta.vendedor) {
-        return `${oferta.vendedor} (por Google Shopping)`;
+        return oferta.vendedor;
     }
     return nombreTienda(oferta.tienda);
 }

@@ -1,11 +1,11 @@
 /**
  * Sección Buscar: resultados de todas las tiendas, la mejor opción de compra (producto MVP) con su
- * enlace directo, y el historial de precio de cada oferta.
+ * enlace directo, y las reseñas de compradores de cada producto.
  */
 
-import { buscar, obtenerHistorialPrecio, obtenerOferta } from '../comun/api.js';
+import { buscar, obtenerResenas } from '../comun/api.js';
 import { crear, crearIcono, boton, enlaceTienda, mostrarEstado } from '../comun/dom.js';
-import { decimal, estrellas, fechaCorta, haceCuanto, pesos, tiendaDeOferta } from '../comun/formato.js';
+import { decimal, estrellas, haceCuanto, pesos, tiendaDeOferta } from '../comun/formato.js';
 import { irA } from './navegacion.js';
 import { iniciarSugerencias } from './sugerencias.js';
 
@@ -69,8 +69,8 @@ function crearTarjeta(oferta) {
     );
     const acciones = crear('div', 'acciones');
     acciones.append(enlaceTienda(`Ver en ${tienda}`, oferta.url_destino, tienda));
-    if (oferta.id != null) {
-        acciones.append(boton('Ver historial de precio', 'boton-secundario', () => verHistorial(oferta.id)));
+    if (oferta.resenas_disponibles) {
+        acciones.append(botonResenas(oferta));
     }
     cuerpo.append(acciones);
     tarjeta.append(imagen, cuerpo);
@@ -116,6 +116,7 @@ function mostrarMvp(mvp) {
         barra,
         enlaceTienda(`Comprar este producto en ${tienda}`, mvp.enlace_compra, tienda),
     );
+    if (oferta.resenas_disponibles) contenedor.append(botonResenas(oferta));
     contenedor.hidden = false;
 }
 
@@ -196,61 +197,82 @@ export function buscarTermino(termino, { exacto = false } = {}) {
     cargarPagina();
 }
 
-function crearGrafico(historial) {
-    const ancho = 600;
-    const alto = 240;
-    const margen = 20;
-    const precios = historial.map((punto) => Number(punto.precio));
-    const minimo = Math.min(...precios);
-    const rango = Math.max(...precios) - minimo || 1;
-    const pasoX = historial.length > 1 ? (ancho - 2 * margen) / (historial.length - 1) : 0;
-    const puntos = precios.map((precio, i) => {
-        const x = margen + i * pasoX;
-        const y = alto - margen - ((precio - minimo) / rango) * (alto - 2 * margen);
-        return `${x.toFixed(1)},${y.toFixed(1)}`;
+function botonResenas(oferta) {
+    const elemento = boton('Ver reseñas', 'boton-secundario', () => verResenas(oferta));
+    elemento.prepend(crearIcono('estrella'));
+    return elemento;
+}
+
+/** Barras con cuántas personas dieron 5, 4, 3, 2 y 1 estrellas. Se leen también como texto. */
+function crearDistribucion(distribucion) {
+    const total = distribucion.reduce((suma, fila) => suma + fila.cantidad, 0) || 1;
+    const lista = crear('ul', 'distribucion');
+    distribucion.forEach((fila) => {
+        const elemento = crear('li');
+        const etiqueta = crear('span', 'distribucion-estrellas', `${fila.estrellas} ${fila.estrellas === 1 ? 'estrella' : 'estrellas'}`);
+        const barra = crear('span', 'distribucion-barra');
+        barra.setAttribute('aria-hidden', 'true');
+        const relleno = crear('span');
+        relleno.style.setProperty('--parte', `${Math.round((fila.cantidad / total) * 100)}%`);
+        barra.append(relleno);
+        const cantidad = crear('span', 'distribucion-cantidad', `${fila.cantidad.toLocaleString('es-CO')} opiniones`);
+        elemento.append(etiqueta, barra, cantidad);
+        lista.append(elemento);
     });
-    const svgNs = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(svgNs, 'svg');
-    svg.setAttribute('viewBox', `0 0 ${ancho} ${alto}`);
-    svg.setAttribute('class', 'grafico');
-    svg.setAttribute('role', 'img');
-    svg.setAttribute('aria-label', 'Gráfico del precio a lo largo del tiempo');
-    const linea = document.createElementNS(svgNs, 'polyline');
-    linea.setAttribute('points', puntos.join(' '));
-    linea.setAttribute('pathLength', '1');
-    svg.append(linea);
-    return svg;
+    return lista;
 }
 
-function explicarHistorial(historial) {
-    if (historial.length < 2) {
-        return 'Todavía no tenemos cambios de precio para este producto. Vuelva a consultarlo otro día.';
+function crearResena(resena) {
+    const elemento = crear('li', 'resena');
+    if (resena.calificacion != null) {
+        const nota = crear('p', 'calificacion');
+        const figura = crear('span', 'estrellas', estrellas(resena.calificacion));
+        figura.setAttribute('aria-hidden', 'true');
+        nota.append(figura, ` ${decimal(resena.calificacion)} de 5`);
+        elemento.append(nota);
     }
-    const diferencia = Number(historial[historial.length - 1].precio) - Number(historial[0].precio);
-    const desde = fechaCorta(historial[0].registrado_en);
-    if (diferencia < 0) return `El precio bajó ${pesos(-diferencia)} desde el ${desde}.`;
-    if (diferencia > 0) return `El precio subió ${pesos(diferencia)} desde el ${desde}.`;
-    return `El precio es el mismo que el ${desde}.`;
+    if (resena.titulo) elemento.append(crear('h4', null, resena.titulo));
+    if (resena.texto) elemento.append(crear('p', 'resena-texto', resena.texto));
+    const firma = [resena.autor, resena.fuente && `en ${resena.fuente}`, resena.fecha].filter(Boolean).join(' · ');
+    if (firma) elemento.append(crear('p', 'ayuda', firma));
+    return elemento;
 }
 
-async function verHistorial(id) {
+async function verResenas(oferta) {
     const contenedor = $('contenido-detalle');
+    const tienda = tiendaDeOferta(oferta);
     irA('detalle');
-    mostrarEstado(contenedor, 'Cargando el historial de precio…');
+    mostrarEstado(contenedor, 'Cargando las reseñas de los compradores…');
     try {
-        const [oferta, historial] = await Promise.all([obtenerOferta(id), obtenerHistorialPrecio(id)]);
-        const lista = crear('ul');
-        historial.forEach((punto) => lista.append(crear('li', null,
-            `${fechaCorta(punto.registrado_en)}: ${pesos(punto.precio)}`)));
-        contenedor.replaceChildren(
+        const resenas = await obtenerResenas(oferta.id);
+        const partes = [
             crear('h2', null, oferta.titulo),
-            crear('p', 'precio', `Precio actual: ${pesos(oferta.precio_total)}`),
-            ...(historial.length > 0 ? [crearGrafico(historial)] : []),
-            crear('p', null, explicarHistorial(historial)),
-            lista,
-        );
+            crear('p', 'precio', `${pesos(oferta.precio_total)} en ${tienda}`),
+        ];
+        if (!resenas.disponibles) {
+            partes.push(crear('p', null, 'Este producto todavía no tiene reseñas de compradores.'));
+        } else {
+            if (resenas.calificacion != null) {
+                const resumen = crear('p', 'calificacion resumen-resenas');
+                const figura = crear('span', 'estrellas', estrellas(resenas.calificacion));
+                figura.setAttribute('aria-hidden', 'true');
+                const total = resenas.total_resenas ? ` (${resenas.total_resenas.toLocaleString('es-CO')} opiniones)` : '';
+                resumen.append(figura, ` ${decimal(resenas.calificacion)} de 5${total}`);
+                partes.push(resumen);
+            }
+            if (resenas.distribucion.length > 0) partes.push(crearDistribucion(resenas.distribucion));
+            if (resenas.resenas.length > 0) {
+                const lista = crear('ul', 'resenas');
+                resenas.resenas.forEach((resena) => lista.append(crearResena(resena)));
+                partes.push(crear('h3', 'resenas-titulo', 'Lo que dicen los compradores'), lista);
+            } else {
+                partes.push(crear('p', 'ayuda', 'Los compradores calificaron este producto, pero no dejaron comentarios escritos.'));
+            }
+        }
+        partes.push(enlaceTienda(`Ver en ${tienda}`, oferta.url_destino, tienda));
+        contenedor.replaceChildren(...partes);
     } catch (error) {
-        mostrarEstado(contenedor, error.message, () => verHistorial(id));
+        mostrarEstado(contenedor, error.message, () => verResenas(oferta));
     }
 }
 

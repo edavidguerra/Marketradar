@@ -13,7 +13,7 @@ Integrantes: Ever Guerra, Gustavo Rodriguez, Luis Corzo y Juan Araujo.
 **Interfaz de usuario** (letra grande, alto contraste, botones grandes y lenguaje sencillo):
 
 - **Inicio:** saludo y un aviso dinámico que invita a comprar (lo que buscó hace poco, productos que bajaron de precio o una invitación a buscar).
-- **Buscar:** compara el producto en todas las tiendas activas y muestra primero la **mejor opción de compra (producto MVP)**, elegida por precio total, reseñas y envío, con las razones y un botón que abre exactamente ese producto en la tienda. Después lista todas las ofertas y su historial de precio. Mientras la persona escribe aparecen sugerencias, y si escribe mal ("licuadorra", "quiero comprar una oya arrosera") la página busca directamente lo que quiso decir, como Google, y ofrece buscar exactamente lo que escribió. Los enlaces de compra siempre abren con conexión segura (https) y antes se muestra a qué página va.
+- **Buscar:** compara el producto en todas las tiendas activas y muestra primero la **mejor opción de compra (producto MVP)**, elegida por precio total, reseñas y envío, con las razones y un botón que abre exactamente ese producto en la tienda. Después lista todas las ofertas, empezando por las que traen todas las palabras buscadas, y cada una tiene un botón **Ver reseñas** con la calificación y las opiniones de compradores. Mientras la persona escribe aparecen sugerencias, y si escribe mal ("licuadorra", "quiero comprar una oya arrosera") la página busca directamente lo que quiso decir, como Google, y ofrece buscar exactamente lo que escribió. Los enlaces de compra siempre abren con conexión segura (https) y antes se muestra a qué página va.
 - **Historial:** las búsquedas de la persona, cada una con la foto de un producto que encontró, para reconocerlas de un vistazo y repetirlas con un clic o borrarlas.
 - **Mi perfil:** formulario estándar (nombres, apellidos, documento, fecha de nacimiento, celular y ciudad) y cambio de contraseña.
 - **PQR:** peticiones, quejas, reclamos y sugerencias, con número de radicado y la respuesta del administrador.
@@ -132,6 +132,7 @@ Las peticiones que cambian datos deben enviar la cabecera `X-XSRF-TOKEN` con el 
 | GET | `/api/v1/busqueda?q=&orden=&marketplaces=&pagina=&tamano=&exacto=` | Usuario | Busca en las tiendas activas entendiendo errores al escribir y devuelve el producto MVP. Si se buscó otra cosa, trae `termino_original`; con `exacto=true` no corrige |
 | GET | `/api/v1/busqueda/sugerencias?q=` | Usuario | Hasta 6 sugerencias mientras la persona escribe (no consulta las tiendas) |
 | GET | `/api/v1/ofertas/{id}` y `/{id}/historial` | Usuario | Detalle e historial de precios |
+| GET | `/api/v1/ofertas/{id}/resenas` | Usuario | Calificación, estrellas y opiniones de compradores (Google Shopping, caché de 24 horas) |
 | POST | `/api/v1/asistente/mensajes` | Usuario | Pregunta al chatbot |
 | GET | `/api/v1/usuario/avisos` | Usuario | Avisos del inicio |
 | GET, PUT | `/api/v1/usuario/perfil` | Usuario | Consulta y guarda el perfil |

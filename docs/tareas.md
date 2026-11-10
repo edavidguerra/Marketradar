@@ -35,5 +35,6 @@ Actualícela al cierre de cada fase. Estados: completada, en progreso, pendiente
 | Rediseño de la interfaz con animaciones | Ever Guerra | 3 | completada |
 | Guion de usabilidad con adultos mayores | Ever Guerra | 3 | en progreso: guion listo, falta aplicarlo y llenar [usabilidad/resultados.md](usabilidad/resultados.md) |
 | Despliegue en Render | Ever Guerra | 3 | completada |
+| Reseñas de compradores y resultados más precisos | Ever Guerra | 4 | completada |
 | Datos de prueba, MER, diccionario de datos y normalización | Jean Mercado | 4 | completada |
 | Documentación final | Ever Guerra | 4 | completada |

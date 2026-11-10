@@ -66,6 +66,7 @@ export function obtenerSugerencias(texto) {
 }
 export const obtenerOferta = (id) => pedir(`/ofertas/${encodeURIComponent(id)}`);
 export const obtenerHistorialPrecio = (id) => pedir(`/ofertas/${encodeURIComponent(id)}/historial`);
+export const obtenerResenas = (id) => pedir(`/ofertas/${encodeURIComponent(id)}/resenas`);
 export const obtenerTasas = () => pedir('/tasas');
 
 /* Interfaz de usuario */

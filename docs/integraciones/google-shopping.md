@@ -15,7 +15,7 @@ Falabella, Alkosto, Mercado Libre y otras), así que reemplaza a las tiendas cuy
 ## Cómo funciona
 
 1. `GET https://serpapi.com/search.json?engine=google_shopping&q=<término>&gl=co&hl=es&google_domain=google.com.co&api_key=<clave>`.
-2. Se toman máximo 40 productos, sin repetir: primero los de `categorized_shopping_results` (con productos populares como "playstation 5" Google agrupa ahí el producto en sí), después `shopping_results` y al final `inline_shopping_results`. Luego se quitan los juegos y accesorios que la persona no pidió (ver [busqueda-flexible.md](../busqueda-flexible.md#3-primero-el-producto-no-sus-complementos)).
+2. Se toman máximo 40 productos, sin repetir: primero los de `categorized_shopping_results` (con productos populares como "playstation 5" Google agrupa ahí el producto en sí), después `shopping_results` y al final `inline_shopping_results`. Luego se dejan primero los que traen todas las palabras buscadas y se quitan los juegos y accesorios que la persona no pidió (ver [busqueda-flexible.md](../busqueda-flexible.md#3-primero-lo-que-más-se-parece-a-lo-buscado)).
 3. Si la API falla, la persona ve "La tienda Google Shopping no respondió" y el resto de tiendas sigue funcionando.
    Los mensajes de error nunca incluyen la URL, porque lleva la clave.
 
@@ -26,10 +26,27 @@ Falabella, Alkosto, Mercado Libre y otras), así que reemplaza a las tiendas cuy
 | `extracted_price` | `precio` | Número sin formato. |
 | `price` | `moneda` | `COP`, o `USD` si el texto dice US$. |
 | `delivery` | `costoEnvio` | 0 si dice "gratis" o "free"; si no, queda sin valor. |
-| `source` | `vendedor` | La tienda real. En pantalla se ve "Éxito (por Google Shopping)". |
+| `source` | `vendedor` | La tienda real. En pantalla se ve solo "Éxito". |
 | `link` (o `product_link`) | `urlDestino` | Si SerpApi trae el enlace directo de la tienda, se usa ese. Si no, se abre el producto en Google Shopping, con las tiendas que lo venden. Solo se aceptan enlaces `https`. |
 | `thumbnail` | `urlImagen` | Si llega con `http`, se cambia a `https`. |
 | `rating`, `reviews` | `calificacion`, `totalResenas` | |
+| `immersive_product_page_token` | `tokenResenas` | Clave para pedir después las reseñas. No se guarda en la base de datos. |
+
+### Reseñas
+
+Cada tarjeta tiene el botón **Ver reseñas** (reemplaza al historial de precio, que salía en blanco porque casi ningún
+producto se había consultado dos veces). Al presionarlo:
+
+1. La página llama `GET /api/v1/ofertas/{id}/resenas`.
+2. `ServicioResenas` busca la clave que llegó con esa oferta en la última búsqueda (se recuerda en memoria 24 horas) y
+   pide `GET https://serpapi.com/search.json?engine=google_immersive_product&page_token=<clave>&gl=co&hl=es&api_key=<clave>`.
+3. De `product_results` se toman la calificación (`rating`), el total (`reviews`), cuántas personas dieron cada número de
+   estrellas (`ratings`) y hasta 10 opiniones escritas (`user_reviews`: título, texto, autor, sitio y fecha).
+4. Si la tienda no tiene opiniones, la página dice "Este producto todavía no tiene reseñas de compradores".
+
+**Costo:** cada producto consultado gasta una búsqueda del plan de SerpApi (250 al mes en el gratuito). Por eso la respuesta
+queda en caché 24 horas y solo se pide cuando la persona presiona el botón. Si la aplicación se reinicia, las claves se
+pierden y la persona debe volver a buscar el producto. El endpoint `/api/v1/ofertas/{id}/historial` sigue existiendo.
 
 ### Errores
 

@@ -186,8 +186,8 @@ public class ServicioBusqueda {
             }
         });
 
-        // Primero el producto buscado: sin juegos, fundas ni paquetes digitales cuando hay de dónde elegir.
-        List<OfertaNormalizada> relevantes = FiltroComplementos.filtrar(consulta.getTermino(), ofertas);
+        // Primero lo que más se parece a lo buscado, y sin juegos, fundas ni paquetes digitales que no pidió.
+        List<OfertaNormalizada> relevantes = FiltroRelevancia.filtrar(consulta.getTermino(), ofertas);
         Map<String, Long> ids = guardarSinInterrumpir(relevantes);
         return new ResultadoCompleto(relevantes, advertencias, ids, huboFallas[0]);
     }
