@@ -44,7 +44,7 @@ Comparador de precios accesible para adultos mayores. Proyecto de aula de **Prog
 
 | Entregable | Archivo |
 |---|---|
-| Migraciones V1 a V5 (10 tablas y 4 vistas) | [base-de-datos/migraciones/](../base-de-datos/migraciones/) |
+| Migraciones V1 a V10 (11 tablas y 4 vistas) | [base-de-datos/migraciones/](../base-de-datos/migraciones/) |
 | Modelo entidad relación | [base-de-datos/docs/mer/](../base-de-datos/docs/mer/) |
 | Diccionario de datos | [base-de-datos/docs/diccionario-datos.md](../base-de-datos/docs/diccionario-datos.md) |
 | Normalización | [base-de-datos/docs/normalizacion.md](../base-de-datos/docs/normalizacion.md) |
@@ -57,14 +57,14 @@ Comparador de precios accesible para adultos mayores. Proyecto de aula de **Prog
 | Entregable | Archivo |
 |---|---|
 | Tabla de tareas con responsables | [tareas.md](tareas.md) |
-| Decisiones del equipo | [decisiones-pendientes.md](decisiones-pendientes.md) |
+| Decisiones del equipo | [decisiones.md](decisiones.md) |
 | Cómo ejecutar, API REST y reglas de negocio | [README](../README.md) |
 
 ## Calidad comprobada
 
 | Qué | Resultado |
 |---|---|
-| Pruebas automáticas (`mvn -f backend/pom.xml verify`) | 102 pruebas; las de DAO con Testcontainers corren en GitHub Actions |
+| Pruebas automáticas (`mvn -f backend/pom.xml verify`) | 147 pruebas; las 7 de DAO con Testcontainers corren en GitHub Actions |
 | Integración continua | Check `pruebas` obligatorio en cada PR hacia `develop` |
 | Accesibilidad con axe (WCAG 2.1 AA) | 0 fallas en 14 pantallas |
 | Lighthouse en la pantalla de ingreso | 100 en accesibilidad, buenas prácticas, rendimiento y SEO |
@@ -83,4 +83,4 @@ Comparador de precios accesible para adultos mayores. Proyecto de aula de **Prog
 | Resultados de la prueba de usabilidad | Hay que aplicarla con 5 personas mayores | Seguir el [guion](usabilidad/guion-usabilidad.md) y llenar [resultados.md](usabilidad/resultados.md) |
 | Claves reales de las tiendas | AliExpress y Shopify piden aprobar una aplicación; Mercado Libre pide autorizar la cuenta | Seguir cada guía en [integraciones/](integraciones/) y ponerlas en Render |
 | Guardar resultados de Shopify | Sus términos no permiten guardar ni cachear el catálogo | Decisión del equipo (ver [integraciones/shopify.md](integraciones/shopify.md)) |
-| Interfaz de escritorio | La rúbrica menciona NetBeans | Confirmar con el docente que acepta la interfaz web (decisión 1) |
+| Interfaz de escritorio | La rúbrica menciona NetBeans | Confirmar con el docente que acepta la interfaz web (ver [decisiones.md](decisiones.md), pendiente 1) |

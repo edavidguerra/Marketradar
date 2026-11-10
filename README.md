@@ -36,7 +36,7 @@ No incluye pagos ni carrito: la compra se hace en la página de la tienda.
 | Chatbot | Claude (Anthropic) con el SDK oficial de Java y herramientas propias |
 | Acceso a datos | JDBC con patrón DAO (sin JPA), HikariCP |
 | Base de datos | PostgreSQL 16 con migraciones Flyway |
-| Caché y resiliencia | Caffeine (15 min), Resilience4j (circuit breaker y límite de uso) |
+| Caché y resiliencia | Caffeine (60 min), Resilience4j (circuit breaker y límite de uso) |
 | Pruebas | JUnit 5, Mockito, Testcontainers |
 | Despliegue local | Docker y Docker Compose |
 
@@ -82,7 +82,7 @@ marketradar/
 ├── base-de-datos/                 Asignatura Bases de Datos: solo SQL, no depende del código Java
 │   ├── README.md                  Migraciones, reglas para cambiar el esquema y cómo revisarlo
 │   └── migraciones/               Scripts V1, V2, ... que Flyway aplica al arrancar el backend
-├── docs/                          Documentación por fases
+├── docs/                          Documentación por fases (índice en docs/README.md)
 ├── docker-compose.yml
 └── .env.example                   Plantilla de variables de entorno (sin valores reales)
 ```
@@ -173,7 +173,7 @@ Resumen de la entrega y ubicación de cada documento: [docs/entrega-final.md](do
 
 Mientras no haya un adaptador activo, la búsqueda responde "Por ahora no hay tiendas disponibles" y el producto MVP no aparece.
 
-Las decisiones abiertas están en [docs/decisiones-pendientes.md](docs/decisiones-pendientes.md) y el reparto de tareas en [docs/tareas.md](docs/tareas.md).
+Las decisiones del equipo están en [docs/decisiones.md](docs/decisiones.md) y el reparto de tareas en [docs/tareas.md](docs/tareas.md).
 
 ## Cómo colaborar
 

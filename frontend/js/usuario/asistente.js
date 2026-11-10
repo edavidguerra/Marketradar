@@ -44,6 +44,15 @@ export function iniciarAsistente() {
     botonAbrir.addEventListener('click', () => mostrar(panel.hidden));
     document.getElementById('cerrar-asistente').addEventListener('click', () => mostrar(false));
 
+    // Enter envía la pregunta, como en un chat; Shift + Enter escribe en otra línea.
+    // Mientras se compone una letra con tilde (isComposing) Enter no envía nada.
+    campo.addEventListener('keydown', (evento) => {
+        if (evento.key !== 'Enter' || evento.shiftKey || evento.isComposing) return;
+        evento.preventDefault();
+        const enviar = formulario.querySelector('[type="submit"]');
+        if (!enviar.disabled) formulario.requestSubmit(enviar);
+    });
+
     formulario.addEventListener('submit', async (evento) => {
         evento.preventDefault();
         const mensaje = campo.value.trim();

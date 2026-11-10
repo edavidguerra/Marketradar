@@ -1,6 +1,6 @@
 /**
  * Sugerencias mientras la persona escribe (patrón combobox de ARIA 1.2).
- * Flechas arriba y abajo para moverse, Enter para elegir y Escape para cerrar.
+ * Flechas arriba y abajo para moverse, Enter para elegir (o para buscar lo escrito) y Escape para cerrar.
  * Las sugerencias salen de Marketradar, no de las tiendas, así que no gastan búsquedas.
  */
 import { obtenerSugerencias } from '../comun/api.js';
@@ -91,6 +91,13 @@ export function iniciarSugerencias(campo, lista, estado, alElegir) {
     });
 
     campo.addEventListener('keydown', (evento) => {
+        if (evento.isComposing) return;
+        // Enter siempre busca: con una sugerencia marcada busca esa, si no, busca lo escrito.
+        if (evento.key === 'Enter' && (lista.hidden || activa < 0)) {
+            evento.preventDefault();
+            campo.form.requestSubmit();
+            return;
+        }
         if (lista.hidden) {
             return;
         }

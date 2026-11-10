@@ -139,7 +139,9 @@ public class ServicioSugerencias {
     }
 
     /**
-     * Corrige las palabras que parecen mal escritas, por ejemplo "licuadorra" por "licuadora".
+     * Corrige las palabras que parecen mal escritas, por ejemplo "licuadorra" por "licuadora". Si la última palabra
+     * quedó a medias y la búsqueda es el comienzo de un producto conocido, lo completa: "olla arro" busca
+     * "olla arrocera" y "compu" busca "computador".
      *
      * @param termino lo que buscó la persona
      * @return la búsqueda corregida, o vacío si todo parece bien escrito
@@ -151,6 +153,10 @@ public class ServicioSugerencias {
         }
         Indice actual = indice();
         String[] palabras = normalizado.split(" ");
+        Optional<String> completo = completar(normalizado, palabras[palabras.length - 1], actual);
+        if (completo.isPresent()) {
+            return completo;
+        }
         List<String> corregidas = new ArrayList<>();
         boolean cambio = false;
         for (String palabra : palabras) {
@@ -209,6 +215,19 @@ public class ServicioSugerencias {
             }
         }
         return Optional.empty();
+    }
+
+    /** Producto confiable que empieza por lo escrito, cuando la última palabra no existe tal cual. */
+    private static Optional<String> completar(String normalizado, String ultima, Indice indice) {
+        if (ultima.length() < 3 || indice.palabras().containsKey(ultima)
+                || ultima.chars().anyMatch(Character::isDigit)) {
+            return Optional.empty();
+        }
+        return indice.terminos().stream()
+                .filter(t -> t.confiable() && t.normalizado().startsWith(normalizado))
+                .min(Comparator.comparingInt(Termino::peso).reversed()
+                        .thenComparingInt(t -> t.normalizado().length()))
+                .map(Termino::texto);
     }
 
     private static String corregirPalabra(String palabra, Indice indice) {
@@ -385,12 +404,14 @@ public class ServicioSugerencias {
         }
         Termino existente = terminos.get(normalizado);
         if (existente == null) {
-            terminos.put(normalizado, new Termino(limpio, normalizado, peso));
+            terminos.put(normalizado, new Termino(limpio, normalizado, peso, sirveParaCorregir));
         } else if (existente.texto().equals(normalizado) && !limpio.equals(normalizado)) {
             // Se prefiere la forma con tildes del vocabulario ("tensiómetro" en vez de "tensiometro").
-            terminos.put(normalizado, new Termino(limpio, normalizado, existente.peso() + peso));
+            terminos.put(normalizado, new Termino(limpio, normalizado, existente.peso() + peso,
+                    existente.confiable() || sirveParaCorregir));
         } else {
-            terminos.put(normalizado, new Termino(existente.texto(), normalizado, existente.peso() + peso));
+            terminos.put(normalizado, new Termino(existente.texto(), normalizado, existente.peso() + peso,
+                    existente.confiable() || sirveParaCorregir));
         }
         if (!sirveParaCorregir) {
             return;
@@ -424,7 +445,8 @@ public class ServicioSugerencias {
         }
     }
 
-    private record Termino(String texto, String normalizado, int peso) {
+    /** {@code confiable}: viene del vocabulario o se buscó lo bastante para usarlo al corregir y completar. */
+    private record Termino(String texto, String normalizado, int peso, boolean confiable) {
     }
 
     private record Candidato(Termino termino, int puntaje) {

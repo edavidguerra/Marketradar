@@ -16,9 +16,12 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -69,6 +72,47 @@ class OfertaDaoJdbcTest {
         assertTrue(ofertaDao.eliminar(leida.getId()));
         assertFalse(ofertaDao.buscarPorId(leida.getId()).isPresent());
         assertTrue(historialDao.listarPorOferta(leida.getId()).isEmpty());
+    }
+
+    @Test
+    void guardarLoteInsertaActualizaYSoloRegistraLosCambiosDePrecio() {
+        short google = marketplaceDao.buscarPorCodigo("googleshopping").orElseThrow().getId();
+
+        Map<String, Long> primera = ofertaDao.guardarLote(List.of(
+                ofertaDeLote(google, "L-1", "100000.00"),
+                ofertaDeLote(google, "L-2", "200000.00"),
+                ofertaDeLote(google, "L-1", "999999.00")));
+        assertEquals(2, primera.size(), "las ofertas repetidas se guardan una sola vez");
+        long idUno = primera.get(OfertaDao.clave(google, "L-1"));
+        long idDos = primera.get(OfertaDao.clave(google, "L-2"));
+        assertEquals(0, new BigDecimal("100000").compareTo(ofertaDao.buscarPorId(idUno).orElseThrow().getPrecioActual()),
+                "gana la primera aparición de la oferta");
+        assertEquals(1, historialDao.listarPorOferta(idUno).size());
+        assertEquals(1, historialDao.listarPorOferta(idDos).size());
+
+        Map<String, Long> segunda = ofertaDao.guardarLote(List.of(
+                ofertaDeLote(google, "L-1", "90000.00"),
+                ofertaDeLote(google, "L-2", "200000.00"),
+                ofertaDeLote(google, "L-3", "50000.00")));
+        assertEquals(idUno, segunda.get(OfertaDao.clave(google, "L-1")), "una oferta existente conserva su id");
+        assertEquals(idDos, segunda.get(OfertaDao.clave(google, "L-2")));
+        assertNotEquals(idUno, segunda.get(OfertaDao.clave(google, "L-3")));
+        assertEquals(0, new BigDecimal("90000").compareTo(ofertaDao.buscarPorId(idUno).orElseThrow().getPrecioActual()));
+        assertEquals(2, historialDao.listarPorOferta(idUno).size(), "el precio bajó: se registra en el historial");
+        assertEquals(1, historialDao.listarPorOferta(idDos).size(), "el precio no cambió: no se repite en el historial");
+        assertEquals(1, historialDao.listarPorOferta(segunda.get(OfertaDao.clave(google, "L-3"))).size());
+        assertTrue(ofertaDao.guardarLote(List.of()).isEmpty());
+    }
+
+    private static Oferta ofertaDeLote(short marketplaceId, String idExterno, String precio) {
+        Oferta oferta = new Oferta();
+        oferta.setMarketplaceId(marketplaceId);
+        oferta.setIdExterno(idExterno);
+        oferta.setTitulo("Olla arrocera " + idExterno);
+        oferta.setUrlDestino("https://ejemplo.com/" + idExterno);
+        oferta.setPrecioActual(new BigDecimal(precio));
+        oferta.setMoneda("COP");
+        return oferta;
     }
 
     @Test

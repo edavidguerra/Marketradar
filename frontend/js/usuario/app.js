@@ -3,6 +3,7 @@
  */
 
 import { iniciarAccesibilidad } from '../comun/accesibilidad.js';
+import { iniciarEfectos } from '../comun/efectos.js';
 import { conectarSalida, exigirSesion, saludo } from '../comun/sesion.js';
 import { iniciarAsistente } from './asistente.js';
 import { iniciarBusqueda } from './busqueda.js';
@@ -14,6 +15,7 @@ import { cargarPqr, iniciarPqr } from './pqr.js';
 
 async function iniciar() {
     iniciarAccesibilidad();
+    iniciarEfectos();
     const sesion = await exigirSesion('USUARIO');
     if (!sesion) return;
 

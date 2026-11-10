@@ -71,6 +71,21 @@ class ServicioSugerenciasTest {
     }
 
     @Test
+    void completaLaUltimaPalabraQueQuedoAMedias() {
+        assertEquals(Optional.of("olla arrocera"), servicio.corregir("olla arro"));
+        assertEquals(Optional.of("computador"), servicio.corregir("compu"));
+        assertEquals(Optional.of("tensiómetro"), servicio.corregir("tensio"));
+        assertTrue(servicio.corregir("olla").isEmpty(), "una palabra completa no se cambia por un producto más largo");
+    }
+
+    @Test
+    void noCompletaConTerminosPopularesPocoBuscados() {
+        ServicioSugerencias conPopulares = conVocabulario(List.of(new TerminoPopular("xilofono infantil", 2)));
+
+        assertTrue(conPopulares.corregir("xilof").isEmpty());
+    }
+
+    @Test
     void noCorrigeLoQueYaEstaBienEscrito() {
         assertTrue(servicio.corregir("olla arrocera").isEmpty());
         assertTrue(servicio.corregir("Tensiómetro").isEmpty());

@@ -10,7 +10,12 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -87,6 +92,85 @@ public class OfertaDaoJdbc extends DaoJdbcBase implements OfertaDao {
                     asignarCampos(sentencia, oferta);
                     sentencia.setLong(15, oferta.getId());
                 }) > 0;
+    }
+
+    /** Filas por consulta: 13 parámetros por fila, muy por debajo del límite de PostgreSQL. */
+    private static final int FILAS_POR_LOTE = 100;
+
+    /**
+     * Una sola consulta por lote. Todas las partes del WITH ven la base como estaba antes de empezar, así que
+     * {@code previos} trae el precio anterior y el historial solo se escribe si el precio es nuevo o cambió.
+     */
+    private static final String SQL_LOTE = """
+            WITH datos (marketplace_id, id_externo, titulo, url_destino, url_imagen, precio_actual, moneda,
+                        costo_envio, condicion, vendedor, consultado_en, calificacion, total_resenas) AS (
+                VALUES %s
+            ),
+            previos AS (
+                SELECT o.marketplace_id, o.id_externo, o.precio_actual
+                FROM oferta o JOIN datos d ON d.marketplace_id = o.marketplace_id AND d.id_externo = o.id_externo
+            ),
+            guardadas AS (
+                INSERT INTO oferta (marketplace_id, id_externo, titulo, url_destino, url_imagen, precio_actual, moneda,
+                                    costo_envio, condicion, vendedor, consultado_en, calificacion, total_resenas)
+                SELECT * FROM datos
+                ON CONFLICT (marketplace_id, id_externo) DO UPDATE SET
+                    titulo = EXCLUDED.titulo, url_destino = EXCLUDED.url_destino, url_imagen = EXCLUDED.url_imagen,
+                    precio_actual = EXCLUDED.precio_actual, moneda = EXCLUDED.moneda,
+                    costo_envio = EXCLUDED.costo_envio, condicion = EXCLUDED.condicion, vendedor = EXCLUDED.vendedor,
+                    consultado_en = EXCLUDED.consultado_en, calificacion = EXCLUDED.calificacion,
+                    total_resenas = EXCLUDED.total_resenas
+                RETURNING id, marketplace_id, id_externo, precio_actual, moneda
+            ),
+            historial AS (
+                INSERT INTO historial_precio (oferta_id, precio, moneda)
+                SELECT g.id, g.precio_actual, g.moneda
+                FROM guardadas g
+                LEFT JOIN previos p ON p.marketplace_id = g.marketplace_id AND p.id_externo = g.id_externo
+                WHERE p.precio_actual IS NULL OR p.precio_actual <> g.precio_actual
+            )
+            SELECT id, marketplace_id, id_externo FROM guardadas
+            """;
+
+    private static final String FILA_LOTE = "(CAST(? AS SMALLINT), CAST(? AS VARCHAR), CAST(? AS VARCHAR), "
+            + "CAST(? AS TEXT), CAST(? AS TEXT), CAST(? AS NUMERIC), CAST(? AS CHAR(3)), CAST(? AS NUMERIC), "
+            + "CAST(? AS VARCHAR), CAST(? AS VARCHAR), CAST(? AS TIMESTAMPTZ), CAST(? AS NUMERIC), CAST(? AS INTEGER))";
+
+    @Override
+    public Map<String, Long> guardarLote(List<Oferta> ofertas) {
+        Map<String, Oferta> unicas = new LinkedHashMap<>();
+        for (Oferta oferta : ofertas) {
+            unicas.putIfAbsent(OfertaDao.clave(oferta.getMarketplaceId(), oferta.getIdExterno()), oferta);
+        }
+        List<Oferta> lista = new ArrayList<>(unicas.values());
+        Map<String, Long> ids = new HashMap<>();
+        for (int desde = 0; desde < lista.size(); desde += FILAS_POR_LOTE) {
+            List<Oferta> lote = lista.subList(desde, Math.min(desde + FILAS_POR_LOTE, lista.size()));
+            String sql = SQL_LOTE.formatted(String.join(", ", Collections.nCopies(lote.size(), FILA_LOTE)));
+            consultarLista(sql, sentencia -> {
+                int i = 1;
+                for (Oferta oferta : lote) {
+                    sentencia.setShort(i++, oferta.getMarketplaceId());
+                    sentencia.setString(i++, oferta.getIdExterno());
+                    sentencia.setString(i++, oferta.getTitulo());
+                    sentencia.setString(i++, oferta.getUrlDestino());
+                    sentencia.setString(i++, oferta.getUrlImagen());
+                    sentencia.setBigDecimal(i++, oferta.getPrecioActual());
+                    sentencia.setString(i++, oferta.getMoneda());
+                    sentencia.setBigDecimal(i++, oferta.getCostoEnvio());
+                    sentencia.setString(i++, oferta.getCondicion());
+                    sentencia.setString(i++, oferta.getVendedor());
+                    sentencia.setObject(i++, oferta.getConsultadoEn() == null
+                            ? OffsetDateTime.now() : oferta.getConsultadoEn());
+                    sentencia.setBigDecimal(i++, oferta.getCalificacion());
+                    asignarEnteroNulable(sentencia, i++, oferta.getTotalResenas());
+                }
+            }, fila -> {
+                ids.put(OfertaDao.clave(fila.getShort("marketplace_id"), fila.getString("id_externo")), fila.getLong("id"));
+                return null;
+            });
+        }
+        return ids;
     }
 
     @Override

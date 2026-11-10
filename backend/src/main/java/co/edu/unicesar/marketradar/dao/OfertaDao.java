@@ -3,6 +3,8 @@ package co.edu.unicesar.marketradar.dao;
 import co.edu.unicesar.marketradar.domain.Oferta;
 import co.edu.unicesar.marketradar.domain.OfertaDestacada;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -34,4 +36,22 @@ public interface OfertaDao extends Dao<Oferta> {
      * @return la oferta con su precio anterior, o vacío si ningún precio bajó
      */
     Optional<OfertaDestacada> buscarMayorBajaDePrecio(int dias);
+
+    /**
+     * Inserta o actualiza muchas ofertas en una sola consulta y registra en el historial el precio de las nuevas
+     * y de las que cambiaron de precio. Reemplaza las dos o tres consultas por oferta que se hacían antes.
+     *
+     * @param ofertas ofertas con marketplace e identificador externo; si se repite una, gana la primera
+     * @return identificador de cada oferta, por clave {@code marketplaceId|idExterno}
+     */
+    Map<String, Long> guardarLote(List<Oferta> ofertas);
+
+    /**
+     * @param marketplaceId marketplace de la oferta
+     * @param idExterno identificador en la tienda
+     * @return clave con la que {@link #guardarLote(List)} devuelve los identificadores
+     */
+    static String clave(short marketplaceId, String idExterno) {
+        return marketplaceId + "|" + idExterno;
+    }
 }

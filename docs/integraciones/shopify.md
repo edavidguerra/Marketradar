@@ -61,7 +61,7 @@ Según los términos de Shopify, los resultados del catálogo no se pueden guard
 2. Pedir a Shopify permiso para guardarlas.
 3. Dejar Shopify apagado en producción y usarlo solo en la demostración.
 
-La decisión está registrada en [decisiones-pendientes.md](../decisiones-pendientes.md).
+La decisión está registrada en [decisiones.md](../decisiones.md).
 
 ## Pendiente de confirmar con un token real
 

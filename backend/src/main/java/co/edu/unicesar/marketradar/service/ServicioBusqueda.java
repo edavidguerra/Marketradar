@@ -244,7 +244,6 @@ public class ServicioBusqueda {
             case "aliexpress" -> "AliExpress";
             case "shopify" -> "Shopify";
             case "mercadolibre" -> "Mercado Libre";
-            case "demostracion" -> "Tienda de demostración";
             case "googleshopping" -> "Google Shopping";
             default -> codigo;
         };
