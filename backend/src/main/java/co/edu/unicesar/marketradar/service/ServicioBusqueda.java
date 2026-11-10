@@ -11,9 +11,12 @@ import co.edu.unicesar.marketradar.exception.AccesoDatosException;
 import co.edu.unicesar.marketradar.service.mvp.EstrategiaSeleccionMvp;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Expiry;
+import com.github.benmanes.caffeine.cache.Ticker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -39,6 +42,12 @@ public class ServicioBusqueda {
 
     private static final Logger LOG = LoggerFactory.getLogger(ServicioBusqueda.class);
 
+    /**
+     * Si una tienda falló o no hay tiendas, el resultado se recuerda solo un momento: lo justo para no repetir la
+     * consulta en la misma búsqueda, pero sin dejar la búsqueda vacía durante la hora completa de la caché.
+     */
+    static final Duration VIGENCIA_CON_FALLAS = Duration.ofSeconds(30);
+
     private final Map<String, AdaptadorMarketplace> adaptadoresPorCodigo = new HashMap<>();
     private final ExecutorService ejecutor;
     private final CircuitBreakerRegistry circuitBreakers;
@@ -47,17 +56,42 @@ public class ServicioBusqueda {
     private final int timeoutSegundos;
     private final EstrategiaSeleccionMvp seleccionMvp;
 
+    @Autowired
     public ServicioBusqueda(List<AdaptadorMarketplace> adaptadores, ExecutorService ejecutor,
                             CircuitBreakerRegistry circuitBreakers, ServicioPersistenciaOfertas persistencia,
                             PropiedadesMarketradar propiedades, EstrategiaSeleccionMvp seleccionMvp) {
+        this(adaptadores, ejecutor, circuitBreakers, persistencia, propiedades, seleccionMvp, Ticker.systemTicker());
+    }
+
+    /** Para las pruebas: el reloj de la caché se puede adelantar. */
+    ServicioBusqueda(List<AdaptadorMarketplace> adaptadores, ExecutorService ejecutor,
+                     CircuitBreakerRegistry circuitBreakers, ServicioPersistenciaOfertas persistencia,
+                     PropiedadesMarketradar propiedades, EstrategiaSeleccionMvp seleccionMvp, Ticker reloj) {
         adaptadores.forEach(adaptador -> adaptadoresPorCodigo.put(adaptador.codigo(), adaptador));
         this.ejecutor = ejecutor;
         this.circuitBreakers = circuitBreakers;
         this.persistencia = persistencia;
         this.timeoutSegundos = propiedades.busqueda().timeoutSegundos();
         this.seleccionMvp = seleccionMvp;
+        long vigenciaNormal = Duration.ofMinutes(propiedades.busqueda().cacheMinutos()).toNanos();
         this.cache = Caffeine.newBuilder()
-                .expireAfterWrite(Duration.ofMinutes(propiedades.busqueda().cacheMinutos()))
+                .expireAfter(new Expiry<String, ResultadoCompleto>() {
+                    @Override
+                    public long expireAfterCreate(String clave, ResultadoCompleto completo, long ahora) {
+                        return completo.huboFallas() ? VIGENCIA_CON_FALLAS.toNanos() : vigenciaNormal;
+                    }
+
+                    @Override
+                    public long expireAfterUpdate(String clave, ResultadoCompleto completo, long ahora, long restante) {
+                        return expireAfterCreate(clave, completo, ahora);
+                    }
+
+                    @Override
+                    public long expireAfterRead(String clave, ResultadoCompleto completo, long ahora, long restante) {
+                        return restante;
+                    }
+                })
+                .ticker(reloj)
                 .maximumSize(500)
                 .build();
     }
@@ -131,6 +165,7 @@ public class ServicioBusqueda {
                 .toList();
 
         List<String> advertencias = new ArrayList<>();
+        boolean[] huboFallas = {seleccionados.isEmpty()};
         if (seleccionados.isEmpty()) {
             advertencias.add("Por ahora no hay tiendas disponibles para buscar. Intente más tarde.");
         }
@@ -146,12 +181,13 @@ public class ServicioBusqueda {
                 ofertas.addAll(tarea.join());
             } catch (RuntimeException e) {
                 LOG.warn("El marketplace {} no respondió: {}", codigo, e.getMessage());
+                huboFallas[0] = true;
                 advertencias.add("La tienda " + nombreVisible(codigo) + " no respondió a tiempo. Mostramos los resultados de las demás.");
             }
         });
 
         Map<String, Long> ids = guardarSinInterrumpir(ofertas);
-        return new ResultadoCompleto(ofertas, advertencias, ids);
+        return new ResultadoCompleto(ofertas, advertencias, ids, huboFallas[0]);
     }
 
     private CompletableFuture<List<OfertaNormalizada>> consultarAsincrono(AdaptadorMarketplace adaptador,
@@ -230,7 +266,7 @@ public class ServicioBusqueda {
     }
 
     private record ResultadoCompleto(List<OfertaNormalizada> ofertas, List<String> advertencias,
-                                     Map<String, Long> idsPersistidos) {
+                                     Map<String, Long> idsPersistidos, boolean huboFallas) {
     }
 
     /**

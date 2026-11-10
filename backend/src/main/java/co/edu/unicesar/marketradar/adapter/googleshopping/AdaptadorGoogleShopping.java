@@ -21,8 +21,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Precios reales de tiendas colombianas a través de Google Shopping, con la API de SerpApi
@@ -118,20 +120,41 @@ public class AdaptadorGoogleShopping extends AdaptadorMarketplaceBase {
             }
             throw new MarketplaceException(CODIGO, "SerpApi respondió: " + respuesta.error());
         }
-        if (respuesta.resultados() == null) {
-            return List.of();
-        }
-        List<OfertaNormalizada> ofertas = new ArrayList<>();
-        for (Resultado resultado : respuesta.resultados()) {
+        Map<String, OfertaNormalizada> ofertas = new LinkedHashMap<>();
+        for (Resultado resultado : todosLosResultados(respuesta)) {
             OfertaNormalizada oferta = aOferta(resultado);
             if (oferta != null) {
-                ofertas.add(oferta);
+                ofertas.putIfAbsent(oferta.getIdExterno(), oferta);
             }
             if (ofertas.size() == LIMITE_RESULTADOS) {
                 break;
             }
         }
-        return ofertas;
+        return List.copyOf(ofertas.values());
+    }
+
+    /**
+     * Google no siempre entrega los productos en la misma lista. Con productos populares ("playstation 5",
+     * "iphone 15") los agrupa por categoría y {@code shopping_results} llega vacío; arriba de la página a veces
+     * hay otros productos destacados. Se juntan todas las listas, sin repetir.
+     */
+    private static List<Resultado> todosLosResultados(Respuesta respuesta) {
+        List<Resultado> todos = new ArrayList<>();
+        if (respuesta.resultados() != null) {
+            todos.addAll(respuesta.resultados());
+        }
+        if (respuesta.porCategoria() != null) {
+            for (Categoria categoria : respuesta.porCategoria()) {
+                if (categoria != null && categoria.resultados() != null) {
+                    todos.addAll(categoria.resultados());
+                }
+            }
+        }
+        if (respuesta.destacados() != null) {
+            todos.addAll(respuesta.destacados());
+        }
+        todos.removeIf(java.util.Objects::isNull);
+        return todos;
     }
 
     private static OfertaNormalizada aOferta(Resultado resultado) {
@@ -226,7 +249,14 @@ public class AdaptadorGoogleShopping extends AdaptadorMarketplaceBase {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Respuesta(@JsonProperty("shopping_results") List<Resultado> resultados,
+                     @JsonProperty("categorized_shopping_results") List<Categoria> porCategoria,
+                     @JsonProperty("inline_shopping_results") List<Resultado> destacados,
                      @JsonProperty("error") String error) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record Categoria(@JsonProperty("title") String titulo,
+                     @JsonProperty("shopping_results") List<Resultado> resultados) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

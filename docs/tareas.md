@@ -24,6 +24,7 @@ Actualícela al cierre de cada fase. Estados: completada, en progreso, pendiente
 | Fotos de los productos en el historial de búsquedas | Ever Guerra | 3 | completada |
 | Búsqueda que corrige errores como Google y chatbot con enlaces que se pueden presionar | Ever Guerra | 3 | completada |
 | Búsquedas más rápidas, Enter para buscar y enviar mensajes, efectos visuales y limpieza del repositorio | Ever Guerra | 3 | completada |
+| Productos populares agrupados por categoría en Google Shopping ("playstation 5") | Ever Guerra | 3 | completada |
 | Integración del asistente con Claude | Ever Guerra | 3 | completada |
 | Ingreso con roles, registro y validaciones | Equipo | 3 | completada |
 | Perfil, historial, PQR y gestión de PQR del administrador | Equipo | 3 | completada |

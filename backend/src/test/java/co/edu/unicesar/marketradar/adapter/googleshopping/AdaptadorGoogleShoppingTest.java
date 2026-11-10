@@ -108,6 +108,35 @@ class AdaptadorGoogleShoppingTest {
     }
 
     @Test
+    void usaLosProductosAgrupadosPorCategoriaYLosDestacados() {
+        // Así responde Google con productos populares: sin shopping_results, todo agrupado por categoría.
+        String agrupada = """
+                {"categorized_shopping_results":[
+                   {"title":"Consolas","shopping_results":[
+                     {"title":"Consola PlayStation 5 Slim","product_id":"ps5",
+                      "product_link":"https://www.google.com.co/shopping/product/ps5","source":"Alkosto",
+                      "price":"$ 2.299.900","extracted_price":2299900}]},
+                   {"title":"Con lector","shopping_results":[
+                     {"title":"Consola PlayStation 5 Slim","product_id":"ps5",
+                      "product_link":"https://www.google.com.co/shopping/product/ps5","source":"Alkosto",
+                      "extracted_price":2299900},
+                     {"title":"PlayStation 5 Pro","product_id":"ps5pro",
+                      "product_link":"https://www.google.com.co/shopping/product/ps5pro","source":"Falabella",
+                      "extracted_price":3499900}]}],
+                 "inline_shopping_results":[
+                   {"title":"PS5 Digital","link":"https://www.exito.com/ps5-digital","source":"Éxito",
+                    "extracted_price":1999900}]}""";
+        servidor.expect(once(), requestTo(startsWith(URL)))
+                .andRespond(withSuccess(agrupada, MediaType.APPLICATION_JSON));
+
+        List<OfertaNormalizada> ofertas = crear(CLAVE).consultarApi(consulta("playstation 5"));
+
+        assertEquals(List.of("Consola PlayStation 5 Slim", "PlayStation 5 Pro", "PS5 Digital"),
+                ofertas.stream().map(OfertaNormalizada::getTitulo).toList(), "sin repetir el mismo producto");
+        assertEquals("https://www.exito.com/ps5-digital", ofertas.get(2).getUrlDestino());
+    }
+
+    @Test
     void sinResultadosDeGoogleDevuelveVacio() {
         servidor.expect(once(), requestTo(startsWith(URL)))
                 .andRespond(withSuccess("{\"error\":\"Google hasn't returned any results for this query.\"}",

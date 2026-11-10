@@ -25,7 +25,7 @@ Lo que hace que una búsqueda responda rápido, de lo más a lo menos importante
 
 | Qué | Cómo | Efecto |
 | --- | --- | --- |
-| Caché de búsquedas | Caffeine guarda cada resultado 60 minutos (`BUSQUEDA_CACHE_MINUTOS`) | Repetir una búsqueda responde en milisegundos y no gasta consultas de SerpApi. |
+| Caché de búsquedas | Caffeine guarda cada resultado 60 minutos (`BUSQUEDA_CACHE_MINUTOS`); si una tienda falló, solo 30 segundos | Repetir una búsqueda responde en milisegundos y no gasta consultas de SerpApi. |
 | Guardar ofertas en lote | `OfertaDao.guardarLote` guarda todas las ofertas de una búsqueda y su historial de precio en **una sola consulta** (`INSERT ... ON CONFLICT` dentro de un `WITH`). Antes eran 2 o 3 consultas por oferta | Con 20 ofertas se pasa de unas 50 idas y vueltas a la base de datos a una. |
 | Marketplaces en memoria | `ServicioPersistenciaOfertas` recuerda el id de cada tienda | No se consulta la tabla `marketplace` en cada búsqueda. |
 | Archivos comprimidos | `server.compression` comprime JSON, HTML, CSS, JS y SVG | La hoja de estilos pasa de unos 40 KB a unos 9 KB. |
