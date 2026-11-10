@@ -15,7 +15,7 @@ Falabella, Alkosto, Mercado Libre y otras), así que reemplaza a las tiendas cuy
 ## Cómo funciona
 
 1. `GET https://serpapi.com/search.json?engine=google_shopping&q=<término>&gl=co&hl=es&google_domain=google.com.co&api_key=<clave>`.
-2. Se toman máximo 20 productos, sin repetir, de `shopping_results`, de `categorized_shopping_results` (con productos populares como "playstation 5" Google los agrupa por categoría y `shopping_results` llega vacío) y de `inline_shopping_results`.
+2. Se toman máximo 40 productos, sin repetir: primero los de `categorized_shopping_results` (con productos populares como "playstation 5" Google agrupa ahí el producto en sí), después `shopping_results` y al final `inline_shopping_results`. Luego se quitan los juegos y accesorios que la persona no pidió (ver [busqueda-flexible.md](../busqueda-flexible.md#3-primero-el-producto-no-sus-complementos)).
 3. Si la API falla, la persona ve "La tienda Google Shopping no respondió" y el resto de tiendas sigue funcionando.
    Los mensajes de error nunca incluyen la URL, porque lleva la clave.
 

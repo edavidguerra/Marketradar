@@ -239,6 +239,18 @@ main { padding-block: 1.5rem 2rem; }
     margin: 0;
 }
 
+/* El logo es un enlace al inicio, como en casi todas las páginas. */
+a.marca {
+    color: var(--color-texto);
+    text-decoration: none;
+    border-radius: 14px;
+    min-height: var(--tactil);
+    padding-inline: .25rem;
+    margin-inline: -.25rem;
+}
+
+a.marca:hover { color: var(--color-principal-oscuro); }
+
 .marca img {
     width: 2rem;
     height: 2rem;

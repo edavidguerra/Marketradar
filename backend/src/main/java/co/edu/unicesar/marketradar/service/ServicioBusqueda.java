@@ -186,8 +186,10 @@ public class ServicioBusqueda {
             }
         });
 
-        Map<String, Long> ids = guardarSinInterrumpir(ofertas);
-        return new ResultadoCompleto(ofertas, advertencias, ids, huboFallas[0]);
+        // Primero el producto buscado: sin juegos, fundas ni paquetes digitales cuando hay de dónde elegir.
+        List<OfertaNormalizada> relevantes = FiltroComplementos.filtrar(consulta.getTermino(), ofertas);
+        Map<String, Long> ids = guardarSinInterrumpir(relevantes);
+        return new ResultadoCompleto(relevantes, advertencias, ids, huboFallas[0]);
     }
 
     private CompletableFuture<List<OfertaNormalizada>> consultarAsincrono(AdaptadorMarketplace adaptador,

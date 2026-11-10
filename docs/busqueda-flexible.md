@@ -68,7 +68,21 @@ se buscó **5 veces o más**.
 Solo la búsqueda que se muestra queda en el historial, con el texto corregido. Los intentos quedan en caché; el único
 gasto extra de SerpApi es el segundo intento cuando una búsqueda larga no da resultados.
 
-## 3. Enlaces de compra seguros
+## 3. Primero el producto, no sus complementos
+
+Quien busca "playstation 5" quiere la consola, pero Google también trae juegos, paquetes de la tienda digital,
+controles y fundas. Como son más baratos, quedaban de primeros. `FiltroComplementos` los quita cuando la persona no
+escribió esas palabras y quedan al menos 3 resultados del producto en sí. Un resultado es complemento si:
+
+- su título **empieza** por "juego", "funda", "cargador", "control", "repuesto", "tarjeta"... ("Juego PS5 Spider-Man 2");
+- trae "DLC", "expansión" o "skins" en cualquier parte;
+- dice "para" o "compatible con" seguido del producto ("Control para PlayStation 5");
+- o lo vende una tienda de juegos digitales (PlayStation Store, Microsoft Store, Nintendo eShop, Steam).
+
+"Juego de ollas" o "set de cuchillos" no son complementos: ahí "juego" quiere decir varias piezas. Si la persona
+busca "juego ps5", se le muestran los juegos. Si casi todo son complementos, se muestra todo.
+
+## 4. Enlaces de compra seguros
 
 - El adaptador de Google Shopping solo guarda enlaces `https` con dominio válido (`AdaptadorGoogleShopping.esSeguro`).
   Prefiere el enlace directo de la tienda y, si no lo hay, abre el producto en Google Shopping.
@@ -78,7 +92,8 @@ gasto extra de SerpApi es el segundo intento cuando una búsqueda larga no da re
 
 ## Pruebas
 
-`ServicioBusquedaFlexibleTest` cubre la corrección directa, las frases, el intento con la palabra principal y la búsqueda
+`FiltroComplementosTest` cubre la consola sin juegos, los juegos cuando se piden, el juego de ollas y el caso en que casi
+todo son complementos. `ServicioBusquedaFlexibleTest` cubre la corrección directa, las frases, el intento con la palabra principal y la búsqueda
 exacta. `ServicioSugerenciasTest` cubre los prefijos, las tildes, los errores de escritura, la segunda palabra, el mínimo de
 letras, el orden por popularidad, las correcciones (licuadorra, oya arrosera, conputador portatil), que complete palabras a
 medias (olla arro), que no corrija
