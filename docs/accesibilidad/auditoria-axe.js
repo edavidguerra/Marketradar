@@ -23,7 +23,7 @@ async function run(page, nombre, out) {
   await page.click('#formulario-ingreso button[type=submit]'); await page.waitForURL(/usuario/, { timeout: 10000 }); await page.waitForTimeout(1000);
   for (const s of ['inicio','buscar','historial','perfil','pqr','tutorial']) { await page.goto(B + '/usuario.html#' + s); await page.waitForTimeout(900); await run(page, 'Usuario: ' + s, out); }
   await page.goto(B + '/usuario.html#buscar'); await page.waitForTimeout(700);
-  const campo = await page.$('#seccion-buscar input'); if (campo) { await campo.fill('olla arrocera'); await campo.press('Enter'); await page.waitForTimeout(3500); await run(page, 'Usuario: resultado de búsqueda', out); const h = await page.$('text=Ver historial de precio'); if (h) { await h.click(); await page.waitForTimeout(1500); await run(page, 'Usuario: historial de precio', out); } }
+  const campo = await page.$('#seccion-buscar input'); if (campo) { await campo.fill('olla arrocera'); await campo.press('Enter'); await page.waitForTimeout(3500); await run(page, 'Usuario: resultado de búsqueda', out); const h = await page.$('text=Ver reseñas'); if (h) { await h.click(); await page.waitForTimeout(1500); await run(page, 'Usuario: reseñas de una oferta', out); } }
   const ctx2 = await b.newContext({ bypassCSP: true }); const p2 = await ctx2.newPage();
   await p2.goto(B + '/'); await p2.fill('#ingreso-correo', 'admin.demo@marketradar.co'); await p2.fill('#ingreso-clave', 'Demo2026*');
   await p2.click('#formulario-ingreso button[type=submit]'); await p2.waitForURL(/admin/, { timeout: 10000 }); await p2.waitForTimeout(1200); await run(p2, 'Administrador: lista de PQR', out);

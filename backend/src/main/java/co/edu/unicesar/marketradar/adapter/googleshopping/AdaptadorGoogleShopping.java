@@ -4,6 +4,7 @@ import co.edu.unicesar.marketradar.adapter.AdaptadorMarketplaceBase;
 import co.edu.unicesar.marketradar.adapter.ConversorMoneda;
 import co.edu.unicesar.marketradar.domain.ConsultaBusqueda;
 import co.edu.unicesar.marketradar.domain.OfertaNormalizada;
+import co.edu.unicesar.marketradar.domain.ResenasProducto;
 import co.edu.unicesar.marketradar.exception.MarketplaceException;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -38,6 +39,12 @@ import java.util.Map;
 public class AdaptadorGoogleShopping extends AdaptadorMarketplaceBase {
 
     public static final String CODIGO = "googleshopping";
+
+    /** Las claves de reseñas de SerpApi son largas, pero no más que esto. */
+    static final int LARGO_TOKEN = 4096;
+
+    /** Opiniones escritas que se muestran de cada producto. */
+    static final int MAXIMO_RESENAS = 10;
 
     /** Se piden más de los que caben en una página, para que el filtro de complementos tenga de dónde elegir. */
     static final int LIMITE_RESULTADOS = 40;
@@ -182,7 +189,76 @@ public class AdaptadorGoogleShopping extends AdaptadorMarketplaceBase {
                 .urlImagen(imagenSegura(resultado.imagen()))
                 .calificacion(calificacion(resultado.calificacion()))
                 .totalResenas(resultado.resenas() != null && resultado.resenas() > 0 ? resultado.resenas() : null)
+                .tokenResenas(tieneValor(resultado.tokenResenas()) && resultado.tokenResenas().length() <= LARGO_TOKEN
+                        ? resultado.tokenResenas() : null)
                 .build();
+    }
+
+    /**
+     * Reseñas de un producto con la API de producto de Google de SerpApi
+     * ({@code engine=google_immersive_product}). Cada llamada gasta una búsqueda del plan, por eso solo se hace
+     * cuando la persona presiona "Ver reseñas" y el resultado queda en caché.
+     *
+     * @param token {@code immersive_product_page_token} que vino con el producto en la búsqueda
+     * @return calificación, cuántas opiniones hay de cada número de estrellas y algunas opiniones escritas
+     */
+    public ResenasProducto resenas(String token) {
+        RespuestaProducto respuesta;
+        try {
+            respuesta = cliente.get()
+                    .uri(uri -> uri.path("/search.json")
+                            .queryParam("engine", "google_immersive_product")
+                            .queryParam("page_token", token)
+                            .queryParam("gl", "co")
+                            .queryParam("hl", "es")
+                            .queryParam("api_key", apiKey)
+                            .build())
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .body(RespuestaProducto.class);
+        } catch (RestClientResponseException e) {
+            throw errorHttp(e);
+        } catch (RestClientException e) {
+            // Igual que en la búsqueda: la causa trae la URL con la clave, así que no se encadena.
+            throw new MarketplaceException(CODIGO, "No se pudo consultar SerpApi: " + e.getClass().getSimpleName());
+        }
+        if (respuesta == null || respuesta.producto() == null) {
+            if (respuesta != null && respuesta.error() != null
+                    && !respuesta.error().toLowerCase(Locale.ROOT).contains("hasn't returned any results")) {
+                throw new MarketplaceException(CODIGO, "SerpApi respondió: " + respuesta.error());
+            }
+            return new ResenasProducto(null, null, List.of(), List.of());
+        }
+        Producto producto = respuesta.producto();
+        List<ResenasProducto.Estrellas> distribucion = new ArrayList<>();
+        if (producto.estrellas() != null) {
+            producto.estrellas().stream()
+                    .filter(e -> e != null && e.estrellas() != null && e.estrellas() >= 1 && e.estrellas() <= 5
+                            && e.cantidad() != null && e.cantidad() >= 0)
+                    .sorted((a, b) -> b.estrellas() - a.estrellas())
+                    .forEach(e -> distribucion.add(new ResenasProducto.Estrellas(e.estrellas(), e.cantidad())));
+        }
+        List<ResenasProducto.Resena> resenas = new ArrayList<>();
+        if (producto.opiniones() != null) {
+            for (Opinion opinion : producto.opiniones()) {
+                if (opinion == null || !tieneValor(opinion.texto())) {
+                    continue;
+                }
+                resenas.add(new ResenasProducto.Resena(recortarONulo(opinion.titulo(), 150),
+                        recortar(opinion.texto().strip(), 800), recortarONulo(opinion.autor(), 80),
+                        recortarONulo(opinion.fuente(), 80), calificacion(opinion.calificacion()),
+                        recortarONulo(opinion.fecha(), 40)));
+                if (resenas.size() == MAXIMO_RESENAS) {
+                    break;
+                }
+            }
+        }
+        Integer total = producto.totalResenas() != null && producto.totalResenas() > 0 ? producto.totalResenas() : null;
+        return new ResenasProducto(calificacion(producto.calificacion()), total, distribucion, resenas);
+    }
+
+    private static String recortarONulo(String texto, int maximo) {
+        return tieneValor(texto) ? recortar(texto.strip(), maximo) : null;
     }
 
     /** Con {@code gl=co} los precios llegan en pesos; si el texto dice US$ o USD, vienen en dólares. */
@@ -272,6 +348,32 @@ public class AdaptadorGoogleShopping extends AdaptadorMarketplaceBase {
                      @JsonProperty("rating") BigDecimal calificacion,
                      @JsonProperty("reviews") Integer resenas,
                      @JsonProperty("thumbnail") String imagen,
-                     @JsonProperty("delivery") String envio) {
+                     @JsonProperty("delivery") String envio,
+                     @JsonProperty("immersive_product_page_token") String tokenResenas) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record RespuestaProducto(@JsonProperty("product_results") Producto producto,
+                             @JsonProperty("error") String error) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record Producto(@JsonProperty("rating") BigDecimal calificacion,
+                    @JsonProperty("reviews") Integer totalResenas,
+                    @JsonProperty("ratings") List<Estrella> estrellas,
+                    @JsonProperty("user_reviews") List<Opinion> opiniones) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record Estrella(@JsonProperty("stars") Integer estrellas, @JsonProperty("amount") Integer cantidad) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record Opinion(@JsonProperty("title") String titulo,
+                   @JsonProperty("text") String texto,
+                   @JsonProperty("user_name") String autor,
+                   @JsonProperty("source") String fuente,
+                   @JsonProperty("rating") BigDecimal calificacion,
+                   @JsonProperty("date") String fecha) {
     }
 }

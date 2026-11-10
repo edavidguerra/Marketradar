@@ -23,11 +23,12 @@ import java.time.OffsetDateTime;
  * @param totalResenas cantidad de reseñas
  * @param consultadoEn momento de la consulta, para mostrar qué tan reciente es el precio
  * @param mejorPrecio si es la oferta más barata de la búsqueda
+ * @param resenasDisponibles si se pueden pedir las reseñas del producto ({@code GET /api/v1/ofertas/{id}/resenas})
  */
 public record OfertaDto(Long id, String tienda, String titulo, BigDecimal precio, BigDecimal costoEnvio,
                         BigDecimal precioTotal, String moneda, String condicion, String vendedor, String urlDestino,
                         String urlImagen, BigDecimal calificacion, Integer totalResenas,
-                        OffsetDateTime consultadoEn, boolean mejorPrecio) {
+                        OffsetDateTime consultadoEn, boolean mejorPrecio, boolean resenasDisponibles) {
 
     /**
      * Convierte una oferta normalizada en el DTO de respuesta.
@@ -41,6 +42,7 @@ public record OfertaDto(Long id, String tienda, String titulo, BigDecimal precio
         return new OfertaDto(id, oferta.getCodigoMarketplace(), oferta.getTitulo(), oferta.getPrecio(),
                 oferta.getCostoEnvio(), oferta.precioTotal(), oferta.getMoneda(), oferta.getCondicion(),
                 oferta.getVendedor(), oferta.getUrlDestino(), oferta.getUrlImagen(), oferta.getCalificacion(),
-                oferta.getTotalResenas(), oferta.getConsultadoEn(), mejorPrecio);
+                oferta.getTotalResenas(), oferta.getConsultadoEn(), mejorPrecio,
+                id != null && oferta.getTokenResenas() != null);
     }
 }

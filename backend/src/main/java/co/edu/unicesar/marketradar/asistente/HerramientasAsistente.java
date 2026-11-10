@@ -99,13 +99,12 @@ public class HerramientasAsistente {
                 + " con envío";
     }
 
-    /** En Google Shopping la tienda real va en el vendedor, por ejemplo "Éxito (por Google Shopping)". */
+    /** En Google Shopping la tienda real va en el vendedor, por ejemplo "Éxito". */
     private static String tienda(OfertaNormalizada oferta) {
-        String nombre = ServicioBusqueda.nombreVisible(oferta.getCodigoMarketplace());
         if ("googleshopping".equals(oferta.getCodigoMarketplace()) && oferta.getVendedor() != null) {
-            return oferta.getVendedor() + " (por " + nombre + ")";
+            return oferta.getVendedor();
         }
-        return nombre;
+        return ServicioBusqueda.nombreVisible(oferta.getCodigoMarketplace());
     }
 
     private static String pesos(BigDecimal valor) {

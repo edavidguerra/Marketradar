@@ -3,6 +3,7 @@ package co.edu.unicesar.marketradar.controller;
 import co.edu.unicesar.marketradar.config.PropiedadesMarketradar;
 import co.edu.unicesar.marketradar.dto.ErrorRespuestaDto;
 import co.edu.unicesar.marketradar.exception.AccesoDatosException;
+import co.edu.unicesar.marketradar.exception.MarketplaceException;
 import co.edu.unicesar.marketradar.exception.CredencialesInvalidasException;
 import co.edu.unicesar.marketradar.exception.RecursoNoEncontradoException;
 import co.edu.unicesar.marketradar.exception.ValidacionException;
@@ -58,6 +59,13 @@ public class ManejadorErrores {
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ErrorRespuestaDto> rutaInexistente(NoResourceFoundException e) {
         return respuesta(HttpStatus.NOT_FOUND, "NO_ENCONTRADO", "La página que busca no existe.", e);
+    }
+
+    /** Una tienda no respondió fuera de una búsqueda (por ejemplo, al pedir reseñas). El detalle queda en el log. */
+    @ExceptionHandler(MarketplaceException.class)
+    public ResponseEntity<ErrorRespuestaDto> tiendaNoDisponible(MarketplaceException e) {
+        return respuesta(HttpStatus.SERVICE_UNAVAILABLE, "TIENDA_NO_DISPONIBLE",
+                "No pudimos traer la información de la tienda en este momento. Intente de nuevo en unos minutos.", e);
     }
 
     @ExceptionHandler(AccesoDatosException.class)
