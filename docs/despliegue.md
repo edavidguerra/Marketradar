@@ -42,6 +42,8 @@ Cada vez que se fusiona un PR en `develop`, Render vuelve a construir y publicar
 ## Límites del plan gratuito
 
 - La web se duerme tras 15 minutos sin visitas. La primera visita después tarda cerca de un minuto en responder. Antes de una presentación, abrirla unos minutos antes.
+  Si el equipo quiere evitarlo, un servicio externo de monitoreo gratuito puede visitar `/api/v1/salud` cada 10 minutos.
+  Es decisión del equipo: mantiene la web despierta, pero consume las horas gratuitas del mes de Render.
 - La base de datos gratuita vence a los 30 días de creada. Render avisa por correo. Para no perder datos, pasarla a un plan pago o crear otra y volver a desplegar.
 - 512 MB de memoria. `JAVA_TOOL_OPTIONS` ya ajusta Java a ese límite.
 - No hay disco permanente. Por eso el refresh token de Mercado Libre, que cambia en cada renovación, se guarda en la base de datos (tabla `credencial_marketplace`) y no se pierde cuando la web se reinicia (ver `docs/integraciones/mercadolibre.md`).

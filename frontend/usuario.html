@@ -62,7 +62,7 @@
             <div class="barra-busqueda">
                 <svg class="icono barra-busqueda-icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#buscar"></use></svg>
                 <div class="campo-sugerencias">
-                    <input id="campo-busqueda" name="q" type="search" autocomplete="off" required
+                    <input id="campo-busqueda" name="q" type="search" autocomplete="off" required enterkeyhint="search"
                            minlength="2" maxlength="100" aria-describedby="ayuda-busqueda error-busqueda"
                            role="combobox" aria-autocomplete="list" aria-expanded="false"
                            aria-controls="lista-sugerencias">
@@ -305,7 +305,10 @@
         <ol id="conversacion" class="conversacion" aria-live="polite"></ol>
         <form id="formulario-asistente" class="formulario-asistente">
             <label for="campo-asistente">Escriba su pregunta</label>
-            <textarea id="campo-asistente" rows="2" maxlength="500"></textarea>
+            <textarea id="campo-asistente" rows="2" maxlength="500" enterkeyhint="send"
+                      aria-describedby="ayuda-asistente"></textarea>
+            <p id="ayuda-asistente" class="ayuda ayuda-enter">Presione <kbd>Enter</kbd> para enviar.
+                Para escribir en otra línea use <kbd>Shift</kbd> + <kbd>Enter</kbd>.</p>
             <div class="acciones">
                 <button type="submit" class="boton boton-principal">Enviar pregunta</button>
                 <button type="button" class="boton boton-secundario" id="cerrar-asistente">Cerrar</button>

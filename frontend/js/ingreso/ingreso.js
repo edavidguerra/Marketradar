@@ -5,6 +5,7 @@
 import { iniciarAccesibilidad } from '../comun/accesibilidad.js';
 import { ingresar, obtenerSesion, registrar } from '../comun/api.js';
 import { avisar } from '../comun/dom.js';
+import { iniciarEfectos } from '../comun/efectos.js';
 import {
     claveEsSegura, conectarReglasClave, conectarVerClave, enfocarPrimerError, marcarCampo, validar,
 } from '../comun/validacion.js';
@@ -123,6 +124,7 @@ function conectarRegistro() {
 
 async function iniciar() {
     iniciarAccesibilidad();
+    iniciarEfectos();
     const motivo = new URLSearchParams(window.location.search).get('sesion');
     if (MENSAJES_SESION[motivo]) {
         avisar(campo('aviso-sesion'), MENSAJES_SESION[motivo], 'info');

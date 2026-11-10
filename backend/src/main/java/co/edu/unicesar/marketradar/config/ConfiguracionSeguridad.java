@@ -59,6 +59,9 @@ public class ConfiguracionSeguridad {
                         .logoutUrl("/api/v1/auth/salida")
                         .logoutSuccessHandler(new HttpStatusReturningLogoutSuccessHandler(HttpStatus.NO_CONTENT))
                         .deleteCookies("JSESSIONID"))
+                // Spring Security prohíbe guardar en caché cualquier respuesta, también el CSS, el JavaScript y la
+                // fuente, que se volvían a descargar en cada página. FiltroSeguridad pone "no-store" solo a la API.
+                .headers(cabeceras -> cabeceras.cacheControl(cache -> cache.disable()))
                 .formLogin(formulario -> formulario.disable())
                 .httpBasic(basica -> basica.disable());
         return http.build();

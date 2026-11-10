@@ -153,6 +153,9 @@ async function cargarPagina() {
     $('ver-mas').hidden = true;
     const esqueletos = crearEsqueletos(estado.pagina === 1 ? 3 : 1);
     $('lista-resultados').append(...esqueletos);
+    // El botón Buscar muestra un círculo que gira mientras llegan los precios.
+    const botonBuscar = document.querySelector('#formulario-busqueda [type="submit"]');
+    botonBuscar.classList.add('buscando');
     try {
         const respuesta = await buscar(estado.termino, estado.pagina, TAMANO_PAGINA, estado.exacto);
         mostrarAdvertencias(respuesta.advertencias || []);
@@ -176,6 +179,7 @@ async function cargarPagina() {
         mostrarEstado(estadoResultados, error.message, cargarPagina);
     } finally {
         esqueletos.forEach((esqueleto) => esqueleto.remove());
+        botonBuscar.classList.remove('buscando');
     }
 }
 

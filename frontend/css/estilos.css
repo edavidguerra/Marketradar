@@ -2,7 +2,7 @@
  * Marketradar: estilos accesibles (WCAG 2.1 AA), mobile-first desde 360 px.
  *
  * Diseño: tarjetas claras con esquinas redondeadas, degradado esmeralda, íconos de trazo y
- * animaciones cortas. Reglas de accesibilidad que se mantienen:
+ * animaciones cortas (ver "Efectos" al final y js/comun/efectos.js). Reglas de accesibilidad que se mantienen:
  *  - Contraste de 4.5:1 o más en todo texto y de 3:1 en bordes de campos y foco.
  *  - Controles de 48 px o más y foco visible con doble anillo.
  *  - Todo se mide en rem, así que A+ y A− agrandan la página completa.
@@ -123,13 +123,25 @@ body::before {
         radial-gradient(35% 55% at 85% 10%, rgb(14 165 233 / 14%), transparent 70%),
         radial-gradient(30% 50% at 55% 60%, rgb(245 158 11 / 10%), transparent 70%);
     filter: blur(8px);
-    animation: aparecer-suave 1.2s ease-out both;
+    animation: aparecer-suave 1.2s ease-out both, aurora 4.5s ease-in-out 1 both;
 }
 
 :root.alto-contraste body::before { display: none; }
 
 h1, h2, h3 { line-height: 1.2; letter-spacing: -.01em; }
 h1 { font-size: 1.75rem; font-weight: 800; margin: 0 0 var(--espacio); }
+
+/* Los títulos principales llevan el degradado de la marca, que pasa una vez de lado a lado. */
+main h1:not(.bienvenida h1) {
+    background: linear-gradient(90deg, #065f46, #0f766e 30%, #155e75 60%, #065f46);
+    background-size: 300% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: pasar-degradado 3.2s ease-in-out 1 both;
+}
+
+:root.alto-contraste main h1:not(.bienvenida h1) { background: none; color: var(--color-texto); }
 h2 { font-size: 1.3rem; font-weight: 700; margin: 0 0 var(--espacio); }
 
 p { margin: 0 0 .75rem; }
@@ -186,7 +198,27 @@ main { padding-block: 1.5rem 2rem; }
     -webkit-backdrop-filter: saturate(1.4) blur(14px);
     position: relative;
     z-index: 20;
+    transition: box-shadow .25s, background-color .25s;
 }
+
+.encabezado.desplazado { box-shadow: var(--sombra-alta); background: rgb(255 255 255 / 94%); }
+
+/* Barra de colores que muestra cuánto se ha bajado en la página (la mueve efectos.js). */
+.encabezado::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 4px;
+    transform-origin: left;
+    transform: scaleX(var(--avance, 0));
+    background: var(--degradado-mvp);
+    pointer-events: none;
+}
+
+:root.alto-contraste .encabezado.desplazado { background: #000000; box-shadow: none; }
+:root.alto-contraste .encabezado::after { background: var(--color-principal); }
 
 .encabezado-interno {
     display: flex;
@@ -207,7 +239,16 @@ main { padding-block: 1.5rem 2rem; }
     margin: 0;
 }
 
-.marca img { width: 2rem; height: 2rem; border-radius: 10px; box-shadow: var(--sombra); }
+.marca img {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 10px;
+    box-shadow: var(--sombra);
+    animation: logo .9s var(--curva) backwards;
+    transition: transform .35s var(--curva);
+}
+
+.marca:hover img { transform: rotate(-12deg) scale(1.1); }
 
 .marca-detalle {
     font-weight: 700;
@@ -245,11 +286,14 @@ main { padding-block: 1.5rem 2rem; }
     border-radius: 999px;
     border: 2px solid transparent;
     cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
     transition: transform .18s var(--curva), box-shadow .18s var(--curva), background-color .18s, color .18s,
         border-color .18s;
 }
 
-.boton:hover { transform: translateY(-1px); }
+.boton:hover { transform: translateY(-2px); }
 .boton:active { transform: translateY(0) scale(.98); }
 .boton:disabled { cursor: progress; opacity: .75; transform: none; }
 
@@ -263,7 +307,34 @@ main { padding-block: 1.5rem 2rem; }
     width: 100%;
 }
 
-.boton-principal:hover { box-shadow: 0 10px 24px -8px rgb(4 120 87 / 65%); }
+.boton-principal:hover { box-shadow: 0 14px 30px -8px rgb(4 120 87 / 70%), 0 0 0 4px rgb(16 185 129 / 18%); }
+
+/* Destello que cruza el botón al pasar el ratón. Va detrás del texto, así no le quita contraste. */
+.boton-principal::after, .boton-claro::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 32%) 50%, transparent 70%);
+    transform: translateX(-120%);
+    transition: transform .7s var(--curva);
+    pointer-events: none;
+}
+
+.boton-claro::after { background: linear-gradient(110deg, transparent 30%, rgb(16 185 129 / 22%) 50%, transparent 70%); }
+.boton-principal:hover::after, .boton-claro:hover::after { transform: translateX(120%); }
+
+/* Círculo que gira dentro del botón Buscar mientras llegan los precios. */
+.boton.buscando::before {
+    content: "";
+    width: 1.1em;
+    height: 1.1em;
+    flex: none;
+    border: 3px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: girar .8s linear infinite;
+}
 
 .boton-secundario {
     background: var(--color-superficie);
@@ -445,7 +516,12 @@ main { padding-block: 1.5rem 2rem; }
     border-radius: 12px;
     color: var(--color-principal-oscuro);
     background: var(--color-principal-suave);
+    animation: saltar .6s var(--curva) backwards;
+    animation-delay: inherit;
+    transition: transform .3s var(--curva);
 }
+
+.beneficios li:hover .icono { transform: rotate(-10deg) scale(1.12); }
 
 .ingreso-tarjeta {
     background: var(--color-superficie);
@@ -453,8 +529,30 @@ main { padding-block: 1.5rem 2rem; }
     border-radius: 28px;
     padding: 1.25rem var(--espacio);
     box-shadow: var(--sombra-alta);
-    animation: aparecer .6s .1s var(--curva) both;
+    position: relative;
+    animation: entrar-tarjeta .8s .1s var(--curva) both;
 }
+
+.ingreso-tarjeta:hover {
+    background: radial-gradient(600px circle at var(--luz-x, 50%) var(--luz-y, 0%), rgb(16 185 129 / 7%), transparent 45%),
+        var(--color-superficie);
+}
+
+/* Barra de colores arriba de la tarjeta, que se llena al entrar. */
+.ingreso-tarjeta::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 28px;
+    right: 28px;
+    height: 5px;
+    border-radius: 0 0 6px 6px;
+    background: var(--degradado-mvp);
+    transform-origin: left;
+    animation: llenar-x 1s .6s var(--curva) both;
+}
+
+:root.alto-contraste .ingreso-tarjeta::before { background: var(--color-principal); }
 
 .ingreso-tarjeta .formulario {
     border: none;
@@ -576,10 +674,20 @@ main { padding-block: 1.5rem 2rem; }
 
 .menu a:hover { background: var(--color-principal-suave); color: var(--color-principal-oscuro); }
 
+.menu a {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.menu a .icono { transition: transform .3s var(--curva); }
+.menu a:hover .icono { transform: translateY(-2px) scale(1.15) rotate(-6deg); }
+
 .menu a[aria-current="page"] {
     background: var(--degradado);
     color: var(--color-principal-texto);
     box-shadow: 0 6px 16px -8px rgb(4 120 87 / 70%);
+    animation: pastilla .45s var(--curva);
 }
 
 :root.alto-contraste .menu ul { border: 2px solid var(--color-borde); }
@@ -590,7 +698,7 @@ main { padding-block: 1.5rem 2rem; }
 .saludo { font-size: 1.3rem; font-weight: 700; margin: 0 0 1rem; }
 
 /* Cada sección entra con un movimiento corto hacia arriba. */
-main > section:not([hidden]) { animation: aparecer .45s var(--curva) both; }
+main > section:not([hidden]) { animation: entrar-seccion .5s var(--curva) both; }
 
 /* ---------- Inicio ---------- */
 
@@ -603,13 +711,33 @@ main > section:not([hidden]) { animation: aparecer .45s var(--curva) both; }
     padding: 1.75rem 1.5rem;
     margin-bottom: 1.5rem;
     border-radius: 28px;
-    background: var(--degradado);
+    background: linear-gradient(120deg, #047857, #0f766e 35%, #155e75 65%, #047857);
+    background-size: 300% 300%;
     color: #ffffff;
     box-shadow: var(--sombra-alta);
+    isolation: isolate;
+    animation: pasar-degradado 4.5s ease-in-out 1 both;
 }
 
-.bienvenida h1 { margin: 0; font-size: 2rem; }
-.bienvenida p { margin: 0 0 .75rem; font-size: 1.1rem; }
+/* Burbujas de luz que flotan una vez detrás del texto (decorativas). */
+.bienvenida::before, .bienvenida::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    border-radius: 50%;
+    pointer-events: none;
+    background: radial-gradient(circle at 30% 30%, rgb(255 255 255 / 28%), rgb(255 255 255 / 0%) 70%);
+}
+
+.bienvenida::before { width: 14rem; height: 14rem; left: -4rem; top: -6rem; animation: flotar 4.5s ease-in-out 1 both; }
+.bienvenida::after { width: 8rem; height: 8rem; left: 45%; bottom: -4rem; animation: flotar 4s .3s ease-in-out 1 reverse both; }
+
+.bienvenida h1 { margin: 0; font-size: 2rem; animation: aparecer .6s .1s var(--curva) both; }
+.bienvenida p { margin: 0 0 .75rem; font-size: 1.1rem; animation: aparecer .6s .2s var(--curva) both; }
+.bienvenida .boton { animation: aparecer .6s .3s var(--curva) backwards; }
+
+:root.alto-contraste .bienvenida { background: var(--degradado); }
+:root.alto-contraste .bienvenida::before, :root.alto-contraste .bienvenida::after { display: none; }
 
 .bienvenida .radar {
     right: -1.5rem;
@@ -681,7 +809,15 @@ main > section:not([hidden]) { animation: aparecer .45s var(--curva) both; }
     transition: transform .2s var(--curva), box-shadow .2s var(--curva), border-color .2s;
 }
 
-.accesos a:hover { transform: translateY(-3px); box-shadow: var(--sombra-alta); border-color: var(--color-principal); }
+.accesos a:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--sombra-alta), 0 0 0 4px rgb(16 185 129 / 14%);
+    border-color: var(--color-principal);
+    background: radial-gradient(420px circle at var(--luz-x, 50%) var(--luz-y, 50%), rgb(16 185 129 / 10%), transparent 45%),
+        var(--color-superficie);
+}
+
+.accesos a:hover .acceso-icono { transform: rotate(-8deg) scale(1.12); }
 
 .accesos strong {
     display: block;
@@ -699,6 +835,7 @@ main > section:not([hidden]) { animation: aparecer .45s var(--curva) both; }
     border-radius: 16px;
     background: var(--color-principal-suave);
     color: var(--color-principal-oscuro);
+    transition: transform .35s var(--curva);
 }
 
 .accesos li:nth-child(2) .acceso-icono { background: var(--color-info-suave); color: var(--color-info); }
@@ -741,7 +878,13 @@ main > section:not([hidden]) { animation: aparecer .45s var(--curva) both; }
     color: var(--color-suave);
     pointer-events: none;
     z-index: 1;
+    transition: transform .3s var(--curva), color .2s;
 }
+
+.barra-busqueda:focus-within .barra-busqueda-icono { color: var(--color-principal); transform: scale(1.18) rotate(-8deg); }
+
+.busqueda input:focus-visible { box-shadow: 0 0 0 6px var(--color-foco), 0 16px 40px -12px rgb(4 120 87 / 50%); }
+:root.alto-contraste .busqueda input:focus-visible { box-shadow: none; }
 
 .busqueda input {
     min-height: 60px;
@@ -772,6 +915,7 @@ main > section:not([hidden]) { animation: aparecer .45s var(--curva) both; }
 }
 
 .sugerencias [role="option"] {
+    animation: aparecer .25s var(--curva) both;
     display: flex;
     align-items: center;
     min-height: 48px;
@@ -780,6 +924,10 @@ main > section:not([hidden]) { animation: aparecer .45s var(--curva) both; }
     cursor: pointer;
     font-size: 1.05rem;
 }
+
+.sugerencias [role="option"]:nth-child(2) { animation-delay: .03s; }
+.sugerencias [role="option"]:nth-child(3) { animation-delay: .06s; }
+.sugerencias [role="option"]:nth-child(n+4) { animation-delay: .09s; }
 
 .sugerencias [role="option"]:hover,
 .sugerencias [role="option"][aria-selected="true"] {
@@ -841,9 +989,9 @@ main > section:not([hidden]) { animation: aparecer .45s var(--curva) both; }
     border-radius: 28px;
     background:
         linear-gradient(var(--color-destacado), var(--color-destacado)) padding-box,
-        var(--degradado-mvp) border-box;
-    box-shadow: var(--sombra-alta);
-    animation: aparecer .5s var(--curva) both;
+        conic-gradient(from var(--angulo, 0deg), #f59e0b, #10b981, #0ea5e9, #8b5cf6, #f59e0b) border-box;
+    box-shadow: var(--sombra-alta), 0 0 40px -12px rgb(245 158 11 / 55%);
+    animation: aparecer .5s var(--curva) both, borde-giro 2.2s .3s linear 2;
 }
 
 .mvp p, .mvp h2 { margin: 0; }
@@ -861,7 +1009,11 @@ main > section:not([hidden]) { animation: aparecer .45s var(--curva) both; }
     background: var(--color-acento-suave);
     overflow: hidden;
     position: relative;
+    animation: saltar .7s .25s var(--curva) both;
 }
+
+.mvp .sello .icono { animation: estrella 1s .4s var(--curva) both; }
+.mvp .precio { animation: aparecer .5s .35s var(--curva) both; }
 
 /* Brillo que cruza el sello una sola vez. */
 .mvp .sello::after {
@@ -927,10 +1079,21 @@ main > section:not([hidden]) { animation: aparecer .45s var(--curva) both; }
     border-radius: var(--radio-grande);
     box-shadow: var(--sombra);
     transition: transform .2s var(--curva), box-shadow .2s var(--curva), border-color .2s;
-    animation: aparecer .5s var(--curva) both;
+    /* "backwards" y no "both": al terminar suelta el transform, así la tarjeta se eleva al pasar el ratón. */
+    animation: aparecer .5s var(--curva) backwards;
 }
 
-.tarjeta:hover { transform: translateY(-3px); box-shadow: var(--sombra-alta); }
+.tarjeta { position: relative; }
+
+.tarjeta:not(.esqueleto):hover {
+    transform: translateY(-4px);
+    box-shadow: var(--sombra-alta), 0 0 0 4px rgb(16 185 129 / 12%);
+    border-color: var(--color-principal);
+    background: radial-gradient(520px circle at var(--luz-x, 50%) var(--luz-y, 50%), rgb(16 185 129 / 9%), transparent 45%),
+        var(--color-superficie);
+}
+
+.tarjeta.mejor { box-shadow: var(--sombra), 0 0 0 4px rgb(16 185 129 / 16%); }
 
 .resultados > li:nth-child(2) { animation-delay: .06s; }
 .resultados > li:nth-child(3) { animation-delay: .12s; }
@@ -950,7 +1113,15 @@ main > section:not([hidden]) { animation: aparecer .45s var(--curva) both; }
     overflow: hidden;
 }
 
-.tarjeta-imagen img { width: 100%; height: 100%; object-fit: contain; background: #ffffff; }
+.tarjeta-imagen img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #ffffff;
+    transition: transform .45s var(--curva);
+}
+
+.tarjeta:hover .tarjeta-imagen img { transform: scale(1.07); }
 .tarjeta-imagen .icono { width: 3rem; height: 3rem; opacity: .6; }
 
 .tarjeta-cuerpo { display: grid; gap: .5rem; align-content: start; }
@@ -1069,8 +1240,10 @@ body:has(.asistente) { padding-bottom: 6rem; }
     background: var(--degradado);
     color: var(--color-principal-texto);
     box-shadow: 0 12px 28px -10px rgb(4 120 87 / 70%);
-    animation: aparecer .5s .4s var(--curva) both;
+    animation: aparecer .5s .4s var(--curva) backwards, llamar 1.2s 1s ease-out 3;
 }
+
+.boton-asistente .icono { animation: saludar .9s 1.1s ease-in-out 2; transform-origin: 50% 80%; }
 
 .boton-asistente[aria-expanded="true"] {
     background: var(--color-texto);
@@ -1128,14 +1301,18 @@ body:has(.asistente) { padding-bottom: 6rem; }
     overflow-wrap: anywhere;
 }
 
-.mensaje-usuario {
+.conversacion .mensaje-usuario {
+    animation-name: burbuja;
+    transform-origin: bottom right;
     align-self: flex-end;
     background: var(--color-principal);
     color: var(--color-principal-texto);
     border-bottom-right-radius: 6px;
 }
 
-.mensaje-asistente {
+.conversacion .mensaje-asistente {
+    animation-name: burbuja;
+    transform-origin: bottom left;
     align-self: flex-start;
     background: var(--color-tarjeta);
     border-bottom-left-radius: 6px;
@@ -1164,7 +1341,15 @@ body:has(.asistente) { padding-bottom: 6rem; }
     overflow-wrap: normal;
 }
 
-.enlace-chat:hover { text-decoration: underline; }
+.enlace-chat {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    box-shadow: 0 6px 16px -8px rgb(4 120 87 / 70%);
+    transition: transform .18s var(--curva), box-shadow .18s var(--curva);
+}
+
+.enlace-chat:hover { text-decoration: underline; transform: translateY(-2px); }
 .enlace-chat .icono { width: 1.1rem; height: 1.1rem; flex: none; }
 
 :root.alto-contraste .enlace-chat { background: #ffff00; color: #000000; border: 2px solid #000000; }
@@ -1185,6 +1370,19 @@ body:has(.asistente) { padding-bottom: 6rem; }
 .formulario-asistente { display: grid; gap: .5rem; }
 .formulario-asistente label { font-weight: 700; }
 .formulario-asistente textarea { min-height: 64px; resize: vertical; }
+.ayuda-enter { margin: 0; font-size: .85rem; }
+
+kbd {
+    display: inline-block;
+    padding: 0 .4em;
+    font: inherit;
+    font-weight: 700;
+    border: 1px solid var(--color-borde-campo);
+    border-bottom-width: 3px;
+    border-radius: 6px;
+    background: var(--color-superficie);
+    color: var(--color-texto);
+}
 .formulario-asistente .acciones { flex-direction: row; }
 .formulario-asistente .boton { flex: 1; padding-inline: .75rem; }
 
@@ -1302,6 +1500,7 @@ body:has(.asistente) { padding-bottom: 6rem; }
 }
 
 .pasos > li {
+    animation: aparecer .5s var(--curva) both;
     counter-increment: paso;
     position: relative;
     padding: 1.15rem 1.15rem 1.15rem 4.2rem;
@@ -1324,6 +1523,7 @@ body:has(.asistente) { padding-bottom: 6rem; }
     font-weight: 800;
     background: var(--degradado);
     color: var(--color-principal-texto);
+    animation: saltar .6s .2s var(--curva) both;
 }
 
 .pasos h2 { display: flex; gap: .5rem; align-items: center; font-size: 1.2rem; margin-bottom: .35rem; }
@@ -1413,7 +1613,58 @@ body:has(.asistente) { padding-bottom: 6rem; }
     .bienvenida h1 { font-size: 1.7rem; }
 }
 
+/* ---------- Efectos (js/comun/efectos.js) ---------- */
+
+/* Lo que está más abajo espera quieto a que la persona llegue; sin JavaScript se ve normal. */
+.efectos .revelar:not(.visible) { animation-play-state: paused; }
+
+/* Onda que sale desde donde se tocó un botón. Va detrás del texto. */
+.onda {
+    position: absolute;
+    z-index: -1;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: .28;
+    transform: scale(0);
+    pointer-events: none;
+    animation: onda .6s ease-out forwards;
+}
+
+/* Chispas que salen del sello de la recomendación. */
+.chispas { position: absolute; width: 0; height: 0; pointer-events: none; z-index: 2; }
+
+.chispas i {
+    position: absolute;
+    left: -5px;
+    top: -5px;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    background: var(--color);
+    animation: chispa 1.1s cubic-bezier(.15, .7, .3, 1) forwards;
+}
+
+.chispas i:nth-child(odd) { border-radius: 50%; }
+
+:root.alto-contraste .accesos a:hover, :root.alto-contraste .tarjeta:hover,
+:root.alto-contraste .ingreso-tarjeta:hover { background: var(--color-superficie); }
+
+:root.alto-contraste .onda, :root.alto-contraste .chispas,
+:root.alto-contraste .boton-principal::after, :root.alto-contraste .boton-claro::after { display: none; }
+
+@media print {
+    .efectos .revelar { animation: none; }
+    .encabezado::after { display: none; }
+}
+
 /* ---------- Animaciones ---------- */
+
+/* El ángulo del borde de la recomendación se puede animar gracias a @property. */
+@property --angulo {
+    syntax: "<angle>";
+    inherits: false;
+    initial-value: 0deg;
+}
 
 @keyframes aparecer {
     from { opacity: 0; transform: translateY(14px); }
@@ -1428,6 +1679,82 @@ body:has(.asistente) { padding-bottom: 6rem; }
 @keyframes cargando { to { background-position: -200% 0; } }
 @keyframes abrir { from { opacity: 0; transform: translateY(10px) scale(.96); } to { opacity: 1; transform: none; } }
 
+@keyframes aurora {
+    0% { transform: translate3d(0, 0, 0) scale(1); }
+    50% { transform: translate3d(3vw, 2vh, 0) scale(1.08); }
+    100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes pasar-degradado {
+    from { background-position: 100% 50%; }
+    to { background-position: 0% 50%; }
+}
+
+@keyframes logo {
+    from { opacity: 0; transform: rotate(-200deg) scale(.3); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes pastilla {
+    0% { transform: scale(.9); }
+    60% { transform: scale(1.05); }
+    100% { transform: none; }
+}
+
+@keyframes flotar {
+    0% { transform: translate(0, 0) scale(.8); opacity: 0; }
+    40% { opacity: 1; }
+    100% { transform: translate(2.5rem, 1.5rem) scale(1.1); opacity: 1; }
+}
+
+@keyframes saltar {
+    0% { opacity: 0; transform: scale(.4); }
+    60% { opacity: 1; transform: scale(1.12); }
+    100% { opacity: 1; transform: none; }
+}
+
+@keyframes estrella {
+    from { transform: rotate(-180deg) scale(.2); }
+    to { transform: none; }
+}
+
+@keyframes borde-giro { to { --angulo: 360deg; } }
+
+@keyframes llamar {
+    0% { box-shadow: 0 12px 28px -10px rgb(4 120 87 / 70%), 0 0 0 0 rgb(16 185 129 / 55%); }
+    100% { box-shadow: 0 12px 28px -10px rgb(4 120 87 / 70%), 0 0 0 18px rgb(16 185 129 / 0%); }
+}
+
+@keyframes saludar {
+    0%, 100% { transform: rotate(0); }
+    25% { transform: rotate(-14deg); }
+    75% { transform: rotate(14deg); }
+}
+
+@keyframes burbuja {
+    from { opacity: 0; transform: translateY(10px) scale(.85); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes entrar-tarjeta {
+    from { opacity: 0; transform: perspective(900px) rotateX(12deg) translateY(36px) scale(.96); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes entrar-seccion {
+    from { opacity: 0; transform: translateY(18px); filter: blur(4px); }
+    to { opacity: 1; transform: none; filter: none; }
+}
+
+@keyframes llenar-x { from { transform: scaleX(0); } }
+
+@keyframes onda { to { transform: scale(1); opacity: 0; } }
+
+@keyframes chispa {
+    0% { opacity: 1; transform: rotate(var(--angulo)) translateX(0) scale(1); }
+    100% { opacity: 0; transform: rotate(var(--angulo)) translateX(var(--distancia)) scale(.4); }
+}
+
 @keyframes punto {
     0%, 100% { transform: translateY(0); opacity: .45; }
     50% { transform: translateY(-4px); opacity: 1; }
@@ -1441,4 +1768,5 @@ body:has(.asistente) { padding-bottom: 6rem; }
     }
 
     .grafico polyline { stroke-dashoffset: 0; }
+    .encabezado::after, .onda, .chispas { display: none; }
 }

@@ -79,6 +79,28 @@ Reglas que sigue el diseño nuevo:
 - El modo alto contraste quita degradados, sombras y transparencias.
 - Los íconos son decorativos (`aria-hidden`); cada botón y enlace conserva su texto.
 
+## Efectos y teclado (10 de noviembre de 2026)
+
+La interfaz ganó efectos más llamativos (`frontend/js/comun/efectos.js` y la sección "Efectos" de `estilos.css`):
+títulos con degradado que pasa una vez, logo que gira al entrar, tarjetas que aparecen al bajar por la página, onda al
+presionar un botón, luz que sigue al ratón en las tarjetas, borde de colores que gira dos veces alrededor de la
+recomendación con chispas, botón de ayuda que llama la atención tres veces y una barra en el encabezado que muestra
+cuánto se ha bajado.
+
+Reglas que se mantienen:
+
+- Cada efecto dura menos de 5 segundos y no se repite solo (WCAG 2.2.2). Solo los indicadores de carga giran mientras
+  se espera.
+- Con "reducir movimiento" en el sistema, `efectos.js` no se activa y el CSS apaga todas las animaciones. Sin
+  JavaScript, el contenido se ve completo.
+- Los efectos son `aria-hidden`, van detrás del texto y no cambian lo que anuncia el lector de pantalla.
+- En alto contraste no hay degradados, ondas ni chispas.
+- En el chat, Enter envía la pregunta y Shift + Enter escribe en otra línea; lo dice una ayuda debajo del campo. En
+  el buscador, Enter siempre busca.
+
+Revisión con axe (ingreso, inicio, resultados, chat y alto contraste): **0 fallas**. Sin desplazamiento horizontal en
+un celular de 390 px.
+
 ## Lo que ya cumplía el diseño
 
 - Enlace "Ir al contenido" al inicio de cada página.

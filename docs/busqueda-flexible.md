@@ -32,6 +32,8 @@ importan.
 El campo sigue el patrón *combobox* de ARIA 1.2 (`frontend/js/usuario/sugerencias.js`):
 
 - Flecha abajo y flecha arriba recorren las opciones, Enter elige y Escape cierra.
+- Enter siempre busca: con una sugerencia marcada busca esa, y si no, busca lo escrito, aunque la lista esté abierta.
+  En el celular el teclado muestra la tecla "Buscar" (`enterkeyhint="search"`).
 - Un lector de pantalla anuncia cuántas sugerencias hay (`#estado-sugerencias`, `role="status"`).
 - Cada opción mide al menos 48 px de alto. En alto contraste la opción elegida se ve en amarillo.
 - Mientras la lista está abierta, el botón flotante "¿Necesita ayuda?" se oculta para no taparla en el celular.
@@ -46,6 +48,8 @@ El campo sigue el patrón *combobox* de ARIA 1.2 (`frontend/js/usuario/sugerenci
 2. **Corrige las palabras mal escritas y busca directamente lo corregido.** "licuadorra" busca "licuadora" y "telebisor
    samsumg" busca "televisor samsung". Arriba de los resultados sale "Le mostramos resultados de **licuadora**" y un
    botón "Buscar "licuadorra" tal como lo escribió", que repite la búsqueda sin corregir (`exacto=true`).
+   Si la última palabra quedó a medias y lo escrito es el comienzo de un producto conocido, se completa: "olla arro"
+   busca "olla arrocera" y "compu" busca "computador". Una palabra completa ("olla") no se cambia.
 3. **Si no hay resultados y la búsqueda tiene varias palabras**, prueba con la palabra principal: "licuadora oster roja
    10 velocidades" muestra licuadoras y avisa "No encontramos ... exacto".
 
@@ -76,6 +80,7 @@ gasto extra de SerpApi es el segundo intento cuando una búsqueda larga no da re
 
 `ServicioBusquedaFlexibleTest` cubre la corrección directa, las frases, el intento con la palabra principal y la búsqueda
 exacta. `ServicioSugerenciasTest` cubre los prefijos, las tildes, los errores de escritura, la segunda palabra, el mínimo de
-letras, el orden por popularidad, las correcciones (licuadorra, oya arrosera, conputador portatil), que no corrija
+letras, el orden por popularidad, las correcciones (licuadorra, oya arrosera, conputador portatil), que complete palabras a
+medias (olla arro), que no corrija
 palabras bien escritas, que no confíe en términos populares mal escritos y que siga funcionando si la base de datos
 falla.

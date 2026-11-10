@@ -40,6 +40,11 @@ public class FiltroSeguridad extends OncePerRequestFilter {
                     "default-src 'self'; img-src 'self' https: data:; style-src 'self'; script-src 'self'");
         }
 
+        if (peticion.getRequestURI().startsWith("/api/")) {
+            // Las respuestas de la API tienen datos de la persona: el navegador no las guarda.
+            respuesta.setHeader("Cache-Control", "no-store");
+        }
+
         if (peticion.getRequestURI().startsWith("/api/") && superaLimite(peticion.getRemoteAddr())) {
             respuesta.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             respuesta.setContentType(MediaType.APPLICATION_JSON_VALUE);

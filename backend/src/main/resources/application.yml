@@ -15,12 +15,24 @@ spring:
     client:
       connect-timeout: 5s
       read-timeout: 20s
+  web:
+    resources:
+      cache:
+        # CSS, JavaScript, fuente e íconos: el navegador los guarda y solo pregunta si cambiaron (respuesta 304).
+        cachecontrol:
+          no-cache: true
+          cache-public: true
   jackson:
     property-naming-strategy: SNAKE_CASE
     default-property-inclusion: non_null
 
 server:
   port: ${PUERTO:8080}
+  # Comprime las respuestas de texto: la página y los resultados pesan unas 4 veces menos.
+  compression:
+    enabled: true
+    mime-types: application/json,text/html,text/css,text/javascript,application/javascript,image/svg+xml
+    min-response-size: 1KB
   # Detrás del proxy de Render (HTTPS) respeta las cabeceras X-Forwarded-*.
   forward-headers-strategy: framework
   error:
@@ -41,7 +53,8 @@ marketradar:
   busqueda:
     # Google Shopping (SerpApi) puede tardar varios segundos en responder.
     timeout-segundos: ${BUSQUEDA_TIMEOUT_SEGUNDOS:8}
-    cache-minutos: 15
+    # Una búsqueda repetida en la siguiente hora sale de la memoria: es instantánea y no gasta SerpApi.
+    cache-minutos: ${BUSQUEDA_CACHE_MINUTOS:60}
     tamano-maximo: 20
     hilos: 6
   cors:
