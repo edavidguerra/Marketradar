@@ -6,6 +6,7 @@ import co.edu.unicesar.marketradar.dto.SugerenciasDto;
 import co.edu.unicesar.marketradar.seguridad.UsuarioAutenticado;
 import co.edu.unicesar.marketradar.service.ServicioBusqueda;
 import co.edu.unicesar.marketradar.service.ServicioBusquedaFlexible;
+import co.edu.unicesar.marketradar.service.ServicioResenas;
 import co.edu.unicesar.marketradar.service.ServicioSugerencias;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,10 +27,13 @@ public class ControladorBusqueda {
 
     private final ServicioBusquedaFlexible servicioBusqueda;
     private final ServicioSugerencias servicioSugerencias;
+    private final ServicioResenas servicioResenas;
 
-    public ControladorBusqueda(ServicioBusquedaFlexible servicioBusqueda, ServicioSugerencias servicioSugerencias) {
+    public ControladorBusqueda(ServicioBusquedaFlexible servicioBusqueda, ServicioSugerencias servicioSugerencias,
+                               ServicioResenas servicioResenas) {
         this.servicioBusqueda = servicioBusqueda;
         this.servicioSugerencias = servicioSugerencias;
+        this.servicioResenas = servicioResenas;
     }
 
     /**
@@ -54,7 +58,10 @@ public class ControladorBusqueda {
                                        @AuthenticationPrincipal UsuarioAutenticado usuario) {
         ConsultaBusqueda consulta = ConsultaBusqueda.crear(q, orden, separarCodigos(marketplaces), pagina, tamano);
         Long usuarioId = usuario == null ? null : usuario.getId();
-        return RespuestaBusquedaDto.desde(servicioBusqueda.buscar(consulta, usuarioId, exacto));
+        ServicioBusquedaFlexible.Resultado resultado = servicioBusqueda.buscar(consulta, usuarioId, exacto);
+        // Así el botón "Ver reseñas" de cada producto puede pedirlas después a la tienda.
+        servicioResenas.recordar(resultado.resultado());
+        return RespuestaBusquedaDto.desde(resultado);
     }
 
     /**

@@ -68,7 +68,20 @@ se buscó **5 veces o más**.
 Solo la búsqueda que se muestra queda en el historial, con el texto corregido. Los intentos quedan en caché; el único
 gasto extra de SerpApi es el segundo intento cuando una búsqueda larga no da resultados.
 
-## 3. Primero el producto, no sus complementos
+## 3. Primero lo que más se parece a lo buscado
+
+`FiltroRelevancia` cuenta cuántas palabras de la búsqueda trae cada título y muestra primero los que las traen todas.
+Con "licuadora oster", "Licuadora Oster 600 W" (2 de 2) queda y "Licuadora Imusa" (1 de 2) sale.
+
+- Los números se comparan exactos: con "playstation 5" no aparece "PlayStation 4".
+- Se entienden plurales, tildes, mayúsculas y abreviaturas comunes: "ollas" es "olla", "PS5" es "playstation 5" y "TV" es
+  "televisor".
+- No cuentan las palabras que no dicen qué producto es ("de", "para", "con"...).
+- Si menos de 3 resultados traen todas las palabras, se agregan los que traen una menos, y así. Si ninguno trae ninguna
+  palabra, se muestran todos, para no dejar a la persona sin nada.
+- Entre los elegidos se respeta el orden de la tienda. Después se aplica el filtro de complementos.
+
+## 4. Primero el producto, no sus complementos
 
 Quien busca "playstation 5" quiere la consola, pero Google también trae juegos, paquetes de la tienda digital,
 controles y fundas. Como son más baratos, quedaban de primeros. `FiltroComplementos` los quita cuando la persona no
@@ -82,7 +95,7 @@ escribió esas palabras y quedan al menos 3 resultados del producto en sí. Un r
 "Juego de ollas" o "set de cuchillos" no son complementos: ahí "juego" quiere decir varias piezas. Si la persona
 busca "juego ps5", se le muestran los juegos. Si casi todo son complementos, se muestra todo.
 
-## 4. Enlaces de compra seguros
+## 5. Enlaces de compra seguros
 
 - El adaptador de Google Shopping solo guarda enlaces `https` con dominio válido (`AdaptadorGoogleShopping.esSeguro`).
   Prefiere el enlace directo de la tienda y, si no lo hay, abre el producto en Google Shopping.
@@ -92,7 +105,8 @@ busca "juego ps5", se le muestran los juegos. Si casi todo son complementos, se 
 
 ## Pruebas
 
-`FiltroComplementosTest` cubre la consola sin juegos, los juegos cuando se piden, el juego de ollas y el caso en que casi
+`FiltroRelevanciaTest` cubre "licuadora oster", "playstation 5" contra "playstation 4", la abreviatura PS5, los plurales y
+qué pasa cuando pocos o ningún título traen las palabras. `FiltroComplementosTest` cubre la consola sin juegos, los juegos cuando se piden, el juego de ollas y el caso en que casi
 todo son complementos. `ServicioBusquedaFlexibleTest` cubre la corrección directa, las frases, el intento con la palabra principal y la búsqueda
 exacta. `ServicioSugerenciasTest` cubre los prefijos, las tildes, los errores de escritura, la segunda palabra, el mínimo de
 letras, el orden por popularidad, las correcciones (licuadorra, oya arrosera, conputador portatil), que complete palabras a

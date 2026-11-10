@@ -25,6 +25,7 @@ public final class OfertaNormalizada {
     private final BigDecimal calificacion;
     private final Integer totalResenas;
     private final OffsetDateTime consultadoEn;
+    private final String tokenResenas;
 
     private OfertaNormalizada(Builder builder) {
         this.codigoMarketplace = Objects.requireNonNull(builder.codigoMarketplace, "codigoMarketplace");
@@ -40,12 +41,22 @@ public final class OfertaNormalizada {
         this.calificacion = validarCalificacion(builder.calificacion);
         this.totalResenas = validarTotalResenas(builder.totalResenas);
         this.consultadoEn = builder.consultadoEn == null ? OffsetDateTime.now() : builder.consultadoEn;
+        this.tokenResenas = builder.tokenResenas;
         if (precio.signum() < 0) {
             throw new IllegalArgumentException("El precio no puede ser negativo");
         }
         if (!urlDestino.startsWith("https://") && !urlDestino.startsWith("http://")) {
             throw new IllegalArgumentException("El enlace a la tienda debe ser una dirección web");
         }
+    }
+
+    /**
+     * Clave para pedir después las reseñas de este producto a la tienda.
+     *
+     * @return clave, o {@code null} si la tienda no la dio
+     */
+    public String getTokenResenas() {
+        return tokenResenas;
     }
 
     /**
@@ -101,7 +112,8 @@ public final class OfertaNormalizada {
                 .codigoMarketplace(codigoMarketplace).idExterno(idExterno).titulo(titulo)
                 .precio(precio).moneda(moneda).costoEnvio(costoEnvio).condicion(condicion)
                 .vendedor(vendedor).urlDestino(urlDestino).urlImagen(urlImagen)
-                .calificacion(calificacion).totalResenas(totalResenas).consultadoEn(consultadoEn);
+                .calificacion(calificacion).totalResenas(totalResenas).consultadoEn(consultadoEn)
+                .tokenResenas(tokenResenas);
     }
 
     private static BigDecimal validarCalificacion(BigDecimal calificacion) {
@@ -189,6 +201,7 @@ public final class OfertaNormalizada {
         private BigDecimal calificacion;
         private Integer totalResenas;
         private OffsetDateTime consultadoEn;
+        private String tokenResenas;
 
         private Builder() {
         }
@@ -255,6 +268,18 @@ public final class OfertaNormalizada {
 
         public Builder consultadoEn(OffsetDateTime consultadoEn) {
             this.consultadoEn = consultadoEn;
+            return this;
+        }
+
+        /**
+         * Clave con que la tienda entrega después las reseñas de este producto (Google Shopping la llama
+         * {@code immersive_product_page_token}). No se guarda en la base de datos.
+         *
+         * @param tokenResenas clave, o {@code null} si la tienda no la da
+         * @return este builder
+         */
+        public Builder tokenResenas(String tokenResenas) {
+            this.tokenResenas = tokenResenas;
             return this;
         }
 
