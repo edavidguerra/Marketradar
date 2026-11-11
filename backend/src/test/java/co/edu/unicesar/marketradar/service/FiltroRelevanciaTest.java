@@ -73,14 +73,40 @@ class FiltroRelevanciaTest {
         assertEquals(4, FiltroRelevancia.filtrar("licuadora", ofertas).size());
     }
 
+    @Test
+    void quitaLosPreciosQueSonDeOtroProducto() {
+        List<OfertaNormalizada> ofertas = List.of(
+                oferta("Consola Sony PlayStation Reacondicionada", "80961"),
+                oferta("Consola PlayStation 5 Slim", "2167685"),
+                oferta("Consola PlayStation 5 Slim Digital", "3045900"),
+                oferta("Combo PlayStation 5 Slim + 2 juegos", "4199900"),
+                oferta("PlayStation 5 Pro 2 TB", "5399055"));
+
+        assertEquals(List.of("Consola PlayStation 5 Slim", "Consola PlayStation 5 Slim Digital",
+                        "Combo PlayStation 5 Slim + 2 juegos", "PlayStation 5 Pro 2 TB"),
+                titulos(FiltroRelevancia.filtrar("playstation", ofertas)));
+    }
+
+    @Test
+    void noQuitaPreciosSiQuedariaCasiNada() {
+        List<OfertaNormalizada> ofertas = List.of(oferta("Lupa A", "5000"), oferta("Lupa B", "6000"),
+                oferta("Lupa C", "90000"), oferta("Lupa D", "95000"));
+
+        assertEquals(4, FiltroRelevancia.sinPreciosAbsurdos(ofertas).size());
+    }
+
     private static List<String> titulos(List<OfertaNormalizada> ofertas) {
         return ofertas.stream().map(OfertaNormalizada::getTitulo).toList();
     }
 
     private static OfertaNormalizada oferta(String titulo) {
+        return oferta(titulo, "100000");
+    }
+
+    private static OfertaNormalizada oferta(String titulo, String precio) {
         return OfertaNormalizada.builder()
                 .codigoMarketplace("googleshopping").idExterno(titulo).titulo(titulo)
-                .precio(new BigDecimal("100000")).moneda("COP").condicion("nuevo").vendedor("Éxito")
+                .precio(new BigDecimal(precio)).moneda("COP").condicion("nuevo").vendedor("Éxito")
                 .urlDestino("https://ejemplo.com/" + Math.abs(titulo.hashCode()))
                 .build();
     }

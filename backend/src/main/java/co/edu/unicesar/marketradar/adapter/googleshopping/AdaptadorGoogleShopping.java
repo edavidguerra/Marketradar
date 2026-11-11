@@ -8,6 +8,8 @@ import co.edu.unicesar.marketradar.domain.ResenasProducto;
 import co.edu.unicesar.marketradar.exception.MarketplaceException;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
@@ -19,6 +21,8 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
 import java.math.BigDecimal;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -48,6 +52,9 @@ public class AdaptadorGoogleShopping extends AdaptadorMarketplaceBase {
 
     /** Se piden más de los que caben en una página, para que el filtro de complementos tenga de dónde elegir. */
     static final int LIMITE_RESULTADOS = 40;
+    /** Búsqueda de Google Shopping Colombia, para los productos que llegan sin enlace. */
+    static final String BUSQUEDA_GOOGLE = "https://www.google.com.co/search?tbm=shop&gl=co&hl=es&q=";
+    private static final Logger LOG = LoggerFactory.getLogger(AdaptadorGoogleShopping.class);
 
     private final boolean habilitado;
     private final String apiKey;
@@ -101,14 +108,15 @@ public class AdaptadorGoogleShopping extends AdaptadorMarketplaceBase {
         Respuesta respuesta;
         try {
             respuesta = cliente.get()
+                    // Los valores van como variables para que se codifiquen completos ("+" como %2B, no como espacio).
                     .uri(uri -> uri.path("/search.json")
                             .queryParam("engine", "google_shopping")
-                            .queryParam("q", consulta.getTermino())
+                            .queryParam("q", "{q}")
                             .queryParam("gl", "co")
                             .queryParam("hl", "es")
                             .queryParam("google_domain", "google.com.co")
-                            .queryParam("api_key", apiKey)
-                            .build())
+                            .queryParam("api_key", "{clave}")
+                            .build(Map.of("q", consulta.getTermino(), "clave", apiKey)))
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
                     .body(Respuesta.class);
@@ -129,15 +137,23 @@ public class AdaptadorGoogleShopping extends AdaptadorMarketplaceBase {
             throw new MarketplaceException(CODIGO, "SerpApi respondió: " + respuesta.error());
         }
         Map<String, OfertaNormalizada> ofertas = new LinkedHashMap<>();
-        for (Resultado resultado : todosLosResultados(respuesta)) {
+        List<Resultado> todos = todosLosResultados(respuesta);
+        int sinEnlacePropio = 0;
+        for (Resultado resultado : todos) {
             OfertaNormalizada oferta = aOferta(resultado);
             if (oferta != null) {
                 ofertas.putIfAbsent(oferta.getIdExterno(), oferta);
+                if (oferta.getUrlDestino().startsWith(BUSQUEDA_GOOGLE)) {
+                    sinEnlacePropio++;
+                }
             }
             if (ofertas.size() == LIMITE_RESULTADOS) {
                 break;
             }
         }
+        // Sirve para revisar en los registros de Render qué llegó, sin mostrar la clave.
+        LOG.info("Google Shopping \"{}\": {} productos recibidos, {} usados ({} con enlace a Google Shopping)",
+                consulta.getTermino(), todos.size(), ofertas.size(), sinEnlacePropio);
         return List.copyOf(ofertas.values());
     }
 
@@ -167,14 +183,15 @@ public class AdaptadorGoogleShopping extends AdaptadorMarketplaceBase {
     }
 
     private static OfertaNormalizada aOferta(Resultado resultado) {
-        // Se prefiere el enlace directo a la tienda; si no viene, la página del producto en Google Shopping.
-        // Solo se aceptan enlaces https, para que la compra sea en una conexión segura.
-        String enlace = esSeguro(resultado.link()) ? resultado.link()
-                : esSeguro(resultado.productLink()) ? resultado.productLink() : null;
-        if (!tieneValor(resultado.titulo()) || resultado.precio() == null || resultado.precio().signum() <= 0
-                || enlace == null) {
+        if (!tieneValor(resultado.titulo()) || resultado.precio() == null || resultado.precio().signum() <= 0) {
             return null;
         }
+        // Se prefiere el enlace directo a la tienda; si no viene, la página del producto en Google Shopping. En
+        // Colombia casi ningún producto trae esos enlaces, así que si faltan se busca el producto en Google
+        // Shopping, donde aparece con la tienda que lo vende. Solo se aceptan enlaces https.
+        String enlace = esSeguro(resultado.link()) ? resultado.link()
+                : esSeguro(resultado.productLink()) ? resultado.productLink()
+                : enlaceBusqueda(resultado.titulo(), resultado.tienda());
         String id = tieneValor(resultado.productId()) ? resultado.productId()
                 : Integer.toHexString(enlace.hashCode());
         return OfertaNormalizada.builder()
@@ -206,13 +223,13 @@ public class AdaptadorGoogleShopping extends AdaptadorMarketplaceBase {
         RespuestaProducto respuesta;
         try {
             respuesta = cliente.get()
+                    // La clave del producto viene en base64 y casi siempre trae "+", "/" o "=": si no se codifican,
+                    // SerpApi recibe otra clave y responde que no hay resultados.
                     .uri(uri -> uri.path("/search.json")
                             .queryParam("engine", "google_immersive_product")
-                            .queryParam("page_token", token)
-                            .queryParam("gl", "co")
-                            .queryParam("hl", "es")
-                            .queryParam("api_key", apiKey)
-                            .build())
+                            .queryParam("page_token", "{token}")
+                            .queryParam("api_key", "{clave}")
+                            .build(Map.of("token", token, "clave", apiKey)))
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
                     .body(RespuestaProducto.class);
@@ -289,6 +306,18 @@ public class AdaptadorGoogleShopping extends AdaptadorMarketplaceBase {
     }
 
     /** Solo direcciones https válidas, de máximo 2048 letras. */
+    /**
+     * Búsqueda del producto en Google Shopping Colombia, para cuando SerpApi no trae ningún enlace.
+     *
+     * @param titulo nombre del producto
+     * @param tienda tienda que lo vende, o {@code null}
+     * @return enlace https
+     */
+    static String enlaceBusqueda(String titulo, String tienda) {
+        String texto = tieneValor(tienda) ? titulo.strip() + " " + tienda.strip() : titulo.strip();
+        return BUSQUEDA_GOOGLE + URLEncoder.encode(recortar(texto, 300), StandardCharsets.UTF_8);
+    }
+
     static boolean esSeguro(String url) {
         if (url == null || url.length() > 2048 || !url.startsWith("https://")) {
             return false;

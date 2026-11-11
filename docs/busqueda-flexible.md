@@ -51,7 +51,8 @@ El campo sigue el patrón *combobox* de ARIA 1.2 (`frontend/js/usuario/sugerenci
    Si la última palabra quedó a medias y lo escrito es el comienzo de un producto conocido, se completa: "olla arro"
    busca "olla arrocera" y "compu" busca "computador". Una palabra completa ("olla") no se cambia.
 3. **Si no hay resultados y la búsqueda tiene varias palabras**, prueba con la palabra principal: "licuadora oster roja
-   10 velocidades" muestra licuadoras y avisa "No encontramos ... exacto".
+   10 velocidades" muestra licuadoras y avisa "No encontramos ... exacto". No lo hace si una tienda falló o tardó
+   demasiado: ese 0 no quiere decir que el producto no exista, así que se muestra el aviso de la tienda.
 
 Cómo se corrige cada palabra de 3 letras o más, sin números, que no esté en el diccionario:
 
@@ -80,6 +81,8 @@ Con "licuadora oster", "Licuadora Oster 600 W" (2 de 2) queda y "Licuadora Imusa
 - Si menos de 3 resultados traen todas las palabras, se agregan los que traen una menos, y así. Si ninguno trae ninguna
   palabra, se muestran todos, para no dejar a la persona sin nada.
 - Entre los elegidos se respeta el orden de la tienda. Después se aplica el filtro de complementos.
+- Por último se quitan los precios de menos de la cuarta parte del precio del medio, siempre que queden al menos 3: con
+  "playstation" una consola de $ 80.000 es una PlayStation vieja o un repuesto, no una PlayStation 5.
 
 ## 4. Primero el producto, no sus complementos
 
@@ -107,7 +110,7 @@ busca "juego ps5", se le muestran los juegos. Si casi todo son complementos, se 
 
 `FiltroRelevanciaTest` cubre "licuadora oster", "playstation 5" contra "playstation 4", la abreviatura PS5, los plurales y
 qué pasa cuando pocos o ningún título traen las palabras. `FiltroComplementosTest` cubre la consola sin juegos, los juegos cuando se piden, el juego de ollas y el caso en que casi
-todo son complementos. `ServicioBusquedaFlexibleTest` cubre la corrección directa, las frases, el intento con la palabra principal y la búsqueda
+todo son complementos. `ServicioBusquedaFlexibleTest` cubre la corrección directa, las frases, el intento con la palabra principal (y que no se haga cuando una tienda falla) y la búsqueda
 exacta. `ServicioSugerenciasTest` cubre los prefijos, las tildes, los errores de escritura, la segunda palabra, el mínimo de
 letras, el orden por popularidad, las correcciones (licuadorra, oya arrosera, conputador portatil), que complete palabras a
 medias (olla arro), que no corrija
