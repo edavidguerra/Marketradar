@@ -52,7 +52,9 @@ public class ServicioBusquedaFlexible {
         boolean ampliada = false;
 
         ResultadoBusqueda prueba = servicioBusqueda.consultar(elegida);
-        if (prueba.getTotalResultados() == 0) {
+        // Si una tienda falló, el 0 no quiere decir que el producto no exista: se muestra el aviso y no se cambia
+        // la búsqueda por otra más general (antes "licuadora oster" terminaba mostrando cualquier licuadora).
+        if (prueba.getTotalResultados() == 0 && prueba.getAdvertencias().isEmpty()) {
             Optional<String> principal = ServicioSugerencias.nucleo(corregido);
             if (principal.isPresent() && principal.get().length() >= ConsultaBusqueda.LONGITUD_MINIMA) {
                 ConsultaBusqueda amplia = consulta.conTermino(principal.get());

@@ -32,6 +32,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withException;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.startsWith;
 
 class AdaptadorGoogleShoppingTest {
@@ -89,7 +90,7 @@ class AdaptadorGoogleShoppingTest {
         List<OfertaNormalizada> ofertas = crear(CLAVE).consultarApi(consulta("olla arrocera"));
 
         servidor.verify();
-        assertEquals(2, ofertas.size());
+        assertEquals(3, ofertas.size(), "el que no trae precio se descarta; el que no trae enlace, no");
         OfertaNormalizada primera = ofertas.get(0);
         assertEquals("googleshopping", primera.getCodigoMarketplace());
         assertEquals("111", primera.getIdExterno());
@@ -107,6 +108,17 @@ class AdaptadorGoogleShoppingTest {
         assertEquals("USD", segunda.getMoneda());
         assertNull(segunda.getCostoEnvio());
         assertNull(segunda.getCalificacion());
+
+        // En Colombia muchos productos llegan sin enlace: se abre su búsqueda en Google Shopping.
+        assertEquals("https://www.google.com.co/search?tbm=shop&gl=co&hl=es&q=Sin+enlace", ofertas.get(2).getUrlDestino());
+    }
+
+    @Test
+    void elEnlaceDeBusquedaIncluyeLaTiendaYEsSeguro() {
+        String enlace = AdaptadorGoogleShopping.enlaceBusqueda("Licuadora Oster 600 W & vaso", "Éxito");
+
+        assertEquals("https://www.google.com.co/search?tbm=shop&gl=co&hl=es&q=Licuadora+Oster+600+W+%26+vaso+%C3%89xito", enlace);
+        assertTrue(AdaptadorGoogleShopping.esSeguro(enlace));
     }
 
     @Test
@@ -216,8 +228,6 @@ class AdaptadorGoogleShoppingTest {
                 .andExpect(method(HttpMethod.GET))
                 .andExpect(queryParam("engine", "google_immersive_product"))
                 .andExpect(queryParam("page_token", "token-111"))
-                .andExpect(queryParam("gl", "co"))
-                .andExpect(queryParam("hl", "es"))
                 .andExpect(queryParam("api_key", CLAVE))
                 .andRespond(withSuccess(respuesta, MediaType.APPLICATION_JSON));
 
@@ -235,6 +245,16 @@ class AdaptadorGoogleShoppingTest {
         assertEquals("Rosa", primera.autor());
         assertEquals("Éxito", primera.fuente());
         assertEquals("hace 2 meses", primera.fecha());
+    }
+
+    @Test
+    void laClaveDelProductoLlegaCompletaASerpApi() {
+        // Las claves son base64: si el "+" no se codifica, SerpApi lo lee como espacio y no encuentra el producto.
+        servidor.expect(once(), requestTo(containsString("page_token=eyJh%2Bb%2Fc%3D%3D&")))
+                .andRespond(withSuccess("{\"product_results\":{\"rating\":4.5,\"reviews\":2}}", MediaType.APPLICATION_JSON));
+
+        assertEquals(2, crear(CLAVE).resenas("eyJh+b/c==").totalResenas());
+        servidor.verify();
     }
 
     @Test

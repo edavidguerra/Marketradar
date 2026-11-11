@@ -2,6 +2,7 @@ package co.edu.unicesar.marketradar.service;
 
 import co.edu.unicesar.marketradar.domain.OfertaNormalizada;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -20,12 +21,16 @@ import java.util.TreeMap;
  *       "playstation 4". Se aceptan plurales ("ollas" y "olla") y abreviaturas comunes ("PS5", "TV").</li>
  *   <li>Se muestran primero los que tienen todas las palabras. Si son menos de {@value #MINIMO}, se agregan los
  *       que tienen una palabra menos, y así, para no dejar a la persona sin nada.</li>
- *   <li>Después se quitan los juegos y accesorios que no pidió ({@link FiltroComplementos}).</li>
+ *   <li>Después se quitan los juegos y accesorios que no pidió ({@link FiltroComplementos}) y los precios
+ *       absurdamente bajos, que casi siempre son de otro producto.</li>
  * </ol>
  */
 final class FiltroRelevancia {
 
     static final int MINIMO = 3;
+
+    /** Un precio por debajo de esta parte del precio del medio se considera de otro producto. */
+    private static final BigDecimal FRACCION_MINIMA = new BigDecimal("0.25");
 
     /** Palabras que no dicen qué producto es. */
     private static final Set<String> VACIAS = Set.of("de", "del", "la", "el", "los", "las", "un", "una", "unos",
@@ -56,7 +61,7 @@ final class FiltroRelevancia {
     static List<OfertaNormalizada> filtrar(String termino, List<OfertaNormalizada> ofertas) {
         List<String> buscadas = palabras(termino);
         if (buscadas.isEmpty() || ofertas.size() <= MINIMO) {
-            return FiltroComplementos.filtrar(termino, ofertas);
+            return sinPreciosAbsurdos(FiltroComplementos.filtrar(termino, ofertas));
         }
         // Puntaje: cuántas palabras de la búsqueda trae el título. Se conserva el orden de la tienda.
         TreeMap<Integer, List<OfertaNormalizada>> porPuntaje = new TreeMap<>(Comparator.reverseOrder());
@@ -75,7 +80,23 @@ final class FiltroRelevancia {
         }
         // Se respeta el orden original entre los elegidos.
         List<OfertaNormalizada> ordenadas = ofertas.stream().filter(elegidas::contains).toList();
-        return FiltroComplementos.filtrar(termino, ordenadas);
+        return sinPreciosAbsurdos(FiltroComplementos.filtrar(termino, ordenadas));
+    }
+
+    /**
+     * Quita lo que cuesta menos de la cuarta parte del precio del medio: con "playstation 5", una consola de
+     * $ 80.000 es una PlayStation vieja o un repuesto, no lo que la persona busca. Solo cuando quedan al menos
+     * {@value #MINIMO} resultados.
+     */
+    static List<OfertaNormalizada> sinPreciosAbsurdos(List<OfertaNormalizada> ofertas) {
+        if (ofertas.size() <= MINIMO) {
+            return ofertas;
+        }
+        List<BigDecimal> precios = ofertas.stream().map(OfertaNormalizada::precioTotal).sorted().toList();
+        BigDecimal minimo = precios.get(precios.size() / 2).multiply(FRACCION_MINIMA);
+        List<OfertaNormalizada> razonables = ofertas.stream()
+                .filter(oferta -> oferta.precioTotal().compareTo(minimo) >= 0).toList();
+        return razonables.size() >= MINIMO ? razonables : ofertas;
     }
 
     static int coincidencias(List<String> buscadas, String titulo) {

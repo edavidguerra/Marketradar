@@ -92,6 +92,20 @@ class ServicioBusquedaFlexibleTest {
         return ConsultaBusqueda.crear(termino, null, Set.of(), 1, 10);
     }
 
+    @Test
+    void siUnaTiendaFallaNoCambiaLaBusquedaPorOtraMasGeneral() {
+        ResultadoBusqueda conFalla = new ResultadoBusqueda(List.of(), List.of("La tienda Google Shopping no respondió a tiempo."),
+                0, Map.of(), null, null);
+        when(busqueda.consultar(argThat(c -> c != null && c.getTermino().equals("licuadora oster")))).thenReturn(conFalla);
+        when(busqueda.buscar(argThat(c -> c != null && c.getTermino().equals("licuadora oster")), any())).thenReturn(conFalla);
+
+        ServicioBusquedaFlexible.Resultado resultado = flexible.buscar(consulta("licuadora oster"), 7L, false);
+
+        assertEquals("licuadora oster", resultado.consulta().getTermino());
+        assertFalse(resultado.ampliada());
+        verify(busqueda, never()).consultar(argThat(c -> c != null && c.getTermino().equals("licuadora")));
+    }
+
     private void conResultados(String termino, int total) {
         List<OfertaNormalizada> ofertas = java.util.stream.IntStream.range(0, total)
                 .mapToObj(i -> OfertaNormalizada.builder().codigoMarketplace("googleshopping").idExterno("p" + i)

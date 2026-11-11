@@ -64,7 +64,7 @@ Comparador de precios accesible para adultos mayores. Proyecto de aula de **Prog
 
 | Qué | Resultado |
 |---|---|
-| Pruebas automáticas (`mvn -f backend/pom.xml verify`) | 166 pruebas; las 7 de DAO con Testcontainers corren en GitHub Actions |
+| Pruebas automáticas (`mvn -f backend/pom.xml verify`) | 171 pruebas; las 7 de DAO con Testcontainers corren en GitHub Actions |
 | Integración continua | Check `pruebas` obligatorio en cada PR hacia `develop` |
 | Accesibilidad con axe (WCAG 2.1 AA) | 0 fallas en 14 pantallas |
 | Lighthouse en la pantalla de ingreso | 100 en accesibilidad, buenas prácticas, rendimiento y SEO |

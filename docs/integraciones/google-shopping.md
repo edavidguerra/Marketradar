@@ -18,6 +18,8 @@ Falabella, Alkosto, Mercado Libre y otras), así que reemplaza a las tiendas cuy
 2. Se toman máximo 40 productos, sin repetir: primero los de `categorized_shopping_results` (con productos populares como "playstation 5" Google agrupa ahí el producto en sí), después `shopping_results` y al final `inline_shopping_results`. Luego se dejan primero los que traen todas las palabras buscadas y se quitan los juegos y accesorios que la persona no pidió (ver [busqueda-flexible.md](../busqueda-flexible.md#3-primero-lo-que-más-se-parece-a-lo-buscado)).
 3. Si la API falla, la persona ve "La tienda Google Shopping no respondió" y el resto de tiendas sigue funcionando.
    Los mensajes de error nunca incluyen la URL, porque lleva la clave.
+4. En los registros de Render queda una línea por búsqueda, sin la clave: `Google Shopping "playstation 5": 40 productos
+   recibidos, 40 usados (35 con enlace a Google Shopping)`. Sirve para revisar qué llegó cuando un resultado se ve raro.
 
 | SerpApi | `OfertaNormalizada` | Notas |
 | --- | --- | --- |
@@ -27,7 +29,7 @@ Falabella, Alkosto, Mercado Libre y otras), así que reemplaza a las tiendas cuy
 | `price` | `moneda` | `COP`, o `USD` si el texto dice US$. |
 | `delivery` | `costoEnvio` | 0 si dice "gratis" o "free"; si no, queda sin valor. |
 | `source` | `vendedor` | La tienda real. En pantalla se ve solo "Éxito". |
-| `link` (o `product_link`) | `urlDestino` | Si SerpApi trae el enlace directo de la tienda, se usa ese. Si no, se abre el producto en Google Shopping, con las tiendas que lo venden. Solo se aceptan enlaces `https`. |
+| `link` (o `product_link`) | `urlDestino` | Si SerpApi trae el enlace directo de la tienda, se usa ese; si no, la página del producto en Google. En Colombia casi ningún producto trae esos enlaces, así que entonces se abre la búsqueda del producto y su tienda en Google Shopping Colombia (`AdaptadorGoogleShopping.enlaceBusqueda`). Antes esos productos se descartaban y por eso "playstation 5" salía sin resultados. Solo se aceptan enlaces `https`. |
 | `thumbnail` | `urlImagen` | Si llega con `http`, se cambia a `https`. |
 | `rating`, `reviews` | `calificacion`, `totalResenas` | |
 | `immersive_product_page_token` | `tokenResenas` | Clave para pedir después las reseñas. No se guarda en la base de datos. |
@@ -39,7 +41,9 @@ producto se había consultado dos veces). Al presionarlo:
 
 1. La página llama `GET /api/v1/ofertas/{id}/resenas`.
 2. `ServicioResenas` busca la clave que llegó con esa oferta en la última búsqueda (se recuerda en memoria 24 horas) y
-   pide `GET https://serpapi.com/search.json?engine=google_immersive_product&page_token=<clave>&gl=co&hl=es&api_key=<clave>`.
+   pide `GET https://serpapi.com/search.json?engine=google_immersive_product&page_token=<clave del producto>&api_key=<clave>`.
+   La clave del producto viene en base64 y casi siempre trae `+`, `/` o `=`; se envía codificada (`%2B`, `%2F`, `%3D`).
+   Sin eso SerpApi leía el `+` como espacio, no encontraba el producto y todas las reseñas salían vacías.
 3. De `product_results` se toman la calificación (`rating`), el total (`reviews`), cuántas personas dieron cada número de
    estrellas (`ratings`) y hasta 10 opiniones escritas (`user_reviews`: título, texto, autor, sitio y fecha).
 4. Si la tienda no tiene opiniones, la página dice "Este producto todavía no tiene reseñas de compradores".
