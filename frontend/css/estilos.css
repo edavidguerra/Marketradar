@@ -990,6 +990,55 @@ main > section:not([hidden]) { animation: entrar-seccion .5s var(--curva) both; 
 /* ---------- Buscar ---------- */
 
 .busqueda { margin-bottom: 1.5rem; }
+
+/* Filtro de precio: "Desde" y "Hasta" en una fila; en el celular, uno debajo del otro. */
+.filtro-precio {
+    display: grid;
+    gap: .6rem;
+    margin-bottom: 1.5rem;
+    padding: 1.1rem 1.25rem;
+    border: 1px solid var(--color-borde);
+    border-radius: var(--radio-grande);
+    background: var(--color-superficie);
+    box-shadow: var(--sombra);
+}
+
+.filtro-precio h2 { display: flex; align-items: center; gap: .5rem; margin: 0; font-size: 1.2rem; }
+.filtro-precio .ayuda { margin: 0; }
+
+.campos-precio {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 14rem)) auto;
+    gap: .75rem 1rem;
+    align-items: end;
+}
+
+.campo-pesos { position: relative; }
+
+.campo-pesos span {
+    position: absolute;
+    left: .9rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-weight: 700;
+    color: var(--color-suave);
+    pointer-events: none;
+}
+
+.campo .campo-pesos input { padding-left: 2rem; }
+.acciones-precio { display: flex; flex-wrap: wrap; gap: .6rem; }
+
+:root.alto-contraste .filtro-precio { border: 2px solid var(--color-borde); }
+
+@media (max-width: 40rem) {
+    .campos-precio { grid-template-columns: 1fr 1fr; }
+    .acciones-precio { grid-column: 1 / -1; }
+    .acciones-precio .boton { flex: 1 1 auto; }
+}
+
+@media (max-width: 22rem) {
+    .campos-precio { grid-template-columns: 1fr; }
+}
 .busqueda h1 label { cursor: pointer; }
 .busqueda .ayuda, .busqueda .error { margin: .5rem 0 0; }
 

@@ -84,6 +84,31 @@ final class FiltroRelevancia {
     }
 
     /**
+     * Revisa lo que eligió la IA: quita accesorios que se le hayan colado ("Funda iPhone 17 Pro") y lo que cuesta
+     * menos de la cuarta parte del precio del medio de los demás candidatos que sí son el producto. Así una caja o
+     * un repuesto no queda como lo único que se muestra.
+     *
+     * @param termino lo que buscó la persona
+     * @param elegidas lo que eligió la IA
+     * @param candidatas todo lo que se le mostró a la IA
+     * @return lo elegido que sí sirve; vacío si nada sirve
+     */
+    static List<OfertaNormalizada> revisarEleccion(String termino, List<OfertaNormalizada> elegidas,
+                                                   List<OfertaNormalizada> candidatas) {
+        String buscado = ServicioSugerencias.normalizar(termino);
+        Set<String> palabrasBuscadas = Set.of(buscado.split(" "));
+        List<OfertaNormalizada> productos = candidatas.stream()
+                .filter(oferta -> !FiltroComplementos.esComplemento(oferta, buscado, palabrasBuscadas)).toList();
+        BigDecimal minimo = productos.isEmpty() ? BigDecimal.ZERO
+                : productos.stream().map(OfertaNormalizada::precioTotal).sorted().toList()
+                        .get(productos.size() / 2).multiply(FRACCION_MINIMA);
+        return elegidas.stream()
+                .filter(oferta -> !FiltroComplementos.esComplemento(oferta, buscado, palabrasBuscadas))
+                .filter(oferta -> oferta.precioTotal().compareTo(minimo) >= 0)
+                .toList();
+    }
+
+    /**
      * Quita lo que cuesta menos de la cuarta parte del precio del medio: con "playstation 5", una consola de
      * $ 80.000 es una PlayStation vieja o un repuesto, no lo que la persona busca. Solo cuando quedan al menos
      * {@value #MINIMO} resultados.

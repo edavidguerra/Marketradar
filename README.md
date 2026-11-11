@@ -129,7 +129,7 @@ Las peticiones que cambian datos deben enviar la cabecera `X-XSRF-TOKEN` con el 
 | POST | `/api/v1/auth/ingreso` | Público | Inicia sesión (bloqueo de 15 min tras 5 intentos fallidos) |
 | POST | `/api/v1/auth/salida` | Con sesión | Cierra la sesión |
 | GET | `/api/v1/auth/sesion` | Público | Persona con sesión y su interfaz (204 si no hay sesión) |
-| GET | `/api/v1/busqueda?q=&orden=&marketplaces=&pagina=&tamano=&exacto=` | Usuario | Busca en las tiendas activas entendiendo errores al escribir y devuelve el producto MVP. Si se buscó otra cosa, trae `termino_original`; con `exacto=true` no corrige |
+| GET | `/api/v1/busqueda?q=&orden=&marketplaces=&pagina=&tamano=&exacto=&precio_minimo=&precio_maximo=` | Usuario | Busca en las tiendas activas entendiendo errores al escribir y devuelve el producto MVP. Si se buscó otra cosa, trae `termino_original`; con `exacto=true` no corrige. `precio_minimo` y `precio_maximo` dejan solo lo que cuesta entre esos precios totales y traen `total_sin_filtro` |
 | GET | `/api/v1/busqueda/sugerencias?q=` | Usuario | Hasta 6 sugerencias mientras la persona escribe (no consulta las tiendas) |
 | GET | `/api/v1/ofertas/{id}` y `/{id}/historial` | Usuario | Detalle e historial de precios |
 | GET | `/api/v1/ofertas/{id}/resenas` | Usuario | Calificación, estrellas y opiniones de compradores (Google Shopping, caché de 24 horas) |

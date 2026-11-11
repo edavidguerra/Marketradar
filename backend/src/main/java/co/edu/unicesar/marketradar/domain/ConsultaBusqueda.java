@@ -2,6 +2,7 @@ package co.edu.unicesar.marketradar.domain;
 
 import co.edu.unicesar.marketradar.exception.ValidacionException;
 
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.Set;
 
@@ -13,19 +14,26 @@ public final class ConsultaBusqueda {
     public static final int LONGITUD_MINIMA = 2;
     public static final int LONGITUD_MAXIMA = 100;
     public static final int TAMANO_MAXIMO = 20;
+    /** Cien mil millones de pesos: más que eso es un error al escribir. */
+    public static final BigDecimal PRECIO_MAXIMO_PERMITIDO = new BigDecimal("100000000000");
 
     private final String termino;
     private final OrdenResultados orden;
     private final Set<String> marketplaces;
     private final int pagina;
     private final int tamano;
+    private final BigDecimal precioMinimo;
+    private final BigDecimal precioMaximo;
 
-    private ConsultaBusqueda(String termino, OrdenResultados orden, Set<String> marketplaces, int pagina, int tamano) {
+    private ConsultaBusqueda(String termino, OrdenResultados orden, Set<String> marketplaces, int pagina, int tamano,
+                             BigDecimal precioMinimo, BigDecimal precioMaximo) {
         this.termino = termino;
         this.orden = orden;
         this.marketplaces = marketplaces;
         this.pagina = pagina;
         this.tamano = tamano;
+        this.precioMinimo = precioMinimo;
+        this.precioMaximo = precioMaximo;
     }
 
     /**
@@ -60,7 +68,86 @@ public final class ConsultaBusqueda {
             throw new ValidacionException("La forma de ordenar no es válida. Use precio más bajo, precio más alto o relevancia.");
         }
         Set<String> codigos = marketplaces == null ? Set.of() : Set.copyOf(marketplaces);
-        return new ConsultaBusqueda(limpio, ordenValido, codigos, pagina, tamano);
+        return new ConsultaBusqueda(limpio, ordenValido, codigos, pagina, tamano, null, null);
+    }
+
+    /**
+     * La misma consulta, mostrando solo lo que cuesta entre dos precios totales (con envío).
+     *
+     * @param minimo precio total mínimo en pesos, o {@code null} para no poner piso
+     * @param maximo precio total máximo en pesos, o {@code null} para no poner techo
+     * @return consulta nueva con el rango de precio
+     * @throws ValidacionException si un precio es negativo, demasiado alto o el mínimo es mayor que el máximo
+     */
+    public ConsultaBusqueda conRangoDePrecio(BigDecimal minimo, BigDecimal maximo) {
+        validarPrecio(minimo, "mínimo");
+        validarPrecio(maximo, "máximo");
+        if (minimo != null && maximo != null && minimo.compareTo(maximo) > 0) {
+            throw new ValidacionException("El precio mínimo es mayor que el máximo. Revise los dos valores.");
+        }
+        return new ConsultaBusqueda(termino, orden, marketplaces, pagina, tamano, minimo, maximo);
+    }
+
+    private static void validarPrecio(BigDecimal precio, String cual) {
+        if (precio == null) {
+            return;
+        }
+        if (precio.signum() < 0) {
+            throw new ValidacionException("El precio " + cual + " no puede ser negativo.");
+        }
+        if (precio.compareTo(PRECIO_MAXIMO_PERMITIDO) > 0) {
+            throw new ValidacionException("El precio " + cual + " es demasiado alto. Revíselo.");
+        }
+    }
+
+    /**
+     * Lee un precio escrito por la persona: acepta "1.500.000", "1500000", "1,500,000" o "$ 1.500.000".
+     *
+     * @param texto lo que escribió, o {@code null}
+     * @return el precio en pesos, sin centavos, o {@code null} si lo dejó vacío
+     * @throws ValidacionException si trae algo que no son números
+     */
+    public static BigDecimal leerPrecio(String texto) {
+        if (texto == null || texto.isBlank()) {
+            return null;
+        }
+        // Los centavos (",50") no cuentan; los puntos y comas de miles se quitan.
+        String limpio = texto.strip().replaceFirst("^\\$\\s*", "").replaceFirst(",\\d{1,2}$", "")
+                .replaceAll("[.,\\s]", "");
+        if (limpio.length() > 15 || !limpio.matches("\\d+")) {
+            throw new ValidacionException("Escriba el precio solo con números, por ejemplo 500.000.");
+        }
+        return new BigDecimal(limpio);
+    }
+
+    /** @return la misma consulta sin rango de precio, para saber cuánto hay en total */
+    public ConsultaBusqueda sinRangoDePrecio() {
+        return tieneRangoDePrecio() ? new ConsultaBusqueda(termino, orden, marketplaces, pagina, tamano, null, null)
+                : this;
+    }
+
+    /** @return {@code true} si la persona puso un precio mínimo o máximo */
+    public boolean tieneRangoDePrecio() {
+        return precioMinimo != null || precioMaximo != null;
+    }
+
+    /**
+     * @param precioTotal precio con envío
+     * @return {@code true} si está dentro del rango, contando los extremos
+     */
+    public boolean precioEnRango(BigDecimal precioTotal) {
+        return (precioMinimo == null || precioTotal.compareTo(precioMinimo) >= 0)
+                && (precioMaximo == null || precioTotal.compareTo(precioMaximo) <= 0);
+    }
+
+    /** @return precio total mínimo, o {@code null} */
+    public BigDecimal getPrecioMinimo() {
+        return precioMinimo;
+    }
+
+    /** @return precio total máximo, o {@code null} */
+    public BigDecimal getPrecioMaximo() {
+        return precioMaximo;
     }
 
     public String getTermino() {
@@ -87,14 +174,16 @@ public final class ConsultaBusqueda {
      * La misma consulta con otro texto, por ejemplo con las palabras corregidas.
      *
      * @param otroTermino texto nuevo
-     * @return consulta nueva con el mismo orden, tiendas, página y tamaño
+     * @return consulta nueva con el mismo orden, tiendas, página, tamaño y rango de precio
      */
     public ConsultaBusqueda conTermino(String otroTermino) {
-        return crear(otroTermino, orden.getValor(), marketplaces, pagina, tamano);
+        return crear(otroTermino, orden.getValor(), marketplaces, pagina, tamano)
+                .conRangoDePrecio(precioMinimo, precioMaximo);
     }
 
     /**
-     * Clave de caché: dos consultas con el mismo término y marketplaces comparten resultados.
+     * Clave de caché: dos consultas con el mismo término y marketplaces comparten resultados. El rango de precio no
+     * cuenta, porque se aplica después: cambiarlo no vuelve a consultar a las tiendas.
      *
      * @return clave normalizada
      */

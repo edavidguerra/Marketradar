@@ -95,6 +95,19 @@ class FiltroRelevanciaTest {
         assertEquals(4, FiltroRelevancia.sinPreciosAbsurdos(ofertas).size());
     }
 
+    @Test
+    void deLoQueEligeLaIAQuitaAccesoriosYPreciosAbsurdos() {
+        List<OfertaNormalizada> candidatas = List.of(
+                oferta("Funda iPhone 17 Pro", "60000"),
+                oferta("iPhone 17 Pro 256 GB", "5200000"),
+                oferta("iPhone 17 Pro 512 GB", "5900000"),
+                oferta("iPhone 17 Pro repuesto pantalla", "300000"));
+
+        assertEquals(List.of("iPhone 17 Pro 256 GB"), titulos(FiltroRelevancia.revisarEleccion("iphone 17 pro",
+                List.of(candidatas.get(0), candidatas.get(1), candidatas.get(3)), candidatas)));
+        assertEquals(List.of(), FiltroRelevancia.revisarEleccion("iphone 17 pro", List.of(candidatas.get(0)), candidatas));
+    }
+
     private static List<String> titulos(List<OfertaNormalizada> ofertas) {
         return ofertas.stream().map(OfertaNormalizada::getTitulo).toList();
     }

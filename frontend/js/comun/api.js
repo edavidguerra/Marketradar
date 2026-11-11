@@ -55,10 +55,15 @@ export const registrar = (datos) => pedir('/auth/registro', { metodo: 'POST', cu
 export const salir = () => pedir('/auth/salida', { metodo: 'POST', redirigirSinSesion: false });
 
 /* Búsqueda y ofertas */
-/** Con exacto = true se busca el texto tal cual, sin corregir errores de escritura. */
-export function buscar(termino, pagina = 1, tamano = 10, exacto = false) {
+/**
+ * Con exacto = true se busca el texto tal cual, sin corregir errores de escritura. precioMinimo y precioMaximo
+ * (en pesos, opcionales) dejan solo las ofertas cuyo precio total está entre esos valores.
+ */
+export function buscar(termino, pagina = 1, tamano = 10, exacto = false, { precioMinimo, precioMaximo } = {}) {
     const parametros = new URLSearchParams({ q: termino, pagina, tamano });
     if (exacto) parametros.set('exacto', 'true');
+    if (precioMinimo != null) parametros.set('precio_minimo', precioMinimo);
+    if (precioMaximo != null) parametros.set('precio_maximo', precioMaximo);
     return pedir(`/busqueda?${parametros}`);
 }
 export function obtenerSugerencias(texto) {

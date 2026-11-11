@@ -10,7 +10,7 @@ import { irA } from './navegacion.js';
 import { iniciarSugerencias } from './sugerencias.js';
 
 const TAMANO_PAGINA = 10;
-const estado = { termino: '', pagina: 1, exacto: false };
+const estado = { termino: '', pagina: 1, exacto: false, precioMinimo: null, precioMaximo: null };
 
 const $ = (id) => document.getElementById(id);
 
@@ -18,6 +18,42 @@ function validarTermino(termino) {
     if (termino.length < 2) return 'Escriba al menos 2 letras del producto que busca.';
     if (termino.length > 100) return 'Escriba un nombre más corto, de máximo 100 letras.';
     return '';
+}
+
+/** Lee "1.500.000", "$ 1500000" o "1,500,000" como 1500000; vacío es null y lo que no es número, NaN. */
+export function leerPrecio(texto) {
+    const limpio = String(texto ?? '').trim().replace(/^\$\s*/, '').replace(/,\d{1,2}$/, '').replace(/[.,\s]/g, '');
+    if (!limpio) return null;
+    return /^\d{1,15}$/.test(limpio) ? Number(limpio) : NaN;
+}
+
+/** "entre $ 1.000.000 y $ 3.000.000", "desde $ 1.000.000" o "hasta $ 3.000.000". */
+export function textoRango(minimo, maximo) {
+    if (minimo != null && maximo != null) return `entre ${pesos(minimo)} y ${pesos(maximo)}`;
+    if (minimo != null) return `desde ${pesos(minimo)}`;
+    return `hasta ${pesos(maximo)}`;
+}
+
+function hayFiltroPrecio() {
+    return estado.precioMinimo != null || estado.precioMaximo != null;
+}
+
+function textoResultados(respuesta) {
+    if (!hayFiltroPrecio()) {
+        return respuesta.total_resultados === 0
+            ? `No encontramos resultados para "${estado.termino}". Pruebe con otra palabra.`
+            : `Encontramos ${respuesta.total_resultados} resultados para "${estado.termino}". Primero le mostramos `
+              + 'la mejor opción de compra y después todas las ofertas, de la más barata a la más cara.';
+    }
+    const rango = textoRango(estado.precioMinimo, estado.precioMaximo);
+    if (respuesta.total_resultados === 0) {
+        return respuesta.total_sin_filtro > 0
+            ? `No hay ofertas de "${estado.termino}" ${rango}. Sin el filtro hay ${respuesta.total_sin_filtro}: `
+              + 'pruebe con otros precios o pulse "Quitar filtro".'
+            : `No encontramos resultados para "${estado.termino}". Pruebe con otra palabra.`;
+    }
+    return `Encontramos ${respuesta.total_resultados} de ${respuesta.total_sin_filtro} resultados para `
+        + `"${estado.termino}" con precio total ${rango}, de la más barata a la más cara.`;
 }
 
 function crearCalificacion(oferta) {
@@ -204,7 +240,8 @@ async function cargarPagina() {
     const botonBuscar = document.querySelector('#formulario-busqueda [type="submit"]');
     botonBuscar.classList.add('buscando');
     try {
-        const respuesta = await buscar(estado.termino, estado.pagina, TAMANO_PAGINA, estado.exacto);
+        const respuesta = await buscar(estado.termino, estado.pagina, TAMANO_PAGINA, estado.exacto,
+            { precioMinimo: estado.precioMinimo, precioMaximo: estado.precioMaximo });
         mostrarAdvertencias(respuesta.advertencias || []);
         if (estado.pagina === 1) {
             mostrarResumen(respuesta.resumen_ia);
@@ -218,10 +255,9 @@ async function cargarPagina() {
             }
         }
         $('lista-resultados').append(...respuesta.ofertas.map(crearTarjeta));
-        mostrarEstado(estadoResultados, respuesta.total_resultados === 0
-            ? `No encontramos resultados para "${estado.termino}". Pruebe con otra palabra.`
-            : `Encontramos ${respuesta.total_resultados} resultados para "${estado.termino}". Primero le mostramos `
-              + 'la mejor opción de compra y después todas las ofertas, de la más barata a la más cara.');
+        mostrarEstado(estadoResultados, textoResultados(respuesta));
+        // El filtro de precio aparece cuando hay algo que filtrar, o si ya se está usando.
+        $('filtro-precio').hidden = (respuesta.total_sin_filtro ?? respuesta.total_resultados) === 0;
         $('ver-mas').hidden = estado.pagina * TAMANO_PAGINA >= respuesta.total_resultados;
     } catch (error) {
         mostrarEstado(estadoResultados, error.message, cargarPagina);
@@ -237,12 +273,79 @@ export function buscarTermino(termino, { exacto = false } = {}) {
     estado.termino = termino;
     estado.pagina = 1;
     estado.exacto = exacto;
+    // Una búsqueda nueva empieza sin filtro de precio, para no esconder resultados sin que la persona lo note.
+    limpiarFiltroPrecio();
+    $('filtro-precio').hidden = true;
+    recargarResultados();
+    irA('buscar');
+}
+
+function recargarResultados() {
+    estado.pagina = 1;
     $('lista-resultados').replaceChildren();
     mostrarResumen(null);
     mostrarMvp(null);
     mostrarCorreccion(null);
-    irA('buscar');
     cargarPagina();
+}
+
+function limpiarFiltroPrecio() {
+    estado.precioMinimo = null;
+    estado.precioMaximo = null;
+    $('precio-minimo').value = '';
+    $('precio-maximo').value = '';
+    $('quitar-filtro-precio').hidden = true;
+    mostrarErrorPrecio('', null);
+}
+
+function mostrarErrorPrecio(mensaje, campo) {
+    const error = $('error-precio');
+    error.textContent = mensaje;
+    error.hidden = !mensaje;
+    ['precio-minimo', 'precio-maximo'].forEach((id) =>
+        $(id).setAttribute('aria-invalid', String(Boolean(mensaje) && (campo === null || campo === id))));
+    if (mensaje && campo) $(campo).focus();
+}
+
+/** Valida los dos precios y vuelve a mostrar los resultados de la misma búsqueda, sin consultar otra vez las tiendas. */
+function aplicarFiltroPrecio(evento) {
+    evento.preventDefault();
+    const minimo = leerPrecio($('precio-minimo').value);
+    const maximo = leerPrecio($('precio-maximo').value);
+    if (Number.isNaN(minimo) || Number.isNaN(maximo)) {
+        mostrarErrorPrecio('Escriba el precio solo con números, por ejemplo 500.000.',
+            Number.isNaN(minimo) ? 'precio-minimo' : 'precio-maximo');
+        return;
+    }
+    if (minimo == null && maximo == null) {
+        mostrarErrorPrecio('Escriba al menos un precio: desde cuánto, hasta cuánto o los dos.', 'precio-minimo');
+        return;
+    }
+    if (minimo != null && maximo != null && minimo > maximo) {
+        mostrarErrorPrecio('El precio "Desde" es mayor que el precio "Hasta". Revise los dos valores.', 'precio-minimo');
+        return;
+    }
+    mostrarErrorPrecio('', null);
+    estado.precioMinimo = minimo;
+    estado.precioMaximo = maximo;
+    $('precio-minimo').value = minimo == null ? '' : minimo.toLocaleString('es-CO');
+    $('precio-maximo').value = maximo == null ? '' : maximo.toLocaleString('es-CO');
+    $('quitar-filtro-precio').hidden = false;
+    recargarResultados();
+}
+
+function iniciarFiltroPrecio() {
+    $('filtro-precio').addEventListener('submit', aplicarFiltroPrecio);
+    $('quitar-filtro-precio').addEventListener('click', () => {
+        limpiarFiltroPrecio();
+        $('precio-minimo').focus();
+        recargarResultados();
+    });
+    // Al salir del campo se ponen los puntos de miles, para que la persona vea bien la cifra.
+    ['precio-minimo', 'precio-maximo'].forEach((id) => $(id).addEventListener('blur', () => {
+        const valor = leerPrecio($(id).value);
+        if (valor != null && !Number.isNaN(valor)) $(id).value = valor.toLocaleString('es-CO');
+    }));
 }
 
 function botonResenas(oferta) {
@@ -405,4 +508,5 @@ export function iniciarBusqueda() {
         cargarPagina();
     });
     $('volver-resultados').addEventListener('click', () => irA('buscar'));
+    iniciarFiltroPrecio();
 }

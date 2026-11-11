@@ -75,6 +75,33 @@
             <p id="estado-sugerencias" class="solo-lectores" role="status" aria-live="polite"></p>
             <p id="error-busqueda" class="error" role="alert" hidden></p>
         </form>
+        <form id="filtro-precio" class="filtro-precio" novalidate aria-labelledby="titulo-filtro-precio" hidden>
+            <h2 id="titulo-filtro-precio"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#etiqueta"></use></svg> Filtrar por precio</h2>
+            <p id="ayuda-precio" class="ayuda">Es el precio total, con envío. Puede llenar solo uno de los dos.</p>
+            <div class="campos-precio">
+                <div class="campo">
+                    <label for="precio-minimo">Desde</label>
+                    <div class="campo-pesos">
+                        <span aria-hidden="true">$</span>
+                        <input id="precio-minimo" name="precio_minimo" type="text" inputmode="numeric" autocomplete="off"
+                               maxlength="17" aria-describedby="ayuda-precio error-precio">
+                    </div>
+                </div>
+                <div class="campo">
+                    <label for="precio-maximo">Hasta</label>
+                    <div class="campo-pesos">
+                        <span aria-hidden="true">$</span>
+                        <input id="precio-maximo" name="precio_maximo" type="text" inputmode="numeric" autocomplete="off"
+                               maxlength="17" aria-describedby="ayuda-precio error-precio">
+                    </div>
+                </div>
+                <div class="acciones-precio">
+                    <button type="submit" class="boton boton-principal">Aplicar</button>
+                    <button type="button" class="boton boton-secundario" id="quitar-filtro-precio" hidden>Quitar filtro</button>
+                </div>
+            </div>
+            <p id="error-precio" class="error" role="alert" hidden></p>
+        </form>
         <p id="quizas" class="quizas" hidden></p>
         <div id="estado-resultados" role="status" aria-live="polite"></div>
         <ul id="advertencias" class="advertencias" hidden></ul>
@@ -273,6 +300,8 @@
                 <p>Los precios están en pesos colombianos. Si una tienda cobra en dólares, lo convertimos con la TRM
                     del día. Cada oferta dice cuánto cuesta el envío y desde dónde vende la tienda: si es del
                     exterior, puede tardar más en llegar y cobrar impuestos.</p>
+                <p>Después de buscar aparece "Filtrar por precio": escriba desde cuánto y hasta cuánto quiere pagar
+                    (con envío) y pulse "Aplicar". Para ver todo otra vez, pulse "Quitar filtro".</p>
                 <p>En "Ver reseñas", las opiniones escritas en otro idioma tienen un botón "Traducir". El idioma se
                     elige en Mi perfil.</p>
                 <a class="boton boton-secundario" href="#buscar">Ir a Buscar</a>

@@ -17,6 +17,9 @@ import java.util.Set;
  *
  * <p>Si quedan al menos {@value #MINIMO_PRINCIPALES} resultados que no son complementos, se muestran solo esos.
  * Si no, se muestran todos, para no dejar a la persona sin nada.</p>
+ *
+ * <p>Lo que no trae el producto, como la caja vacía de un iPhone ("Caja iPhone 17 Pro", "Solo caja", "Empty box"),
+ * se quita siempre con {@link #quitarSinProducto}: mostrarla, aunque sea lo único, confundiría a la persona.</p>
  */
 final class FiltroComplementos {
 
@@ -26,7 +29,17 @@ final class FiltroComplementos {
     private static final Set<String> AL_COMIENZO = Set.of(
             "juego", "juegos", "videojuego", "videojuegos", "pack", "set", "funda", "forro", "estuche", "carcasa",
             "protector", "mica", "cable", "cargador", "repuesto", "repuestos", "soporte", "adaptador", "control",
-            "membresia", "suscripcion", "tarjeta", "gift", "giftcard", "sticker", "calcomania", "vinilo", "skin");
+            "membresia", "suscripcion", "tarjeta", "gift", "giftcard", "sticker", "calcomania", "vinilo", "skin",
+            "case", "cover", "vidrio", "lamina", "pelicula", "correa", "manilla");
+
+    /** Al comienzo del título y con el nombre del producto buscado: es solo la caja ("Caja iPhone 17 Pro"). */
+    private static final Set<String> EMPAQUE = Set.of("caja", "cajas", "empaque", "empaques", "box");
+
+    /** En cualquier parte del título: la publicación no trae el producto. */
+    private static final List<String> SIN_PRODUCTO = List.of(
+            "caja vacia", "cajas vacias", "solo caja", "solo la caja", "solo empaque", "solo el empaque",
+            "sin equipo", "sin telefono", "sin celular", "sin consola", "no incluye equipo", "no incluye telefono",
+            "empty box", "box only", "only box", "only the box", "solo para exhibicion", "dummy", "replica de exhibicion");
 
     /** En cualquier parte del título: solo existen en contenido digital para juegos. */
     private static final Set<String> EN_CUALQUIER_PARTE = Set.of("dlc", "expansion", "addon", "skins", "season");
@@ -54,6 +67,39 @@ final class FiltroComplementos {
             }
         }
         return principales.size() >= MINIMO_PRINCIPALES ? principales : ofertas;
+    }
+
+    /**
+     * Quita lo que no trae el producto buscado, como cajas vacías. Se aplica siempre, aunque quede la lista vacía.
+     *
+     * @param termino lo que buscó la persona
+     * @param ofertas resultados de las tiendas
+     * @return los mismos resultados, sin cajas ni empaques
+     */
+    static List<OfertaNormalizada> quitarSinProducto(String termino, List<OfertaNormalizada> ofertas) {
+        String buscado = ServicioSugerencias.normalizar(termino);
+        if (buscado.isEmpty()) {
+            return ofertas;
+        }
+        Set<String> palabrasBuscadas = Set.of(buscado.split(" "));
+        return ofertas.stream().filter(oferta -> !esSinProducto(oferta, buscado, palabrasBuscadas)).toList();
+    }
+
+    static boolean esSinProducto(OfertaNormalizada oferta, String buscado, Set<String> palabrasBuscadas) {
+        String titulo = ServicioSugerencias.normalizar(oferta.getTitulo());
+        String conEspacios = " " + titulo + " ";
+        boolean pideEmpaque = palabrasBuscadas.stream().anyMatch(EMPAQUE::contains);
+        if (!pideEmpaque && SIN_PRODUCTO.stream().anyMatch(frase -> conEspacios.contains(" " + frase + " "))) {
+            return true;
+        }
+        String[] palabras = titulo.split(" ");
+        String principal = buscado.split(" ")[0];
+        for (int i = 0; i < Math.min(2, palabras.length); i++) {
+            if (EMPAQUE.contains(palabras[i]) && !pideEmpaque && conEspacios.contains(" " + principal + " ")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static boolean esComplemento(OfertaNormalizada oferta, String buscado, Set<String> palabrasBuscadas) {

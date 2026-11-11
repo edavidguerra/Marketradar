@@ -45,6 +45,8 @@ public class ControladorBusqueda {
      * @param pagina número de página desde 1
      * @param tamano resultados por página, máximo 20
      * @param exacto {@code true} para buscar el texto tal como se escribió, sin corregir errores
+     * @param precioMinimo precio total mínimo en pesos ("500.000" o "500000"), opcional
+     * @param precioMaximo precio total máximo en pesos, opcional
      * @param usuario persona con sesión, para guardar la búsqueda en su historial
      * @return resultados ordenados, advertencias y, si se corrigió, lo que la persona escribió
      */
@@ -55,8 +57,11 @@ public class ControladorBusqueda {
                                        @RequestParam(defaultValue = "1") int pagina,
                                        @RequestParam(defaultValue = "10") int tamano,
                                        @RequestParam(defaultValue = "false") boolean exacto,
+                                       @RequestParam(name = "precio_minimo", required = false) String precioMinimo,
+                                       @RequestParam(name = "precio_maximo", required = false) String precioMaximo,
                                        @AuthenticationPrincipal UsuarioAutenticado usuario) {
-        ConsultaBusqueda consulta = ConsultaBusqueda.crear(q, orden, separarCodigos(marketplaces), pagina, tamano);
+        ConsultaBusqueda consulta = ConsultaBusqueda.crear(q, orden, separarCodigos(marketplaces), pagina, tamano)
+                .conRangoDePrecio(ConsultaBusqueda.leerPrecio(precioMinimo), ConsultaBusqueda.leerPrecio(precioMaximo));
         Long usuarioId = usuario == null ? null : usuario.getId();
         ServicioBusquedaFlexible.Resultado resultado = servicioBusqueda.buscar(consulta, usuarioId, exacto);
         // Así el botón "Ver reseñas" de cada producto puede pedirlas después a la tienda.

@@ -18,6 +18,7 @@ public final class ResultadoBusqueda {
     private final BigDecimal mejorPrecio;
     private final ProductoMvp productoMvp;
     private final String resumenIa;
+    private final int totalSinFiltro;
 
     /**
      * Crea el resultado de una búsqueda.
@@ -48,7 +49,18 @@ public final class ResultadoBusqueda {
     public ResultadoBusqueda(List<OfertaNormalizada> ofertas, List<String> advertencias, int totalResultados,
                              Map<String, Long> idsPersistidos, BigDecimal mejorPrecio, ProductoMvp productoMvp,
                              String resumenIa) {
+        this(ofertas, advertencias, totalResultados, idsPersistidos, mejorPrecio, productoMvp, resumenIa,
+                totalResultados);
+    }
+
+    /**
+     * @param totalSinFiltro cuántas ofertas había antes de aplicar el rango de precio de la persona
+     */
+    public ResultadoBusqueda(List<OfertaNormalizada> ofertas, List<String> advertencias, int totalResultados,
+                             Map<String, Long> idsPersistidos, BigDecimal mejorPrecio, ProductoMvp productoMvp,
+                             String resumenIa, int totalSinFiltro) {
         this.resumenIa = resumenIa;
+        this.totalSinFiltro = totalSinFiltro;
         this.ofertas = new ArrayList<>(ofertas);
         this.advertencias = new ArrayList<>(advertencias);
         this.totalResultados = totalResultados;
@@ -101,5 +113,10 @@ public final class ResultadoBusqueda {
 
     public int getTotalResultados() {
         return totalResultados;
+    }
+
+    /** @return cuántas ofertas había sin el rango de precio; igual a {@link #getTotalResultados()} si no hay rango */
+    public int getTotalSinFiltro() {
+        return totalSinFiltro;
     }
 }

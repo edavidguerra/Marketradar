@@ -69,11 +69,14 @@ public class ServicioIABusqueda {
             Colombia, una por línea: número | título | tienda | precio total en pesos colombianos | envío | desde \
             dónde vende la tienda.
             1. "exactos": los números de los productos que SÍ son lo que la persona busca: el mismo tipo de producto \
-            y, si escribió marca, modelo, número o tamaño, que coincidan. NO son exactos: forros, fundas, vidrios, \
-            cargadores, controles, repuestos, juegos, accesorios, paquetes digitales, otro modelo (un iPhone 13 cuando \
-            pidió iPhone 15, una PlayStation 4 o una PlayStation mini cuando pidió PlayStation 5) ni otro producto.
-            2. "parecidos": el mismo tipo de producto en una versión cercana (iPhone 15 Pro cuando pidió iPhone 15, una \
-            licuadora de otra marca cuando pidió Oster). Nunca accesorios.
+            y, si escribió marca, modelo, número o tamaño, que coincidan. Si es el mismo modelo, es exacto aunque \
+            cambie el color, la capacidad (128 GB, 512 GB) o diga "nuevo". NO son exactos: cajas o empaques sin el \
+            producto, forros, fundas, vidrios, cargadores, controles, repuestos, juegos, accesorios, paquetes \
+            digitales, otro modelo (un iPhone 13 cuando pidió iPhone 15, una PlayStation 4 o una PlayStation mini \
+            cuando pidió PlayStation 5) ni otro producto.
+            2. "parecidos": el mismo tipo de producto en una versión cercana (iPhone 15 Pro cuando pidió iPhone 15, \
+            iPhone 17 Pro Max cuando pidió iPhone 17 Pro, una licuadora de otra marca cuando pidió Oster). Nunca \
+            accesorios ni cajas.
             3. "resumen": como el resumen con IA de Google. De 2 a 4 frases cortas, en español sencillo, tratando a la \
             persona de usted: qué encontró, entre qué precios totales están los exactos, cuál es el más barato, en \
             qué tienda y desde dónde vende. Hable siempre del precio total: si el envío está "sin confirmar", diga \
