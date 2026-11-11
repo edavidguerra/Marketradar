@@ -105,8 +105,19 @@ function mostrarMvp(mvp) {
     const relleno = crear('span');
     relleno.style.setProperty('--puntaje', `${Math.max(0, Math.min(100, Number(mvp.puntaje)))}%`);
     barra.append(relleno);
+    // La foto del producto recomendado, igual que en las tarjetas; si no hay, un ícono.
+    const imagen = crear('div', 'tarjeta-imagen mvp-imagen');
+    if (oferta.url_imagen) {
+        const foto = document.createElement('img');
+        foto.src = oferta.url_imagen;
+        foto.alt = oferta.titulo;
+        imagen.append(foto);
+    } else {
+        imagen.append(crearIcono('etiqueta'));
+    }
     contenedor.replaceChildren(
         sello,
+        imagen,
         crear('h2', null, oferta.titulo),
         crear('p', 'precio', `${pesos(oferta.precio_total)} en ${tienda}`),
         crearCalificacion(oferta),
@@ -142,6 +153,12 @@ function mostrarCorreccion(respuesta) {
     parrafo.hidden = false;
 }
 
+/** Resumen escrito con IA, como el de Google, arriba de la recomendación. */
+function mostrarResumen(texto) {
+    $('texto-resumen-ia').textContent = texto || '';
+    $('resumen-ia').hidden = !texto;
+}
+
 function mostrarAdvertencias(advertencias) {
     const lista = $('advertencias');
     lista.replaceChildren(...advertencias.map((texto) => crear('li', null, texto)));
@@ -161,6 +178,7 @@ async function cargarPagina() {
         const respuesta = await buscar(estado.termino, estado.pagina, TAMANO_PAGINA, estado.exacto);
         mostrarAdvertencias(respuesta.advertencias || []);
         if (estado.pagina === 1) {
+            mostrarResumen(respuesta.resumen_ia);
             mostrarMvp(respuesta.producto_mvp);
             mostrarCorreccion(respuesta);
             if (respuesta.termino_original) {
@@ -191,6 +209,7 @@ export function buscarTermino(termino, { exacto = false } = {}) {
     estado.pagina = 1;
     estado.exacto = exacto;
     $('lista-resultados').replaceChildren();
+    mostrarResumen(null);
     mostrarMvp(null);
     mostrarCorreccion(null);
     irA('buscar');

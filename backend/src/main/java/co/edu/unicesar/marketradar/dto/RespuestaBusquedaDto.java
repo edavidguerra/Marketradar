@@ -18,10 +18,11 @@ import java.util.List;
  * @param productoMvp mejor opción de compra entre todas las ofertas; {@code null} si no hay ofertas
  * @param terminoOriginal lo que escribió la persona, si se buscó otra cosa; {@code null} si se buscó tal cual
  * @param busquedaAmpliada {@code true} si no hubo resultados exactos y se buscó solo la palabra principal
+ * @param resumenIa resumen de los resultados escrito con IA (Gemini), o {@code null}
  */
 public record RespuestaBusquedaDto(String termino, int pagina, int tamano, int totalResultados,
                                    List<OfertaDto> ofertas, List<String> advertencias, ProductoMvpDto productoMvp,
-                                   String terminoOriginal, boolean busquedaAmpliada) {
+                                   String terminoOriginal, boolean busquedaAmpliada, String resumenIa) {
 
     /**
      * Construye la respuesta a partir del resultado del servicio.
@@ -52,6 +53,6 @@ public record RespuestaBusquedaDto(String termino, int pagina, int tamano, int t
         return new RespuestaBusquedaDto(consulta.getTermino(), consulta.getPagina(), consulta.getTamano(),
                 resultado.getTotalResultados(), ofertas, resultado.getAdvertencias(),
                 resultado.getProductoMvp().map(mvp -> ProductoMvpDto.desde(mvp, resultado)).orElse(null),
-                terminoOriginal, ampliada);
+                terminoOriginal, ampliada, resultado.getResumenIa().orElse(null));
     }
 }

@@ -106,6 +106,31 @@ class ServicioBusquedaFlexibleTest {
         verify(busqueda, never()).consultar(argThat(c -> c != null && c.getTermino().equals("licuadora")));
     }
 
+    @Test
+    void conIALaBusquedaLaProponeGemini() {
+        ServicioIABusqueda ia = mock(ServicioIABusqueda.class);
+        when(ia.interpretar("quiero un ps5 pa mi nieto")).thenReturn(java.util.Optional.of("playstation 5"));
+        conResultados("playstation 5", 3);
+
+        ServicioBusquedaFlexible.Resultado resultado = new ServicioBusquedaFlexible(busqueda, sugerencias, ia)
+                .buscar(consulta("quiero un ps5 pa mi nieto"), 7L, false);
+
+        assertEquals("playstation 5", resultado.consulta().getTermino());
+        assertEquals("quiero un ps5 pa mi nieto", resultado.terminoOriginal());
+    }
+
+    @Test
+    void siLaIANoRespondeCorrigeConElDiccionario() {
+        ServicioIABusqueda ia = mock(ServicioIABusqueda.class);
+        when(ia.interpretar(any())).thenReturn(java.util.Optional.empty());
+        conResultados("licuadora", 3);
+
+        ServicioBusquedaFlexible.Resultado resultado = new ServicioBusquedaFlexible(busqueda, sugerencias, ia)
+                .buscar(consulta("licuadorra"), 7L, false);
+
+        assertEquals("licuadora", resultado.consulta().getTermino());
+    }
+
     private void conResultados(String termino, int total) {
         List<OfertaNormalizada> ofertas = java.util.stream.IntStream.range(0, total)
                 .mapToObj(i -> OfertaNormalizada.builder().codigoMarketplace("googleshopping").idExterno("p" + i)

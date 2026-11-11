@@ -10,6 +10,7 @@
 | Decisiones del equipo y lo que falta decidir | [decisiones.md](decisiones.md) |
 | Reparto de tareas | [tareas.md](tareas.md) |
 | Tiendas: Google Shopping, Mercado Libre, AliExpress y Shopify | [integraciones/](integraciones/) |
+| Búsqueda con IA (Gemini) | [integraciones/gemini.md](integraciones/gemini.md) |
 | Accesibilidad: auditoría con axe y Lighthouse | [accesibilidad/auditoria.md](accesibilidad/auditoria.md) |
 | Prueba de usabilidad con personas mayores | [usabilidad/](usabilidad/) |
 | Fase 1: problema y validación de APIs | [fase1/](fase1/) |
