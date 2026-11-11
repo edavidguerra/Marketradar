@@ -72,8 +72,7 @@ bancarios.
 1. Entrar a <https://serpapi.com/users/sign_up> y crear la cuenta (con correo o Google). Confirmar el correo.
 2. Abrir <https://serpapi.com/manage-api-key> y copiar la **Private API Key**.
 3. En Render, servicio **marketradar** > **Environment**:
-   - `SERPAPI_API_KEY` = la clave.
-   - `SERPAPI_HABILITADO` = `true`.
+   - `SERPAPI_API_KEY` = la clave. `SERPAPI_HABILITADO` ya viene en `true` desde `render.yaml`.
 4. **Save Changes** y esperar unos 5 minutos.
 
 La clave va solo en Render o en el `.env`, nunca en el código ni en GitHub. El consumo se ve en
@@ -83,6 +82,6 @@ La clave va solo en Render o en el `.env`, nunca en el código ni en GitHub. El 
 
 | Variable | Valor |
 |---|---|
-| `SERPAPI_HABILITADO` | `true` para usarla |
+| `SERPAPI_HABILITADO` | `true` para usarla (en Render ya viene así; sin clave no se usa) |
 | `SERPAPI_API_KEY` | Clave privada de SerpApi |
 | `BUSQUEDA_TIMEOUT_SEGUNDOS` | Espera máxima por tienda; 8 por defecto porque SerpApi puede tardar |

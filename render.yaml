@@ -64,8 +64,10 @@ services:
         value: "false"
       - key: MERCADOLIBRE_HABILITADO
         value: "false"
+      # Va en true: Google Shopping solo se usa si además está SERPAPI_API_KEY. Si estuviera en false,
+      # Render lo volvería a apagar cada vez que cambia este archivo, aunque se haya cambiado en el panel.
       - key: SERPAPI_HABILITADO
-        value: "false"
+        value: "true"
       - key: SERPAPI_API_KEY
         sync: false
       - key: GEMINI_API_KEY
