@@ -16,9 +16,11 @@ import java.time.LocalDate;
  * @param fechaNacimiento fecha de nacimiento (AAAA-MM-DD)
  * @param celular celular de 10 dígitos
  * @param ciudad ciudad de residencia
+ * @param idioma idioma en que lee las reseñas ({@code es}, {@code en}, {@code pt}, {@code fr}, {@code it} o {@code de})
  */
 public record PerfilDto(String nombres, String apellidos, String correo, String tipoDocumento,
-                        String numeroDocumento, LocalDate fechaNacimiento, String celular, String ciudad) {
+                        String numeroDocumento, LocalDate fechaNacimiento, String celular, String ciudad,
+                        String idioma) {
 
     /**
      * @param usuario cuenta
@@ -27,7 +29,8 @@ public record PerfilDto(String nombres, String apellidos, String correo, String 
     public static PerfilDto desde(Usuario usuario) {
         return new PerfilDto(usuario.getNombres(), usuario.getApellidos(), usuario.getCorreo(),
                 usuario.getTipoDocumento() == null ? null : usuario.getTipoDocumento().name(),
-                usuario.getNumeroDocumento(), usuario.getFechaNacimiento(), usuario.getCelular(), usuario.getCiudad());
+                usuario.getNumeroDocumento(), usuario.getFechaNacimiento(), usuario.getCelular(), usuario.getCiudad(),
+                usuario.getIdioma().codigo());
     }
 
     /**
@@ -35,6 +38,6 @@ public record PerfilDto(String nombres, String apellidos, String correo, String 
      */
     public ServicioPerfil.DatosPerfil aDatos() {
         return new ServicioPerfil.DatosPerfil(nombres, apellidos, tipoDocumento, numeroDocumento, fechaNacimiento,
-                celular, ciudad);
+                celular, ciudad, idioma);
     }
 }

@@ -169,6 +169,19 @@
                        aria-describedby="error-perfil-ciudad">
                 <p id="error-perfil-ciudad" class="error" hidden></p>
             </div>
+            <div class="campo">
+                <label for="perfil-idioma">Idioma en que lee</label>
+                <select id="perfil-idioma" aria-describedby="ayuda-perfil-idioma">
+                    <option value="es">Español</option>
+                    <option value="en">Inglés (English)</option>
+                    <option value="pt">Portugués (Português)</option>
+                    <option value="fr">Francés (Français)</option>
+                    <option value="it">Italiano</option>
+                    <option value="de">Alemán (Deutsch)</option>
+                </select>
+                <p id="ayuda-perfil-idioma" class="ayuda">Las opiniones de compradores escritas en otro idioma se
+                    pueden traducir a este.</p>
+            </div>
             <p id="resultado-perfil" class="aviso-formulario" role="status" hidden></p>
             <button type="submit" class="boton boton-principal">Guardar mis datos</button>
         </form>
@@ -257,7 +270,10 @@
                     envío, con las razones. Pulse "Comprar este producto" y se abrirá la página exacta del producto
                     en la tienda. Más abajo están todas las ofertas, de la más barata a la más cara.</p>
                 <p>Los precios están en pesos colombianos. Si una tienda cobra en dólares, lo convertimos con la TRM
-                    del día.</p>
+                    del día. Cada oferta dice cuánto cuesta el envío y desde dónde vende la tienda: si es del
+                    exterior, puede tardar más en llegar y cobrar impuestos.</p>
+                <p>En "Ver reseñas", las opiniones escritas en otro idioma tienen un botón "Traducir". El idioma se
+                    elige en Mi perfil.</p>
                 <a class="boton boton-secundario" href="#buscar">Ir a Buscar</a>
             </li>
             <li>

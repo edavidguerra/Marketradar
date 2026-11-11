@@ -3,7 +3,7 @@
  * enlace directo, y las reseñas de compradores de cada producto.
  */
 
-import { buscar, obtenerResenas } from '../comun/api.js';
+import { buscar, obtenerResenas, traducirResena } from '../comun/api.js';
 import { crear, crearIcono, boton, enlaceTienda, mostrarEstado } from '../comun/dom.js';
 import { decimal, estrellas, haceCuanto, pesos, tiendaDeOferta } from '../comun/formato.js';
 import { irA } from './navegacion.js';
@@ -37,6 +37,33 @@ function crearDato(icono, texto) {
     return dato;
 }
 
+/** "Envío gratis", "Incluye envío de $ 12.900" o, si la tienda no lo informa, que se confirma allá. */
+function textoEnvio(oferta) {
+    if (oferta.costo_envio == null) return 'Envío: se confirma en la tienda';
+    return Number(oferta.costo_envio) === 0 ? 'Envío gratis' : `Incluye envío de ${pesos(oferta.costo_envio)}`;
+}
+
+/** Desde dónde vende la tienda; si es del exterior, avisa que puede tardar y cobrar impuestos. */
+function crearUbicacion(oferta) {
+    if (!oferta.ubicacion) {
+        return crearDato('ubicacion', 'Vende desde: revíselo en la tienda');
+    }
+    const dato = crearDato('ubicacion', `Vende desde: ${oferta.ubicacion}${oferta.desde_exterior ? '.' : ''}`);
+    if (oferta.desde_exterior) {
+        dato.classList.add('dato-exterior');
+        dato.append(crear('span', 'nota-exterior',
+            ' Puede tardar más en llegar y cobrar impuestos de importación.'));
+    }
+    return dato;
+}
+
+/** El precio total, o el precio y un aviso si el envío no se sabe todavía. */
+function crearPrecio(oferta, sufijo = '') {
+    const precio = crear('p', 'precio', `${pesos(oferta.precio_total)}${sufijo}`);
+    precio.append(crear('span', 'precio-nota', oferta.costo_envio == null ? ' más envío' : ' en total'));
+    return precio;
+}
+
 function crearTarjeta(oferta) {
     const tienda = tiendaDeOferta(oferta);
     const tarjeta = crear('li', oferta.mejor_precio ? 'tarjeta mejor' : 'tarjeta');
@@ -52,13 +79,12 @@ function crearTarjeta(oferta) {
     }
     const cuerpo = crear('div', 'tarjeta-cuerpo');
     if (oferta.mejor_precio) cuerpo.append(crear('p', 'etiqueta-mejor', '★ Precio más bajo'));
-    const precio = crear('p', 'precio', pesos(oferta.precio_total));
-    precio.append(crear('span', 'precio-nota', ' en total'));
+    const precio = crearPrecio(oferta);
     const datos = crear('ul', 'datos');
     datos.append(
         crearDato('tienda', `Tienda: ${tienda}`),
-        crearDato('camion', oferta.costo_envio == null ? 'Envío: consultar en la tienda'
-            : Number(oferta.costo_envio) === 0 ? 'Envío gratis' : `Incluye envío de ${pesos(oferta.costo_envio)}`),
+        crearDato('camion', textoEnvio(oferta)),
+        crearUbicacion(oferta),
     );
     cuerpo.append(
         crear('h2', null, oferta.titulo),
@@ -115,12 +141,15 @@ function mostrarMvp(mvp) {
     } else {
         imagen.append(crearIcono('etiqueta'));
     }
+    const datosMvp = crear('ul', 'datos');
+    datosMvp.append(crearDato('camion', textoEnvio(oferta)), crearUbicacion(oferta));
     contenedor.replaceChildren(
         sello,
         imagen,
         crear('h2', null, oferta.titulo),
-        crear('p', 'precio', `${pesos(oferta.precio_total)} en ${tienda}`),
+        crearPrecio(oferta, ` en ${tienda}`),
         crearCalificacion(oferta),
+        datosMvp,
         crear('p', 'razones-titulo', '¿Por qué se la recomendamos?'),
         razones,
         crear('p', 'ayuda', `Puntaje de compra: ${mvp.puntaje} de 100, según precio, opiniones y envío.`),
@@ -241,7 +270,51 @@ function crearDistribucion(distribucion) {
     return lista;
 }
 
-function crearResena(resena) {
+/**
+ * Botón "Traducir al español" de una reseña en otro idioma. La primera vez pide la traducción; después alterna
+ * entre la traducción y el texto original sin volver a pedirla. El cambio se anuncia a los lectores de pantalla.
+ */
+function crearTraduccion(oferta, resena, idioma, titulo, texto, aviso) {
+    const original = { titulo: resena.titulo, texto: resena.texto };
+    let traduccion = null;
+    let mostrandoTraduccion = false;
+    const elemento = boton(`Traducir al ${idioma}`, 'boton-secundario boton-traducir', async () => {
+        if (mostrandoTraduccion) {
+            mostrar(original, '');
+            mostrandoTraduccion = false;
+            elemento.textContent = `Traducir al ${idioma}`;
+            elemento.prepend(crearIcono('idioma'));
+            return;
+        }
+        elemento.disabled = true;
+        elemento.textContent = 'Traduciendo…';
+        try {
+            traduccion ??= await traducirResena(oferta.id, resena.indice);
+            const desde = traduccion.nombre_idioma_original ? ` del ${traduccion.nombre_idioma_original}` : '';
+            mostrar(traduccion, `Traducido automáticamente${desde} con inteligencia artificial.`);
+            mostrandoTraduccion = true;
+            elemento.textContent = 'Ver el texto original';
+        } catch (error) {
+            aviso.textContent = error.message;
+            aviso.hidden = false;
+            elemento.textContent = `Traducir al ${idioma}`;
+        } finally {
+            elemento.disabled = false;
+            elemento.prepend(crearIcono('idioma'));
+        }
+    });
+    elemento.prepend(crearIcono('idioma'));
+
+    function mostrar(contenido, nota) {
+        if (titulo) titulo.textContent = contenido.titulo || original.titulo || '';
+        texto.textContent = contenido.texto;
+        aviso.textContent = nota;
+        aviso.hidden = !nota;
+    }
+    return elemento;
+}
+
+function crearResena(resena, oferta, idioma) {
     const elemento = crear('li', 'resena');
     if (resena.calificacion != null) {
         const nota = crear('p', 'calificacion');
@@ -250,10 +323,19 @@ function crearResena(resena) {
         nota.append(figura, ` ${decimal(resena.calificacion)} de 5`);
         elemento.append(nota);
     }
-    if (resena.titulo) elemento.append(crear('h4', null, resena.titulo));
-    if (resena.texto) elemento.append(crear('p', 'resena-texto', resena.texto));
+    const titulo = resena.titulo ? crear('h4', null, resena.titulo) : null;
+    const texto = resena.texto ? crear('p', 'resena-texto', resena.texto) : null;
+    if (titulo) elemento.append(titulo);
+    if (texto) elemento.append(texto);
     const firma = [resena.autor, resena.fuente && `en ${resena.fuente}`, resena.fecha].filter(Boolean).join(' · ');
     if (firma) elemento.append(crear('p', 'ayuda', firma));
+    if (resena.traducible && texto) {
+        // Si está en otro idioma que el de la cuenta, se ofrece traducirla. El aviso dice que es una traducción.
+        const aviso = crear('p', 'nota-traduccion');
+        aviso.setAttribute('role', 'status');
+        aviso.hidden = true;
+        elemento.append(crearTraduccion(oferta, resena, idioma, titulo, texto, aviso), aviso);
+    }
     return elemento;
 }
 
@@ -266,7 +348,7 @@ async function verResenas(oferta) {
         const resenas = await obtenerResenas(oferta.id);
         const partes = [
             crear('h2', null, oferta.titulo),
-            crear('p', 'precio', `${pesos(oferta.precio_total)} en ${tienda}`),
+            crearPrecio(oferta, ` en ${tienda}`),
         ];
         if (!resenas.disponibles) {
             partes.push(crear('p', null, 'Este producto todavía no tiene reseñas de compradores.'));
@@ -282,7 +364,8 @@ async function verResenas(oferta) {
             if (resenas.distribucion.length > 0) partes.push(crearDistribucion(resenas.distribucion));
             if (resenas.resenas.length > 0) {
                 const lista = crear('ul', 'resenas');
-                resenas.resenas.forEach((resena) => lista.append(crearResena(resena)));
+                const idioma = resenas.nombre_idioma_usuario || 'español';
+                resenas.resenas.forEach((resena) => lista.append(crearResena(resena, oferta, idioma)));
                 partes.push(crear('h3', 'resenas-titulo', 'Lo que dicen los compradores'), lista);
             } else {
                 partes.push(crear('p', 'ayuda', 'Los compradores calificaron este producto, pero no dejaron comentarios escritos.'));

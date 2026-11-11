@@ -5,6 +5,7 @@ import co.edu.unicesar.marketradar.dao.jdbc.PqrDaoJdbc;
 import co.edu.unicesar.marketradar.dao.jdbc.UsuarioDaoJdbc;
 import co.edu.unicesar.marketradar.domain.Busqueda;
 import co.edu.unicesar.marketradar.domain.EstadoPqr;
+import co.edu.unicesar.marketradar.domain.Idioma;
 import co.edu.unicesar.marketradar.domain.Pqr;
 import co.edu.unicesar.marketradar.domain.Rol;
 import co.edu.unicesar.marketradar.domain.TipoDocumento;
@@ -53,18 +54,21 @@ class UsuarioPqrDaoJdbcTest {
     @Test
     void guardaYActualizaElPerfil() {
         Usuario usuario = usuarioDao.insertar(new Usuario("rosa@correo.com", "hash", Rol.USUARIO, "Rosa", "Díaz"));
+        assertEquals(Idioma.ES, usuarioDao.buscarPorId(usuario.getId()).orElseThrow().getIdioma());
 
         usuario.setTipoDocumento(TipoDocumento.CC);
         usuario.setNumeroDocumento("49712345");
         usuario.setFechaNacimiento(LocalDate.of(1958, 4, 2));
         usuario.setCelular("3001234567");
         usuario.setCiudad("Valledupar");
+        usuario.setIdioma(Idioma.PT);
         assertTrue(usuarioDao.actualizar(usuario));
 
         Usuario leido = usuarioDao.buscarPorCorreo("rosa@correo.com").orElseThrow();
         assertEquals("Rosa Díaz", leido.nombreCompleto());
         assertEquals(TipoDocumento.CC, leido.getTipoDocumento());
         assertEquals(LocalDate.of(1958, 4, 2), leido.getFechaNacimiento());
+        assertEquals(Idioma.PT, leido.getIdioma());
         assertTrue(usuarioDao.existeDocumento(TipoDocumento.CC, "49712345", null));
         assertFalse(usuarioDao.existeDocumento(TipoDocumento.CC, "49712345", usuario.getId()));
     }

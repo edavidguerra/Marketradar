@@ -2,6 +2,7 @@ package co.edu.unicesar.marketradar.service;
 
 import co.edu.unicesar.marketradar.dao.UsuarioDao;
 import co.edu.unicesar.marketradar.domain.Rol;
+import co.edu.unicesar.marketradar.domain.Idioma;
 import co.edu.unicesar.marketradar.domain.TipoDocumento;
 import co.edu.unicesar.marketradar.domain.Usuario;
 import co.edu.unicesar.marketradar.exception.ValidacionException;
@@ -40,12 +41,13 @@ class ServicioPerfilTest {
     @Test
     void guardaElFormularioCompleto() {
         Usuario actualizado = servicio.actualizar(5L, new ServicioPerfil.DatosPerfil("Rosa Elena", "Díaz Mejía",
-                "cc", "49.712.345", LocalDate.of(1958, 4, 2), "300 123 4567", "Valledupar"));
+                "cc", "49.712.345", LocalDate.of(1958, 4, 2), "300 123 4567", "Valledupar", "en"));
 
         assertEquals("Rosa Elena", actualizado.getNombres());
         assertEquals(TipoDocumento.CC, actualizado.getTipoDocumento());
         assertEquals("49712345", actualizado.getNumeroDocumento());
         assertEquals("3001234567", actualizado.getCelular());
+        assertEquals(Idioma.EN, actualizado.getIdioma());
         verify(usuarioDao).actualizar(actualizado);
     }
 
@@ -53,13 +55,26 @@ class ServicioPerfilTest {
     void rechazaDocumentoDeOtraCuenta() {
         when(usuarioDao.existeDocumento(TipoDocumento.CC, "49712345", 5L)).thenReturn(true);
         assertThrows(ValidacionException.class, () -> servicio.actualizar(5L, new ServicioPerfil.DatosPerfil(
-                "Rosa", "Díaz", "CC", "49712345", null, null, null)));
+                "Rosa", "Díaz", "CC", "49712345", null, null, null, null)));
         verify(usuarioDao, never()).actualizar(any());
     }
 
     @Test
     void rechazaMenoresDeEdad() {
         assertThrows(ValidacionException.class, () -> servicio.actualizar(5L, new ServicioPerfil.DatosPerfil(
-                "Rosa", "Díaz", null, null, LocalDate.of(2012, 1, 1), null, null)));
+                "Rosa", "Díaz", null, null, LocalDate.of(2012, 1, 1), null, null, null)));
+    }
+
+    @Test
+    void siNoVieneElIdiomaSeDejaElQueTenia() {
+        Usuario actualizado = servicio.actualizar(5L, new ServicioPerfil.DatosPerfil("Rosa", "Díaz", null, null,
+                null, null, null, null));
+        assertEquals(Idioma.ES, actualizado.getIdioma());
+    }
+
+    @Test
+    void rechazaUnIdiomaQueNoEstaEnLaLista() {
+        assertThrows(ValidacionException.class, () -> servicio.actualizar(5L, new ServicioPerfil.DatosPerfil(
+                "Rosa", "Díaz", null, null, null, null, null, "klingon")));
     }
 }

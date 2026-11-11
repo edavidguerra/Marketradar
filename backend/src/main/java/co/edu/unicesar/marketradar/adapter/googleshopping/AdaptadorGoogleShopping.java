@@ -30,6 +30,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Precios reales de tiendas colombianas a través de Google Shopping, con la API de SerpApi
@@ -200,7 +202,7 @@ public class AdaptadorGoogleShopping extends AdaptadorMarketplaceBase {
                 .titulo(recortar(resultado.titulo(), 400))
                 .precio(resultado.precio().setScale(2, RoundingMode.HALF_UP))
                 .moneda(moneda(resultado.precioTexto()))
-                .costoEnvio(costoEnvio(resultado.envio()))
+                .costoEnvio(costoEnvio(resultado.envio(), moneda(resultado.precioTexto())))
                 .vendedor(tieneValor(resultado.tienda()) ? recortar(resultado.tienda(), 150) : null)
                 .urlDestino(enlace)
                 .urlImagen(imagenSegura(resultado.imagen()))
@@ -289,13 +291,71 @@ public class AdaptadorGoogleShopping extends AdaptadorMarketplaceBase {
         return "COP";
     }
 
-    /** "Envío gratis" o "Free delivery" es 0; si no lo dice, no se sabe y queda sin valor. */
+    /** Un valor con su moneda: "$ 12.900", "COP 12.900", "US$ 9,99", "USD 9.99". */
+    private static final Pattern MONTO = Pattern.compile("(US\\$|USD|COP|\\$)\\s?(\\d[\\d.,]*)",
+            Pattern.CASE_INSENSITIVE);
+
+    /** "Envío gratis en compras de más de $ 100.000" o "Free delivery on $45+" no es envío gratis siempre. */
+    private static final Pattern GRATIS_CON_CONDICION = Pattern.compile(
+            "compras|superior|desde|m[aá]s de|mayor|m[ií]nim|\\bon\\b|\\bover\\b|\\+");
+
     static BigDecimal costoEnvio(String envio) {
-        if (envio == null) {
+        return costoEnvio(envio, "COP");
+    }
+
+    /**
+     * Costo del envío a partir del texto de Google ({@code delivery}). "Envío gratis" o "Free delivery" es 0;
+     * "Envío: $ 12.900" o "Get it today ($17)" es ese valor, en la moneda del precio. Si el envío gratis tiene
+     * condiciones, o el texto no trae un valor claro, no se sabe y queda sin valor: la página dice que se confirma
+     * en la tienda.
+     *
+     * @param envio texto de la entrega, o {@code null}
+     * @param monedaPrecio moneda del precio del producto
+     * @return costo del envío, 0 si es gratis, o {@code null} si no se sabe
+     */
+    static BigDecimal costoEnvio(String envio, String monedaPrecio) {
+        if (envio == null || envio.isBlank()) {
             return null;
         }
         String texto = envio.toLowerCase(Locale.ROOT);
-        return texto.contains("gratis") || texto.contains("free") ? BigDecimal.ZERO : null;
+        boolean gratis = texto.contains("gratis") || texto.contains("free") || texto.contains("sin costo");
+        if (gratis) {
+            return GRATIS_CON_CONDICION.matcher(texto).find() ? null : BigDecimal.ZERO;
+        }
+        Matcher monto = MONTO.matcher(envio);
+        if (!monto.find()) {
+            return null;
+        }
+        String simbolo = monto.group(1).toUpperCase(Locale.ROOT);
+        String moneda = simbolo.equals("US$") || simbolo.equals("USD") ? "USD"
+                : simbolo.equals("COP") ? "COP" : monedaPrecio;
+        if (!moneda.equals(monedaPrecio)) {
+            return null;
+        }
+        BigDecimal valor = numero(monto.group(2));
+        return valor == null || valor.signum() <= 0 ? null : valor;
+    }
+
+    /**
+     * Lee "12.900", "12,900", "1.299,50" o "1,299.50". Si después del último punto o coma hay una o dos cifras,
+     * son centavos; si hay tres, son miles.
+     */
+    static BigDecimal numero(String texto) {
+        String limpio = texto.replaceAll("[.,]+$", "");
+        int ultimo = Math.max(limpio.lastIndexOf('.'), limpio.lastIndexOf(','));
+        String entero;
+        String decimales = "";
+        if (ultimo >= 0 && limpio.length() - ultimo - 1 <= 2) {
+            entero = limpio.substring(0, ultimo);
+            decimales = limpio.substring(ultimo + 1);
+        } else {
+            entero = limpio;
+        }
+        entero = entero.replaceAll("[.,]", "");
+        if (entero.isEmpty() || entero.length() > 12) {
+            return null;
+        }
+        return new BigDecimal(decimales.isEmpty() ? entero : entero + "." + decimales);
     }
 
     private static BigDecimal calificacion(BigDecimal valor) {

@@ -114,6 +114,7 @@ Persona registrada. Creada en V3.
 | `fecha_nacimiento` | DATE | Sí | | | Fecha de nacimiento; el backend exige mayoría de edad. |
 | `celular` | VARCHAR(10) | Sí | | | Celular colombiano de 10 dígitos. |
 | `ciudad` | VARCHAR(80) | Sí | | | Ciudad de residencia. |
+| `idioma` | VARCHAR(2) | No | | `ck_usuario_idioma`: `es`, `en`, `pt`, `fr`, `it` o `de`; por defecto `es` | Idioma en que la persona lee. Se ofrece traducir las reseñas escritas en otro idioma. Agregado en V11. |
 | `activo` | BOOLEAN | No | | `DEFAULT TRUE` | Si la cuenta puede ingresar. |
 | `creado_en` | TIMESTAMPTZ | No | | `DEFAULT now()` | Fecha de registro. |
 | `actualizado_en` | TIMESTAMPTZ | No | | `DEFAULT now()` | Última modificación del perfil. |

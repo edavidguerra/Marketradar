@@ -44,7 +44,7 @@ Comparador de precios accesible para adultos mayores. Proyecto de aula de **Prog
 
 | Entregable | Archivo |
 |---|---|
-| Migraciones V1 a V10 (11 tablas y 4 vistas) | [base-de-datos/migraciones/](../base-de-datos/migraciones/) |
+| Migraciones V1 a V11 (11 tablas y 4 vistas) | [base-de-datos/migraciones/](../base-de-datos/migraciones/) |
 | Modelo entidad relación | [base-de-datos/docs/mer/](../base-de-datos/docs/mer/) |
 | Diccionario de datos | [base-de-datos/docs/diccionario-datos.md](../base-de-datos/docs/diccionario-datos.md) |
 | Normalización | [base-de-datos/docs/normalizacion.md](../base-de-datos/docs/normalizacion.md) |
@@ -64,7 +64,7 @@ Comparador de precios accesible para adultos mayores. Proyecto de aula de **Prog
 
 | Qué | Resultado |
 |---|---|
-| Pruebas automáticas (`mvn -f backend/pom.xml verify`) | 185 pruebas; las 7 de DAO con Testcontainers corren en GitHub Actions |
+| Pruebas automáticas (`mvn -f backend/pom.xml verify`) | 209 pruebas; las 7 de DAO con Testcontainers corren en GitHub Actions |
 | Integración continua | Check `pruebas` obligatorio en cada PR hacia `develop` |
 | Accesibilidad con axe (WCAG 2.1 AA) | 0 fallas en 14 pantallas |
 | Lighthouse en la pantalla de ingreso | 100 en accesibilidad, buenas prácticas, rendimiento y SEO |

@@ -1,6 +1,7 @@
 package co.edu.unicesar.marketradar.service;
 
 import co.edu.unicesar.marketradar.dao.UsuarioDao;
+import co.edu.unicesar.marketradar.domain.Idioma;
 import co.edu.unicesar.marketradar.domain.Rol;
 import co.edu.unicesar.marketradar.domain.Usuario;
 import co.edu.unicesar.marketradar.exception.CredencialesInvalidasException;
@@ -51,7 +52,24 @@ public class ServicioCuentas {
      * @return cuenta creada
      */
     public Usuario registrar(String nombres, String apellidos, String correo, String clave, String confirmacionClave) {
-        return crear(Rol.USUARIO, nombres, apellidos, correo, clave, confirmacionClave);
+        return registrar(nombres, apellidos, correo, clave, confirmacionClave, null);
+    }
+
+    /**
+     * Crea una cuenta de usuario con el idioma en que quiere leer las reseñas.
+     *
+     * @param nombres nombres
+     * @param apellidos apellidos
+     * @param correo correo, que será su usuario
+     * @param clave contraseña
+     * @param confirmacionClave contraseña repetida
+     * @param idioma código del idioma ({@code es}, {@code en}...); si no viene, español
+     * @return cuenta creada
+     */
+    public Usuario registrar(String nombres, String apellidos, String correo, String clave, String confirmacionClave,
+                             String idioma) {
+        Idioma elegido = ValidadorCampos.idioma(idioma);
+        return crear(Rol.USUARIO, nombres, apellidos, correo, clave, confirmacionClave, elegido);
     }
 
     /**
@@ -68,7 +86,7 @@ public class ServicioCuentas {
         if (usuarioDao.buscarPorCorreo(correoLimpio).isPresent()) {
             return false;
         }
-        crear(Rol.ADMINISTRADOR, nombres, apellidos, correoLimpio, clave, clave);
+        crear(Rol.ADMINISTRADOR, nombres, apellidos, correoLimpio, clave, clave, null);
         return true;
     }
 
@@ -115,7 +133,8 @@ public class ServicioCuentas {
         usuarioDao.actualizarClave(cuenta.getId(), codificador.encode(claveNueva));
     }
 
-    private Usuario crear(Rol rol, String nombres, String apellidos, String correo, String clave, String confirmacion) {
+    private Usuario crear(Rol rol, String nombres, String apellidos, String correo, String clave, String confirmacion,
+                          Idioma idioma) {
         String correoLimpio = ValidadorCampos.correo(correo);
         Usuario usuario = new Usuario(correoLimpio, null, rol,
                 ValidadorCampos.nombre(nombres, "los nombres"),
@@ -125,6 +144,7 @@ public class ServicioCuentas {
             throw new ValidacionException("Ya existe una cuenta con ese correo. Ingrese con su contraseña.");
         }
         usuario.setClaveHash(codificador.encode(clave));
+        usuario.setIdioma(idioma);
         return usuarioDao.insertar(usuario);
     }
 

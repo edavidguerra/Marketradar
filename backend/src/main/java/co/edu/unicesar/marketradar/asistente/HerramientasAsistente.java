@@ -95,8 +95,13 @@ public class HerramientasAsistente {
     }
 
     private static String describir(OfertaNormalizada oferta) {
-        return oferta.getTitulo() + " en " + tienda(oferta) + " por " + pesos(oferta.precioTotal())
-                + " con envío";
+        String envio = oferta.getCostoEnvio() == null ? " (el envío se confirma en la tienda)"
+                : oferta.getCostoEnvio().signum() == 0 ? " con envío gratis" : " con envío incluido";
+        String desde = oferta.ubicacion().texto();
+        String ubicacion = desde == null ? "" : oferta.ubicacion().desdeExterior()
+                ? "; vende desde " + desde + ", puede tardar y cobrar impuestos" : "; vende desde Colombia";
+        return oferta.getTitulo() + " en " + tienda(oferta) + " por " + pesos(oferta.precioTotal()) + envio
+                + ubicacion;
     }
 
     /** En Google Shopping la tienda real va en el vendedor, por ejemplo "Éxito". */
