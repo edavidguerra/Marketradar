@@ -66,14 +66,16 @@ public class ServicioBusquedaFlexible {
         ConsultaBusqueda elegida = consulta.conTermino(corregido);
         boolean ampliada = false;
 
-        ResultadoBusqueda prueba = servicioBusqueda.consultar(elegida);
+        // Las pruebas se hacen sin el rango de precio: que no haya nada entre dos precios no quiere decir que haya
+        // que buscar otra cosa.
+        ResultadoBusqueda prueba = servicioBusqueda.consultar(elegida.sinRangoDePrecio());
         // Si una tienda falló, el 0 no quiere decir que el producto no exista: se muestra el aviso y no se cambia
         // la búsqueda por otra más general (antes "licuadora oster" terminaba mostrando cualquier licuadora).
         if (prueba.getTotalResultados() == 0 && prueba.getAdvertencias().isEmpty()) {
             Optional<String> principal = ServicioSugerencias.nucleo(corregido);
             if (principal.isPresent() && principal.get().length() >= ConsultaBusqueda.LONGITUD_MINIMA) {
                 ConsultaBusqueda amplia = consulta.conTermino(principal.get());
-                if (servicioBusqueda.consultar(amplia).getTotalResultados() > 0) {
+                if (servicioBusqueda.consultar(amplia.sinRangoDePrecio()).getTotalResultados() > 0) {
                     elegida = amplia;
                     ampliada = true;
                 }

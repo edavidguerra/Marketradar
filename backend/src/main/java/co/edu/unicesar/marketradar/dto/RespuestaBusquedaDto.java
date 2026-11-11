@@ -4,6 +4,7 @@ import co.edu.unicesar.marketradar.domain.ConsultaBusqueda;
 import co.edu.unicesar.marketradar.domain.ResultadoBusqueda;
 import co.edu.unicesar.marketradar.service.ServicioBusquedaFlexible;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -19,10 +20,14 @@ import java.util.List;
  * @param terminoOriginal lo que escribió la persona, si se buscó otra cosa; {@code null} si se buscó tal cual
  * @param busquedaAmpliada {@code true} si no hubo resultados exactos y se buscó solo la palabra principal
  * @param resumenIa resumen de los resultados escrito con IA (Gemini), o {@code null}
+ * @param precioMinimo precio total mínimo que pidió la persona, o {@code null}
+ * @param precioMaximo precio total máximo que pidió la persona, o {@code null}
+ * @param totalSinFiltro cuántas ofertas hay sin el rango de precio, para decir "hay 12, ninguna en ese rango"
  */
 public record RespuestaBusquedaDto(String termino, int pagina, int tamano, int totalResultados,
                                    List<OfertaDto> ofertas, List<String> advertencias, ProductoMvpDto productoMvp,
-                                   String terminoOriginal, boolean busquedaAmpliada, String resumenIa) {
+                                   String terminoOriginal, boolean busquedaAmpliada, String resumenIa,
+                                   BigDecimal precioMinimo, BigDecimal precioMaximo, int totalSinFiltro) {
 
     /**
      * Construye la respuesta a partir del resultado del servicio.
@@ -53,6 +58,7 @@ public record RespuestaBusquedaDto(String termino, int pagina, int tamano, int t
         return new RespuestaBusquedaDto(consulta.getTermino(), consulta.getPagina(), consulta.getTamano(),
                 resultado.getTotalResultados(), ofertas, resultado.getAdvertencias(),
                 resultado.getProductoMvp().map(mvp -> ProductoMvpDto.desde(mvp, resultado)).orElse(null),
-                terminoOriginal, ampliada, resultado.getResumenIa().orElse(null));
+                terminoOriginal, ampliada, resultado.getResumenIa().orElse(null), consulta.getPrecioMinimo(),
+                consulta.getPrecioMaximo(), resultado.getTotalSinFiltro());
     }
 }

@@ -135,18 +135,25 @@ public class ServicioBusqueda {
     private ResultadoBusqueda buscar(ConsultaBusqueda consulta, Long usuarioId, boolean registrar) {
         long inicio = System.nanoTime();
         ResultadoCompleto completo = cache.get(consulta.claveCache(), clave -> consultarMarketplaces(consulta));
-        List<OfertaNormalizada> ordenadas = ordenar(completo.ofertas(), consulta.getOrden());
+        List<OfertaNormalizada> todas = ordenar(completo.ofertas(), consulta.getOrden());
+        // El rango de precio se aplica sobre lo que ya está en caché: cambiarlo no gasta búsquedas en las tiendas.
+        List<OfertaNormalizada> ordenadas = consulta.tieneRangoDePrecio()
+                ? todas.stream().filter(oferta -> consulta.precioEnRango(oferta.precioTotal())).toList()
+                : todas;
         int desde = Math.min((consulta.getPagina() - 1) * consulta.getTamano(), ordenadas.size());
         int hasta = Math.min(desde + consulta.getTamano(), ordenadas.size());
         BigDecimal mejorPrecio = ordenadas.stream().map(OfertaNormalizada::precioTotal)
                 .min(Comparator.naturalOrder()).orElse(null);
         ProductoMvp mvp = seleccionMvp.elegir(ordenadas).orElse(null);
-        if (registrar && consulta.getPagina() == 1) {
-            registrarBusquedaSinInterrumpir(consulta.getTermino(), ordenadas.size(), inicio, usuarioId,
-                    imagenRepresentativa(mvp, ordenadas));
+        // Filtrar por precio es mirar de otra forma la misma búsqueda: no se repite en el historial.
+        if (registrar && consulta.getPagina() == 1 && !consulta.tieneRangoDePrecio()) {
+            registrarBusquedaSinInterrumpir(consulta.getTermino(), todas.size(), inicio, usuarioId,
+                    imagenRepresentativa(mvp, ordenadas.isEmpty() ? todas : ordenadas));
         }
+        // Si el rango dejó fuera ofertas, el resumen de la IA podría nombrar precios que ya no se ven.
+        String resumen = ordenadas.size() == todas.size() ? completo.resumenIa() : null;
         return new ResultadoBusqueda(ordenadas.subList(desde, hasta), completo.advertencias(), ordenadas.size(),
-                completo.idsPersistidos(), mejorPrecio, mvp, completo.resumenIa());
+                completo.idsPersistidos(), mejorPrecio, mvp, resumen, todas.size());
     }
 
     /**
@@ -198,16 +205,37 @@ public class ServicioBusqueda {
             }
         });
 
+        // Las cajas vacías y lo que no trae el producto no se muestran nunca, ni se le pasan a la IA.
+        List<OfertaNormalizada> conProducto = FiltroComplementos.quitarSinProducto(consulta.getTermino(), ofertas);
+
         // Con IA: Gemini deja solo lo que de verdad es lo buscado y escribe el resumen. Sin IA, o si no eligió
-        // nada, se deja lo que más se parece a lo buscado, sin juegos, fundas ni paquetes digitales que no pidió.
-        Optional<ServicioIABusqueda.Analisis> analisis = ia == null || ofertas.isEmpty() ? Optional.empty()
-                : ia.analizar(consulta.getTermino(), ofertas);
-        List<OfertaNormalizada> relevantes = analisis.map(ServicioIABusqueda.Analisis::elegidas)
-                .filter(elegidas -> !elegidas.isEmpty())
-                .orElseGet(() -> FiltroRelevancia.filtrar(consulta.getTermino(), ofertas));
+        // nada que sirva, se deja lo que más se parece a lo buscado, sin juegos, fundas ni paquetes digitales.
+        Optional<ServicioIABusqueda.Analisis> analisis = ia == null || conProducto.isEmpty() ? Optional.empty()
+                : ia.analizar(consulta.getTermino(), conProducto);
+        Optional<List<OfertaNormalizada>> elegidasPorIA = analisis
+                .map(elegido -> FiltroRelevancia.revisarEleccion(consulta.getTermino(), elegido.elegidas(), conProducto))
+                .filter(elegidas -> !elegidas.isEmpty());
+        if (analisis.isPresent() && elegidasPorIA.isEmpty()) {
+            LOG.info("La IA no eligió productos que sirvan para \"{}\"; se usan los filtros propios", consulta.getTermino());
+        }
+        List<OfertaNormalizada> relevantes = elegidasPorIA
+                .orElseGet(() -> FiltroRelevancia.filtrar(consulta.getTermino(), conProducto));
         Map<String, Long> ids = guardarSinInterrumpir(relevantes);
         return new ResultadoCompleto(relevantes, advertencias, ids, huboFallas[0],
-                analisis.map(ServicioIABusqueda.Analisis::resumen).orElse(null));
+                resumenQueCoincide(analisis, elegidasPorIA));
+    }
+
+    /**
+     * El resumen de la IA solo se muestra si se usaron sus productos y cada precio que nombra sigue a la vista,
+     * aunque se hayan quitado accesorios de su elección.
+     */
+    private static String resumenQueCoincide(Optional<ServicioIABusqueda.Analisis> analisis,
+                                             Optional<List<OfertaNormalizada>> elegidas) {
+        if (analisis.isEmpty() || elegidas.isEmpty() || analisis.get().resumen() == null) {
+            return null;
+        }
+        String resumen = analisis.get().resumen();
+        return ServicioIABusqueda.preciosCoinciden(resumen, elegidas.get()) ? resumen : null;
     }
 
     private CompletableFuture<List<OfertaNormalizada>> consultarAsincrono(AdaptadorMarketplace adaptador,

@@ -209,6 +209,101 @@ class ServicioBusquedaTest {
         assertTrue(resultado.getResumenIa().isEmpty());
     }
 
+    @Test
+    void elRangoDePrecioDejaSoloLoQueCuestaEntreLosDosValores() {
+        AdaptadorMarketplace tienda = adaptador("a", List.of(oferta("a", "1", "30000", "5000"),
+                oferta("a", "2", "20000", "0"), oferta("a", "3", "25000", "0"), oferta("a", "4", "50000", "0")));
+        ServicioBusqueda servicio = servicio(tienda);
+
+        ResultadoBusqueda resultado = servicio.buscar(consulta(null)
+                .conRangoDePrecio(new BigDecimal("25000"), new BigDecimal("35000")), 7L);
+
+        // Se cuenta el precio total: la 1 cuesta 30.000 más 5.000 de envío y entra justo en el máximo.
+        assertEquals(List.of("3", "1"), resultado.getOfertas().stream().map(OfertaNormalizada::getIdExterno).toList());
+        assertEquals(2, resultado.getTotalResultados());
+        assertEquals(4, resultado.getTotalSinFiltro());
+        assertTrue(resultado.esMejorPrecio(resultado.getOfertas().get(0)));
+        assertEquals("3", resultado.getProductoMvp().orElseThrow().oferta().getIdExterno());
+        verify(persistencia, times(0)).registrarBusqueda(any(), anyInt(), anyInt(), any(), any());
+    }
+
+    @Test
+    void cambiarElRangoDePrecioNoVuelveAConsultarLasTiendas() {
+        AdaptadorMarketplace tienda = adaptador("a", List.of(oferta("a", "1", "30000", "0"), oferta("a", "2", "20000", "0")));
+        ServicioBusqueda servicio = servicio(tienda);
+
+        servicio.buscar(consulta(null));
+        ResultadoBusqueda filtrado = servicio.buscar(consulta(null).conRangoDePrecio(null, new BigDecimal("1000")));
+
+        verify(tienda, times(1)).buscar(any());
+        assertEquals(0, filtrado.getTotalResultados());
+        assertEquals(2, filtrado.getTotalSinFiltro());
+    }
+
+    @Test
+    void conRangoDePrecioNoSeMuestraElResumenSiQuedaronOfertasPorFuera() {
+        AdaptadorMarketplace tienda = adaptador("a", List.of(oferta("a", "1", "30000", "0"),
+                oferta("a", "2", "20000", "0"), oferta("a", "3", "25000", "0")));
+        ServicioIABusqueda ia = mock(ServicioIABusqueda.class);
+        when(ia.analizar(any(), any())).thenAnswer(invocacion -> java.util.Optional.of(
+                new ServicioIABusqueda.Analisis(invocacion.getArgument(1), "La más barata cuesta $ 20.000.")));
+        ServicioBusqueda servicio = servicio(tienda);
+        servicio.usarIA(ia);
+
+        ResultadoBusqueda filtrado = servicio.buscar(consulta(null).conRangoDePrecio(new BigDecimal("24000"), null));
+
+        assertEquals(2, filtrado.getTotalResultados());
+        assertTrue(filtrado.getResumenIa().isEmpty());
+    }
+
+    @Test
+    void lasCajasVaciasNoSeMuestranNiSeLePasanALaIA() {
+        AdaptadorMarketplace tienda = adaptador("a", List.of(
+                titulada("1", "Caja iPhone 17 Pro Original", "150000"),
+                titulada("2", "Apple iPhone 17 Pro 256 GB Plata", "5200000"),
+                titulada("3", "iPhone 17 Pro Max Empty Box", "120000"),
+                titulada("4", "iPhone 17 Pro Max 256 GB", "6100000")));
+        ServicioIABusqueda ia = mock(ServicioIABusqueda.class);
+        when(ia.analizar(any(), any())).thenAnswer(invocacion -> java.util.Optional.of(
+                new ServicioIABusqueda.Analisis(invocacion.getArgument(1), null)));
+        ServicioBusqueda servicio = servicio(tienda);
+        servicio.usarIA(ia);
+
+        ResultadoBusqueda resultado = servicio.buscar(ConsultaBusqueda.crear("iphone 17 pro", null, Set.of(), 1, 10));
+
+        assertEquals(List.of("2", "4"), resultado.getOfertas().stream().map(OfertaNormalizada::getIdExterno).toList());
+        verify(ia).analizar(eq("iphone 17 pro"), org.mockito.ArgumentMatchers.argThat(lista -> lista.size() == 2));
+    }
+
+    @Test
+    void siLaIAEligeSoloUnaFundaSeUsanLosFiltrosPropios() {
+        AdaptadorMarketplace tienda = adaptador("a", List.of(
+                titulada("1", "Funda iPhone 17 Pro Silicona", "60000"),
+                titulada("2", "Apple iPhone 17 Pro 256 GB Plata", "5200000"),
+                titulada("3", "iPhone 17 Pro 512 GB Azul", "5900000"),
+                titulada("4", "iPhone 17 Pro Max 256 GB", "6100000")));
+        ServicioIABusqueda ia = mock(ServicioIABusqueda.class);
+        when(ia.analizar(any(), any())).thenAnswer(invocacion -> {
+            List<OfertaNormalizada> recibidas = invocacion.getArgument(1);
+            return java.util.Optional.of(new ServicioIABusqueda.Analisis(List.of(recibidas.get(0)),
+                    "La más barata es la funda a $ 60.000."));
+        });
+        ServicioBusqueda servicio = servicio(tienda);
+        servicio.usarIA(ia);
+
+        ResultadoBusqueda resultado = servicio.buscar(ConsultaBusqueda.crear("iphone 17 pro", null, Set.of(), 1, 10));
+
+        assertEquals(List.of("2", "3", "4"), resultado.getOfertas().stream().map(OfertaNormalizada::getIdExterno).toList());
+        assertTrue(resultado.getResumenIa().isEmpty());
+    }
+
+    private static OfertaNormalizada titulada(String id, String titulo, String precio) {
+        return OfertaNormalizada.builder()
+                .codigoMarketplace("a").idExterno(id).titulo(titulo).precio(new BigDecimal(precio)).moneda("COP")
+                .costoEnvio(BigDecimal.ZERO).condicion("nuevo").vendedor("Tienda").urlDestino("https://ejemplo.com/" + id)
+                .build();
+    }
+
     private ServicioBusqueda servicio(AdaptadorMarketplace... adaptadores) {
         return new ServicioBusqueda(List.of(adaptadores), ejecutor, CircuitBreakerRegistry.ofDefaults(),
                 persistencia, PropiedadesPrueba.crear(), new SeleccionPonderadaMvp(PropiedadesPrueba.crear()));

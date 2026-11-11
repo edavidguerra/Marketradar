@@ -98,6 +98,30 @@ escribió esas palabras y quedan al menos 3 resultados del producto en sí. Un r
 "Juego de ollas" o "set de cuchillos" no son complementos: ahí "juego" quiere decir varias piezas. Si la persona
 busca "juego ps5", se le muestran los juegos. Si casi todo son complementos, se muestra todo.
 
+También cuentan como complemento "case", "cover", "vidrio", "lámina", "película", "correa" y "manilla" al comienzo.
+
+**Cajas vacías.** Con "iphone 17 pro" Google trae publicaciones de la caja sola ("Caja iPhone 17 Pro Original",
+"Empty Box"). Esas se quitan **siempre**, aunque no quede nada, con `FiltroComplementos.quitarSinProducto`: el título
+empieza por "caja", "empaque" o "box" y trae el producto buscado, o dice "caja vacía", "solo caja", "sin equipo",
+"empty box"... "iPhone 17 Pro con caja original" sí se muestra. Si la persona busca "caja fuerte", no se quita nada.
+
+**Lo que elige la IA se revisa.** Las cajas vacías no se le pasan a Gemini. De lo que elija, `FiltroRelevancia.revisarEleccion`
+quita los complementos y lo que cuesta menos de la cuarta parte del precio del medio de los demás candidatos. Si no
+queda nada, se usan los filtros propios y no se muestra el resumen de la IA. El resumen tampoco se muestra si nombra
+un precio que ya no está en la lista.
+
+## 4b. Filtro de precio
+
+Después de buscar aparece "Filtrar por precio" con "Desde" y "Hasta" (se puede llenar solo uno). Cuenta el precio total,
+con envío, y acepta "1.500.000", "1500000" o "$ 1.500.000". La API lo recibe como `precio_minimo` y `precio_maximo`.
+
+- El filtro se aplica sobre los resultados que ya están en caché: cambiarlo no gasta búsquedas de SerpApi ni vuelve a
+  preguntarle a Gemini, y no repite la búsqueda en el historial.
+- La recomendación (MVP), el mejor precio y la paginación se calculan solo con lo que queda en el rango.
+- Si el rango deja ofertas por fuera, no se muestra el resumen de la IA, porque podría nombrar precios que ya no se ven.
+- `total_sin_filtro` dice cuántas había sin el filtro, para avisar "No hay ofertas hasta $ 100. Sin el filtro hay 4".
+- Una búsqueda nueva empieza sin filtro, para no esconder resultados sin que la persona lo note.
+
 ## 5. Enlaces de compra seguros
 
 - El adaptador de Google Shopping solo guarda enlaces `https` con dominio válido (`AdaptadorGoogleShopping.esSeguro`).
@@ -109,8 +133,8 @@ busca "juego ps5", se le muestran los juegos. Si casi todo son complementos, se 
 ## Pruebas
 
 `FiltroRelevanciaTest` cubre "licuadora oster", "playstation 5" contra "playstation 4", la abreviatura PS5, los plurales y
-qué pasa cuando pocos o ningún título traen las palabras. `FiltroComplementosTest` cubre la consola sin juegos, los juegos cuando se piden, el juego de ollas y el caso en que casi
-todo son complementos. `ServicioBusquedaFlexibleTest` cubre la corrección directa, las frases, el intento con la palabra principal (y que no se haga cuando una tienda falla) y la búsqueda
+qué pasa cuando pocos o ningún título traen las palabras, y la revisión de lo que elige la IA. `FiltroComplementosTest` cubre la consola sin juegos, los juegos cuando se piden, el juego de ollas, el caso en que casi
+todo son complementos y las cajas vacías. `ServicioBusquedaTest` cubre el filtro de precio y la IA que elige una caja o una funda. `ServicioBusquedaFlexibleTest` cubre la corrección directa, las frases, el intento con la palabra principal (y que no se haga cuando una tienda falla) y la búsqueda
 exacta. `ServicioSugerenciasTest` cubre los prefijos, las tildes, los errores de escritura, la segunda palabra, el mínimo de
 letras, el orden por popularidad, las correcciones (licuadorra, oya arrosera, conputador portatil), que complete palabras a
 medias (olla arro), que no corrija

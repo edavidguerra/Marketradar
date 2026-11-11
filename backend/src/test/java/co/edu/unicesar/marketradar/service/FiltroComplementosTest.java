@@ -61,6 +61,42 @@ class FiltroComplementosTest {
         assertEquals(4, FiltroComplementos.filtrar("licuadora", ofertas).size());
     }
 
+    @Test
+    void quitaSiempreLasCajasVaciasAunqueSeanLoUnico() {
+        List<OfertaNormalizada> ofertas = List.of(
+                oferta("Caja iPhone 17 Pro Original", "Mercado Libre", "150000"),
+                oferta("Apple iPhone 17 Pro Max - Empty Box", "eBay", "90000"),
+                oferta("iPhone 17 Pro solo caja y manual", "Linio", "80000"),
+                oferta("iPhone 17 Pro 256 GB con caja original", "iDroid", "5200000"));
+
+        assertEquals(List.of("iPhone 17 Pro 256 GB con caja original"),
+                titulos(FiltroComplementos.quitarSinProducto("iphone 17 pro", ofertas)));
+        assertEquals(List.of(), FiltroComplementos.quitarSinProducto("iphone 17 pro", ofertas.subList(0, 1)));
+    }
+
+    @Test
+    void siLaPersonaBuscaUnaCajaNoSeQuita() {
+        List<OfertaNormalizada> ofertas = List.of(
+                oferta("Caja fuerte digital Yale", "Homecenter", "350000"),
+                oferta("Caja de herramientas Stanley", "Homecenter", "120000"));
+
+        assertEquals(2, FiltroComplementos.quitarSinProducto("caja fuerte", ofertas).size());
+        assertEquals(1, FiltroComplementos.quitarSinProducto("taladro", ofertas.subList(1, 2)).size());
+    }
+
+    @Test
+    void lasFundasEnInglesYLosVidriosTambienSonComplementos() {
+        List<OfertaNormalizada> ofertas = List.of(
+                oferta("Case iPhone 17 Pro MagSafe", "Amazon", "90000"),
+                oferta("Vidrio templado iPhone 17 Pro", "Éxito", "25000"),
+                oferta("iPhone 17 Pro 256 GB", "iDroid", "5200000"),
+                oferta("iPhone 17 Pro 512 GB", "Ktronix", "5900000"),
+                oferta("iPhone 17 Pro Max 256 GB", "Alkosto", "6100000"));
+
+        assertEquals(List.of("iPhone 17 Pro 256 GB", "iPhone 17 Pro 512 GB", "iPhone 17 Pro Max 256 GB"),
+                titulos(FiltroComplementos.filtrar("iphone 17 pro", ofertas)));
+    }
+
     private static List<String> titulos(List<OfertaNormalizada> ofertas) {
         return ofertas.stream().map(OfertaNormalizada::getTitulo).toList();
     }
