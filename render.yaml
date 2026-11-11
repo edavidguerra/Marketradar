@@ -68,6 +68,8 @@ services:
         value: "false"
       - key: SERPAPI_API_KEY
         sync: false
+      - key: GEMINI_API_KEY
+        sync: false
       - key: MERCADOLIBRE_CLIENT_ID
         sync: false
       - key: MERCADOLIBRE_CLIENT_SECRET

@@ -26,6 +26,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -55,6 +56,7 @@ public class ServicioBusqueda {
     private final Cache<String, ResultadoCompleto> cache;
     private final int timeoutSegundos;
     private final EstrategiaSeleccionMvp seleccionMvp;
+    private ServicioIABusqueda ia;
 
     @Autowired
     public ServicioBusqueda(List<AdaptadorMarketplace> adaptadores, ExecutorService ejecutor,
@@ -144,7 +146,17 @@ public class ServicioBusqueda {
                     imagenRepresentativa(mvp, ordenadas));
         }
         return new ResultadoBusqueda(ordenadas.subList(desde, hasta), completo.advertencias(), ordenadas.size(),
-                completo.idsPersistidos(), mejorPrecio, mvp);
+                completo.idsPersistidos(), mejorPrecio, mvp, completo.resumenIa());
+    }
+
+    /**
+     * Con Gemini configurado, la IA elige los productos que de verdad son lo buscado y escribe un resumen.
+     *
+     * @param ia búsqueda con IA
+     */
+    @Autowired(required = false)
+    public void usarIA(ServicioIABusqueda ia) {
+        this.ia = ia;
     }
 
     /**
@@ -186,10 +198,16 @@ public class ServicioBusqueda {
             }
         });
 
-        // Primero lo que más se parece a lo buscado, y sin juegos, fundas ni paquetes digitales que no pidió.
-        List<OfertaNormalizada> relevantes = FiltroRelevancia.filtrar(consulta.getTermino(), ofertas);
+        // Con IA: Gemini deja solo lo que de verdad es lo buscado y escribe el resumen. Sin IA, o si no eligió
+        // nada, se deja lo que más se parece a lo buscado, sin juegos, fundas ni paquetes digitales que no pidió.
+        Optional<ServicioIABusqueda.Analisis> analisis = ia == null || ofertas.isEmpty() ? Optional.empty()
+                : ia.analizar(consulta.getTermino(), ofertas);
+        List<OfertaNormalizada> relevantes = analisis.map(ServicioIABusqueda.Analisis::elegidas)
+                .filter(elegidas -> !elegidas.isEmpty())
+                .orElseGet(() -> FiltroRelevancia.filtrar(consulta.getTermino(), ofertas));
         Map<String, Long> ids = guardarSinInterrumpir(relevantes);
-        return new ResultadoCompleto(relevantes, advertencias, ids, huboFallas[0]);
+        return new ResultadoCompleto(relevantes, advertencias, ids, huboFallas[0],
+                analisis.map(ServicioIABusqueda.Analisis::resumen).orElse(null));
     }
 
     private CompletableFuture<List<OfertaNormalizada>> consultarAsincrono(AdaptadorMarketplace adaptador,
@@ -268,7 +286,7 @@ public class ServicioBusqueda {
     }
 
     private record ResultadoCompleto(List<OfertaNormalizada> ofertas, List<String> advertencias,
-                                     Map<String, Long> idsPersistidos, boolean huboFallas) {
+                                     Map<String, Long> idsPersistidos, boolean huboFallas, String resumenIa) {
     }
 
     /**

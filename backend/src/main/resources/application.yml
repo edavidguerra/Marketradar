@@ -98,6 +98,13 @@ marketradar:
       habilitado: ${SERPAPI_HABILITADO:false}
       api-key: ${SERPAPI_API_KEY:}
       url-api: https://serpapi.com
+  ia-busqueda:
+    # Gemini (Google AI Studio, plan gratis) entiende lo que se busca, deja solo los productos que sí son lo buscado
+    # y escribe un resumen como el de Google. Sin clave, la búsqueda funciona igual con los filtros propios.
+    habilitado: ${GEMINI_HABILITADO:true}
+    api-key: ${GEMINI_API_KEY:}
+    modelo: ${GEMINI_MODELO:gemini-3.5-flash-lite}
+    url: https://generativelanguage.googleapis.com
   asistente:
     # Chatbot con Claude (API de Anthropic). "ninguno" apaga el chatbot.
     proveedor: ${ASISTENTE_PROVEEDOR:claude}

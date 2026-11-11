@@ -176,6 +176,39 @@ class ServicioBusquedaTest {
                 .build();
     }
 
+    @Test
+    void conIALaListaYElResumenLosEligeGemini() {
+        AdaptadorMarketplace tienda = adaptador("a", List.of(oferta("a", "1", "30000", "0"),
+                oferta("a", "2", "20000", "0"), oferta("a", "3", "25000", "0")));
+        ServicioIABusqueda ia = mock(ServicioIABusqueda.class);
+        when(ia.analizar(any(), any())).thenAnswer(invocacion -> {
+            List<OfertaNormalizada> recibidas = invocacion.getArgument(1);
+            return java.util.Optional.of(new ServicioIABusqueda.Analisis(List.of(recibidas.get(2)),
+                    "La licuadora 3 cuesta $ 25.000."));
+        });
+        ServicioBusqueda servicio = servicio(tienda);
+        servicio.usarIA(ia);
+
+        ResultadoBusqueda resultado = servicio.buscar(consulta(null));
+
+        assertEquals(List.of("3"), resultado.getOfertas().stream().map(OfertaNormalizada::getIdExterno).toList());
+        assertEquals("La licuadora 3 cuesta $ 25.000.", resultado.getResumenIa().orElseThrow());
+    }
+
+    @Test
+    void siLaIANoRespondeSeUsanLosFiltrosPropios() {
+        AdaptadorMarketplace tienda = adaptador("a", List.of(oferta("a", "1", "30000", "0"), oferta("a", "2", "20000", "0")));
+        ServicioIABusqueda ia = mock(ServicioIABusqueda.class);
+        when(ia.analizar(any(), any())).thenReturn(java.util.Optional.empty());
+        ServicioBusqueda servicio = servicio(tienda);
+        servicio.usarIA(ia);
+
+        ResultadoBusqueda resultado = servicio.buscar(consulta(null));
+
+        assertEquals(2, resultado.getTotalResultados());
+        assertTrue(resultado.getResumenIa().isEmpty());
+    }
+
     private ServicioBusqueda servicio(AdaptadorMarketplace... adaptadores) {
         return new ServicioBusqueda(List.of(adaptadores), ejecutor, CircuitBreakerRegistry.ofDefaults(),
                 persistencia, PropiedadesPrueba.crear(), new SeleccionPonderadaMvp(PropiedadesPrueba.crear()));

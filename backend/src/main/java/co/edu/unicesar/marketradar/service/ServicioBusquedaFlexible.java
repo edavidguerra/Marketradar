@@ -2,6 +2,7 @@ package co.edu.unicesar.marketradar.service;
 
 import co.edu.unicesar.marketradar.domain.ConsultaBusqueda;
 import co.edu.unicesar.marketradar.domain.ResultadoBusqueda;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Locale;
@@ -12,6 +13,7 @@ import java.util.Optional;
  * o con frases completas.
  *
  * <ol>
+ *   <li>Con Gemini configurado, la IA entiende la frase y propone la búsqueda ({@link ServicioIABusqueda}).</li>
  *   <li>Quita el relleno: "quiero comprar una olla arrocera" busca "olla arrocera".</li>
  *   <li>Corrige las palabras mal escritas y busca directamente lo corregido: "licuadorra" busca "licuadora".
  *       La persona puede pedir buscar exactamente lo que escribió.</li>
@@ -27,10 +29,19 @@ public class ServicioBusquedaFlexible {
 
     private final ServicioBusqueda servicioBusqueda;
     private final ServicioSugerencias servicioSugerencias;
+    private final ServicioIABusqueda ia;
 
-    public ServicioBusquedaFlexible(ServicioBusqueda servicioBusqueda, ServicioSugerencias servicioSugerencias) {
+    /** Para las pruebas: sin IA. */
+    ServicioBusquedaFlexible(ServicioBusqueda servicioBusqueda, ServicioSugerencias servicioSugerencias) {
+        this(servicioBusqueda, servicioSugerencias, null);
+    }
+
+    @Autowired
+    public ServicioBusquedaFlexible(ServicioBusqueda servicioBusqueda, ServicioSugerencias servicioSugerencias,
+                                    ServicioIABusqueda ia) {
         this.servicioBusqueda = servicioBusqueda;
         this.servicioSugerencias = servicioSugerencias;
+        this.ia = ia;
     }
 
     /**
@@ -47,7 +58,11 @@ public class ServicioBusquedaFlexible {
         }
         String escrito = consulta.getTermino();
         String limpio = ServicioSugerencias.limpiarFrase(escrito);
-        String corregido = servicioSugerencias.corregir(limpio).orElse(limpio);
+        // Con IA, Gemini entiende la frase completa ("un ps5 pa mi nieto" es "playstation 5"); si no está o no
+        // responde, se corrige con el diccionario propio.
+        String corregido = (ia == null ? Optional.<String>empty() : ia.interpretar(escrito))
+                .or(() -> servicioSugerencias.corregir(limpio))
+                .orElse(limpio);
         ConsultaBusqueda elegida = consulta.conTermino(corregido);
         boolean ampliada = false;
 

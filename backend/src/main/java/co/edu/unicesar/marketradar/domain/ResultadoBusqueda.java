@@ -17,6 +17,7 @@ public final class ResultadoBusqueda {
     private final Map<String, Long> idsPersistidos;
     private final BigDecimal mejorPrecio;
     private final ProductoMvp productoMvp;
+    private final String resumenIa;
 
     /**
      * Crea el resultado de una búsqueda.
@@ -30,6 +31,24 @@ public final class ResultadoBusqueda {
      */
     public ResultadoBusqueda(List<OfertaNormalizada> ofertas, List<String> advertencias, int totalResultados,
                              Map<String, Long> idsPersistidos, BigDecimal mejorPrecio, ProductoMvp productoMvp) {
+        this(ofertas, advertencias, totalResultados, idsPersistidos, mejorPrecio, productoMvp, null);
+    }
+
+    /**
+     * Crea el resultado de una búsqueda con el resumen escrito por la IA.
+     *
+     * @param ofertas ofertas de la página solicitada
+     * @param advertencias mensajes sobre marketplaces que fallaron
+     * @param totalResultados total de ofertas encontradas antes de paginar
+     * @param idsPersistidos identificadores en la base de datos, por clave {@code codigoMarketplace|idExterno}
+     * @param mejorPrecio precio total más bajo entre todas las ofertas, {@code null} si no hay ofertas
+     * @param productoMvp mejor opción de compra entre todas las ofertas, {@code null} si no hay ofertas
+     * @param resumenIa resumen de los resultados escrito con IA, o {@code null}
+     */
+    public ResultadoBusqueda(List<OfertaNormalizada> ofertas, List<String> advertencias, int totalResultados,
+                             Map<String, Long> idsPersistidos, BigDecimal mejorPrecio, ProductoMvp productoMvp,
+                             String resumenIa) {
+        this.resumenIa = resumenIa;
         this.ofertas = new ArrayList<>(ofertas);
         this.advertencias = new ArrayList<>(advertencias);
         this.totalResultados = totalResultados;
@@ -67,6 +86,13 @@ public final class ResultadoBusqueda {
 
     public List<OfertaNormalizada> getOfertas() {
         return new ArrayList<>(ofertas);
+    }
+
+    /**
+     * @return resumen de los resultados escrito con IA, si lo hay
+     */
+    public Optional<String> getResumenIa() {
+        return Optional.ofNullable(resumenIa);
     }
 
     public List<String> getAdvertencias() {
