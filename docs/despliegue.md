@@ -29,11 +29,16 @@ Marketradar se publica en [Render](https://render.com) con el plan gratuito. El 
 4. Pulsar **Apply** y esperar. La primera construcción tarda entre 5 y 10 minutos.
 5. Cuando la web diga **Live**, abrir la dirección que muestra Render (algo como `https://marketradar.onrender.com`).
 6. Si la dirección final es distinta a la que se puso en `CORS_ORIGENES`, corregirla en la web > **Environment** y guardar.
-7. Para que la búsqueda muestre productos reales, crear la clave gratis de SerpApi y ponerla en `SERPAPI_API_KEY`, con `SERPAPI_HABILITADO=true` (ver `docs/integraciones/google-shopping.md`).
+7. Para que la búsqueda muestre productos reales, crear la clave gratis de SerpApi y ponerla en `SERPAPI_API_KEY`; `SERPAPI_HABILITADO` ya viene en `true` (ver `docs/integraciones/google-shopping.md`).
 
 ## Activar una tienda
 
 En la web > **Environment**, cambiar por ejemplo `ALIEXPRESS_HABILITADO` a `true` y agregar sus claves (`ALIEXPRESS_APP_KEY`, `ALIEXPRESS_APP_SECRET`, `ALIEXPRESS_TRACKING_ID`). Render reinicia la web con los cambios. Las claves de cada tienda están explicadas en `docs/integraciones/`.
+
+Ojo: cada vez que un PR cambia `render.yaml`, Render vuelve a poner los valores escritos en ese archivo
+(las variables con `value:`). Por eso, si se activa una tienda en el panel, también hay que cambiar su
+valor en `render.yaml`; si no, el siguiente cambio a ese archivo la vuelve a apagar. Las claves (`sync: false`)
+no se tocan.
 
 ## Actualizar
 
