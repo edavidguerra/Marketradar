@@ -38,5 +38,6 @@ Actualícela al cierre de cada fase. Estados: completada, en progreso, pendiente
 | Reseñas de compradores y resultados más precisos | Ever Guerra | 4 | completada |
 | Búsqueda apoyada con IA (Gemini) y foto en la recomendación | Ever Guerra | 4 | completada |
 | Envío, ubicación de la tienda y traducción de reseñas | Ever Guerra | 4 | completada |
+| Avisos del inicio que cambian solos (carrusel) | Ever Guerra | 2 | completada |
 | Datos de prueba, MER, diccionario de datos y normalización | Jean Mercado | 4 | completada |
 | Documentación final | Ever Guerra | 4 | completada |

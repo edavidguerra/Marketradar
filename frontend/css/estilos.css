@@ -791,6 +791,123 @@ main > section:not([hidden]) { animation: entrar-seccion .5s var(--curva) both; 
 
 :root.alto-contraste .aviso-inicio { border: 2px solid var(--color-borde); }
 
+/* La barra de color de la izquierda toma el color del aviso que se ve. */
+.aviso-inicio:has(.aviso-diapositiva.activa.tipo-baja)::before { background: var(--color-exito); }
+.aviso-inicio:has(.aviso-diapositiva.activa.tipo-seguimiento)::before { background: var(--color-info); }
+
+.aviso-diapositiva { display: grid; gap: .5rem; align-content: start; }
+
+/* Etiqueta pequeña que dice de qué se trata el aviso. */
+.etiqueta-aviso {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    justify-self: start;
+    padding: .2rem .75rem;
+    border-radius: 999px;
+    font-size: .9rem;
+    font-weight: 700;
+    color: var(--color-acento);
+    background: var(--color-acento-suave);
+}
+
+.etiqueta-aviso .icono { width: 1.1em; height: 1.1em; }
+.tipo-baja .etiqueta-aviso { color: var(--color-exito); background: var(--color-exito-suave); }
+.tipo-seguimiento .etiqueta-aviso { color: var(--color-info); background: var(--color-info-suave); }
+:root.alto-contraste .etiqueta-aviso { border: 2px solid currentColor; }
+
+/* Carrusel: todos los avisos en la misma celda, para que la altura no cambie al pasar de uno a otro. */
+.avisos { display: grid; gap: 1rem; }
+
+.avisos-pista {
+    display: grid;
+    touch-action: pan-y;
+    transform: translateX(var(--arrastre, 0));
+    transition: transform .25s var(--curva);
+}
+
+.avisos-pista.arrastrando { transition: none; user-select: none; cursor: grabbing; }
+
+.avisos-pista > .aviso-diapositiva { grid-area: 1 / 1; visibility: hidden; }
+.avisos-pista > .aviso-diapositiva.activa { visibility: visible; }
+.aviso-diapositiva.entra-derecha { animation: aviso-entra-derecha .45s var(--curva) both; }
+.aviso-diapositiva.entra-izquierda { animation: aviso-entra-izquierda .45s var(--curva) both; }
+
+@keyframes aviso-entra-derecha { from { opacity: 0; transform: translateX(2.5rem); } }
+@keyframes aviso-entra-izquierda { from { opacity: 0; transform: translateX(-2.5rem); } }
+
+.avisos-controles {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem;
+    padding-top: .75rem;
+    border-top: 1px solid #f3d38a;
+}
+
+:root.alto-contraste .avisos-controles { border-top-color: var(--color-borde); }
+
+.boton-icono { padding: 0; width: var(--tactil); border-radius: 50%; }
+.boton-icono .icono { width: 1.4rem; height: 1.4rem; }
+.boton-pausa { margin-left: auto; }
+
+.avisos-posicion {
+    display: inline-flex;
+    align-items: center;
+    gap: .6rem;
+    padding: 0 .25rem;
+    font-weight: 700;
+    color: var(--color-suave);
+}
+
+.avisos-puntos { display: inline-flex; gap: .4rem; }
+
+.avisos-puntos .punto {
+    width: .65rem;
+    height: .65rem;
+    border-radius: 999px;
+    border: 2px solid var(--color-borde-campo);
+    transition: width .3s var(--curva), background-color .3s;
+}
+
+.avisos-puntos .punto.activo { width: 1.6rem; background: var(--color-texto); border-color: var(--color-texto); }
+
+/* Barra que se llena mientras corre el tiempo de cada aviso; se detiene en pausa. */
+.avisos-progreso {
+    height: 4px;
+    margin-top: -.5rem;
+    border-radius: 999px;
+    overflow: hidden;
+    background: #f3d38a;
+}
+
+.avisos-progreso-barra {
+    display: block;
+    height: 100%;
+    background: #b45309;
+    transform-origin: left;
+    animation: aviso-progreso 5s linear both;
+}
+
+.avisos.en-pausa .avisos-progreso-barra { animation-play-state: paused; }
+.avisos.pausado-por-persona .avisos-progreso { visibility: hidden; }
+:root.alto-contraste .avisos-progreso { background: #000000; border: 1px solid var(--color-borde); }
+:root.alto-contraste .avisos-progreso-barra { background: var(--color-principal); }
+
+@keyframes aviso-progreso { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+@media (max-width: 30rem) {
+    .aviso-inicio .titulo-aviso { font-size: 1.2rem; }
+    /* Flechas a los lados de la posición y "Pausar" en su propia fila, para que nada quede cortado. */
+    .avisos-controles { display: grid; grid-template-columns: auto 1fr auto; gap: .6rem; }
+    .avisos-posicion { justify-content: center; }
+    .boton-pausa { grid-column: 1 / -1; margin-left: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .avisos-progreso { display: none; }
+}
+
 .accesos {
     list-style: none;
     padding: 0;
