@@ -1,6 +1,7 @@
 package co.edu.unicesar.marketradar.service;
 
 import co.edu.unicesar.marketradar.dao.UsuarioDao;
+import co.edu.unicesar.marketradar.domain.Idioma;
 import co.edu.unicesar.marketradar.domain.Rol;
 import co.edu.unicesar.marketradar.domain.Usuario;
 import co.edu.unicesar.marketradar.exception.CredencialesInvalidasException;
@@ -59,6 +60,23 @@ class ServicioCuentasTest {
         assertEquals(Rol.USUARIO, guardado.getValue().getRol());
         assertNotEquals(CLAVE, guardado.getValue().getClaveHash());
         assertTrue(codificador.matches(CLAVE, guardado.getValue().getClaveHash()));
+        assertEquals(Idioma.ES, guardado.getValue().getIdioma());
+    }
+
+    @Test
+    void guardaElIdiomaElegidoAlRegistrarse() {
+        servicio.registrar("Carmen", "Rojas", "carmen@correo.com", CLAVE, CLAVE, "EN");
+
+        ArgumentCaptor<Usuario> guardado = ArgumentCaptor.forClass(Usuario.class);
+        verify(usuarioDao).insertar(guardado.capture());
+        assertEquals(Idioma.EN, guardado.getValue().getIdioma());
+    }
+
+    @Test
+    void rechazaUnIdiomaQueNoEstaEnLaLista() {
+        assertThrows(ValidacionException.class,
+                () -> servicio.registrar("Carmen", "Rojas", "carmen@correo.com", CLAVE, CLAVE, "xx"));
+        verify(usuarioDao, never()).insertar(any());
     }
 
     @Test

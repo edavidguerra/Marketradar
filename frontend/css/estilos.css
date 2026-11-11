@@ -1212,6 +1212,21 @@ main > section:not([hidden]) { animation: entrar-seccion .5s var(--curva) both; 
     font-weight: 600;
 }
 
+/* Tienda del exterior: el aviso ocupa toda la fila para que se lea completo. */
+.dato-exterior {
+    flex-basis: 100%;
+    flex-wrap: wrap;
+    border-radius: 12px;
+    background: var(--color-acento-suave);
+    color: var(--color-acento);
+}
+
+.nota-exterior { font-weight: 500; }
+
+@media (max-width: 30rem) {
+    .dato { border-radius: 12px; }
+}
+
 .calificacion { font-weight: 700; }
 .calificacion .estrellas { letter-spacing: .1em; color: #b45309; }
 
@@ -1293,6 +1308,14 @@ main > section:not([hidden]) { animation: entrar-seccion .5s var(--curva) both; 
 .resena h4 { margin: .25rem 0; font-size: 1.05rem; }
 .resena p { margin: .25rem 0; }
 .resena-texto { white-space: pre-line; overflow-wrap: anywhere; }
+
+.boton-traducir { margin-top: .5rem; }
+
+.nota-traduccion {
+    color: var(--color-suave);
+    font-size: .9rem;
+    font-style: italic;
+}
 
 @media (max-width: 30rem) {
     .distribucion li { grid-template-columns: 6rem 1fr; }

@@ -1,6 +1,7 @@
 package co.edu.unicesar.marketradar.dto;
 
 import co.edu.unicesar.marketradar.domain.OfertaNormalizada;
+import co.edu.unicesar.marketradar.domain.UbicacionVendedor;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -24,11 +25,15 @@ import java.time.OffsetDateTime;
  * @param consultadoEn momento de la consulta, para mostrar qué tan reciente es el precio
  * @param mejorPrecio si es la oferta más barata de la búsqueda
  * @param resenasDisponibles si se pueden pedir las reseñas del producto ({@code GET /api/v1/ofertas/{id}/resenas})
+ * @param ubicacion desde dónde vende la tienda ("Colombia", "Estados Unidos", "el exterior"), {@code null} si no se
+ *                  sabe
+ * @param desdeExterior si se sabe que la tienda vende desde otro país
  */
 public record OfertaDto(Long id, String tienda, String titulo, BigDecimal precio, BigDecimal costoEnvio,
                         BigDecimal precioTotal, String moneda, String condicion, String vendedor, String urlDestino,
                         String urlImagen, BigDecimal calificacion, Integer totalResenas,
-                        OffsetDateTime consultadoEn, boolean mejorPrecio, boolean resenasDisponibles) {
+                        OffsetDateTime consultadoEn, boolean mejorPrecio, boolean resenasDisponibles,
+                        String ubicacion, boolean desdeExterior) {
 
     /**
      * Convierte una oferta normalizada en el DTO de respuesta.
@@ -39,10 +44,11 @@ public record OfertaDto(Long id, String tienda, String titulo, BigDecimal precio
      * @return DTO
      */
     public static OfertaDto desde(OfertaNormalizada oferta, Long id, boolean mejorPrecio) {
+        UbicacionVendedor ubicacion = oferta.ubicacion();
         return new OfertaDto(id, oferta.getCodigoMarketplace(), oferta.getTitulo(), oferta.getPrecio(),
                 oferta.getCostoEnvio(), oferta.precioTotal(), oferta.getMoneda(), oferta.getCondicion(),
                 oferta.getVendedor(), oferta.getUrlDestino(), oferta.getUrlImagen(), oferta.getCalificacion(),
                 oferta.getTotalResenas(), oferta.getConsultadoEn(), mejorPrecio,
-                id != null && oferta.getTokenResenas() != null);
+                id != null && oferta.getTokenResenas() != null, ubicacion.texto(), ubicacion.desdeExterior());
     }
 }

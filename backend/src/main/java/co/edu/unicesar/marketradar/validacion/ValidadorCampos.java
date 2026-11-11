@@ -1,5 +1,6 @@
 package co.edu.unicesar.marketradar.validacion;
 
+import co.edu.unicesar.marketradar.domain.Idioma;
 import co.edu.unicesar.marketradar.domain.TipoDocumento;
 import co.edu.unicesar.marketradar.exception.ValidacionException;
 
@@ -69,6 +70,19 @@ public final class ValidadorCampos {
             return null;
         }
         return nombre(ciudad, "la ciudad");
+    }
+
+    /**
+     * @param codigo código del idioma ({@code es}, {@code en}, {@code pt}, {@code fr}, {@code it} o {@code de});
+     *               es opcional
+     * @return el idioma, o {@code null} si no lo eligió
+     */
+    public static Idioma idioma(String codigo) {
+        if (estaVacio(codigo)) {
+            return null;
+        }
+        return Idioma.desdeCodigo(codigo)
+                .orElseThrow(() -> new ValidacionException("Elija uno de los idiomas de la lista."));
     }
 
     /**

@@ -19,6 +19,7 @@ function llenar(perfil) {
     $('perfil-fecha-nacimiento').value = perfil.fecha_nacimiento ?? '';
     $('perfil-celular').value = perfil.celular ?? '';
     $('perfil-ciudad').value = perfil.ciudad ?? '';
+    $('perfil-idioma').value = perfil.idioma ?? 'es';
 }
 
 export async function cargarPerfil() {
@@ -60,6 +61,7 @@ function conectarFormularioPerfil() {
                 fecha_nacimiento: $('perfil-fecha-nacimiento').value || null,
                 celular: $('perfil-celular').value.trim() || null,
                 ciudad: $('perfil-ciudad').value.trim() || null,
+                idioma: $('perfil-idioma').value,
             }));
             avisar($('resultado-perfil'), 'Sus datos quedaron guardados.');
         } catch (error) {

@@ -69,6 +69,15 @@ public final class OfertaNormalizada {
     }
 
     /**
+     * Desde dónde vende la tienda, deducido de su nombre y su dirección web.
+     *
+     * @return Colombia, otro país o desconocida
+     */
+    public UbicacionVendedor ubicacion() {
+        return UbicacionVendedor.de(vendedor, urlDestino);
+    }
+
+    /**
      * Precio que paga el usuario: precio más envío, si se conoce.
      *
      * @return precio total

@@ -1,6 +1,7 @@
 package co.edu.unicesar.marketradar.dao.jdbc;
 
 import co.edu.unicesar.marketradar.dao.UsuarioDao;
+import co.edu.unicesar.marketradar.domain.Idioma;
 import co.edu.unicesar.marketradar.domain.Rol;
 import co.edu.unicesar.marketradar.domain.TipoDocumento;
 import co.edu.unicesar.marketradar.domain.Usuario;
@@ -23,7 +24,7 @@ import java.util.Optional;
 public class UsuarioDaoJdbc extends DaoJdbcBase implements UsuarioDao {
 
     private static final String COLUMNAS = "id, correo, clave_hash, rol, nombres, apellidos, tipo_documento, "
-            + "numero_documento, fecha_nacimiento, celular, ciudad, activo, creado_en";
+            + "numero_documento, fecha_nacimiento, celular, ciudad, idioma, activo, creado_en";
 
     public UsuarioDaoJdbc(DataSource dataSource) {
         super(dataSource);
@@ -32,14 +33,14 @@ public class UsuarioDaoJdbc extends DaoJdbcBase implements UsuarioDao {
     @Override
     public Usuario insertar(Usuario usuario) {
         long id = insertarYObtenerId("INSERT INTO usuario (correo, clave_hash, rol, nombres, apellidos, tipo_documento, "
-                        + "numero_documento, fecha_nacimiento, celular, ciudad, activo) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        + "numero_documento, fecha_nacimiento, celular, ciudad, idioma, activo) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 sentencia -> {
                     sentencia.setString(1, usuario.getCorreo());
                     sentencia.setString(2, usuario.getClaveHash());
                     sentencia.setString(3, usuario.getRol().name());
                     asignarPerfil(sentencia, 4, usuario);
-                    sentencia.setBoolean(11, usuario.isActivo());
+                    sentencia.setBoolean(12, usuario.isActivo());
                 });
         usuario.setId(id);
         return usuario;
@@ -81,12 +82,12 @@ public class UsuarioDaoJdbc extends DaoJdbcBase implements UsuarioDao {
     @Override
     public boolean actualizar(Usuario usuario) {
         return ejecutarActualizacion("UPDATE usuario SET nombres = ?, apellidos = ?, tipo_documento = ?, "
-                        + "numero_documento = ?, fecha_nacimiento = ?, celular = ?, ciudad = ?, activo = ?, "
+                        + "numero_documento = ?, fecha_nacimiento = ?, celular = ?, ciudad = ?, idioma = ?, activo = ?, "
                         + "actualizado_en = now() WHERE id = ?",
                 sentencia -> {
                     asignarPerfil(sentencia, 1, usuario);
-                    sentencia.setBoolean(8, usuario.isActivo());
-                    sentencia.setLong(9, usuario.getId());
+                    sentencia.setBoolean(9, usuario.isActivo());
+                    sentencia.setLong(10, usuario.getId());
                 }) > 0;
     }
 
@@ -104,7 +105,7 @@ public class UsuarioDaoJdbc extends DaoJdbcBase implements UsuarioDao {
         return ejecutarActualizacion("DELETE FROM usuario WHERE id = ?", sentencia -> sentencia.setLong(1, id)) > 0;
     }
 
-    /** Asigna los siete campos de perfil a partir de la posición indicada. */
+    /** Asigna los ocho campos de perfil (con el idioma) a partir de la posición indicada. */
     private static void asignarPerfil(PreparedStatement sentencia, int desde, Usuario usuario) throws SQLException {
         sentencia.setString(desde, usuario.getNombres());
         sentencia.setString(desde + 1, usuario.getApellidos());
@@ -117,6 +118,7 @@ public class UsuarioDaoJdbc extends DaoJdbcBase implements UsuarioDao {
         }
         sentencia.setString(desde + 5, usuario.getCelular());
         sentencia.setString(desde + 6, usuario.getCiudad());
+        sentencia.setString(desde + 7, usuario.getIdioma().codigo());
     }
 
     private Usuario mapear(ResultSet fila) throws SQLException {
@@ -133,6 +135,7 @@ public class UsuarioDaoJdbc extends DaoJdbcBase implements UsuarioDao {
         usuario.setFechaNacimiento(fila.getObject("fecha_nacimiento", LocalDate.class));
         usuario.setCelular(fila.getString("celular"));
         usuario.setCiudad(fila.getString("ciudad"));
+        usuario.setIdioma(Idioma.desdeCodigo(fila.getString("idioma")).orElse(Idioma.ES));
         usuario.setActivo(fila.getBoolean("activo"));
         usuario.setCreadoEn(fila.getObject("creado_en", OffsetDateTime.class));
         return usuario;

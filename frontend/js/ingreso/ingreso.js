@@ -112,6 +112,7 @@ function conectarRegistro() {
                 correo: correo.value.trim(),
                 clave: clave.value,
                 confirmacion_clave: confirmacion.value,
+                idioma: campo('registro-idioma').value,
             }));
         } catch (error) {
             avisar(resultado, error.message, 'error');

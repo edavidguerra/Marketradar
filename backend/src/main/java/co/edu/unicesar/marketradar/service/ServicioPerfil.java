@@ -1,6 +1,7 @@
 package co.edu.unicesar.marketradar.service;
 
 import co.edu.unicesar.marketradar.dao.UsuarioDao;
+import co.edu.unicesar.marketradar.domain.Idioma;
 import co.edu.unicesar.marketradar.domain.TipoDocumento;
 import co.edu.unicesar.marketradar.domain.Usuario;
 import co.edu.unicesar.marketradar.exception.RecursoNoEncontradoException;
@@ -55,6 +56,11 @@ public class ServicioPerfil {
         usuario.setFechaNacimiento(ValidadorCampos.fechaNacimiento(datos.fechaNacimiento(), reloj));
         usuario.setCelular(ValidadorCampos.celular(datos.celular()));
         usuario.setCiudad(ValidadorCampos.ciudad(datos.ciudad()));
+        // Si no viene el idioma (formularios viejos), se deja el que tenía.
+        Idioma idioma = ValidadorCampos.idioma(datos.idioma());
+        if (idioma != null) {
+            usuario.setIdioma(idioma);
+        }
         usuarioDao.actualizar(usuario);
         return usuario;
     }
@@ -71,6 +77,6 @@ public class ServicioPerfil {
      * @param ciudad ciudad de residencia; opcional
      */
     public record DatosPerfil(String nombres, String apellidos, String tipoDocumento, String numeroDocumento,
-                              LocalDate fechaNacimiento, String celular, String ciudad) {
+                              LocalDate fechaNacimiento, String celular, String ciudad, String idioma) {
     }
 }

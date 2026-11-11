@@ -62,6 +62,28 @@ class SeleccionPonderadaMvpTest {
     }
 
     @Test
+    void sinEnvioConocidoPrefiereLaTiendaDeColombiaQueLaDelExterior() {
+        OfertaNormalizada exterior = OfertaNormalizada.builder()
+                .codigoMarketplace("googleshopping").idExterno("ebay").titulo("Tensiómetro ebay")
+                .precio(new BigDecimal("98000")).moneda("COP").vendedor("eBay - salud")
+                .calificacion(new BigDecimal("4.5")).totalResenas(300).condicion("nuevo")
+                .urlDestino("https://www.google.com.co/search?q=t").build();
+        OfertaNormalizada local = OfertaNormalizada.builder()
+                .codigoMarketplace("googleshopping").idExterno("exito").titulo("Tensiómetro exito")
+                .precio(new BigDecimal("100000")).moneda("COP").vendedor("Éxito")
+                .calificacion(new BigDecimal("4.5")).totalResenas(300).condicion("nuevo")
+                .urlDestino("https://www.google.com.co/search?q=t").build();
+
+        ProductoMvp mvp = seleccion.elegir(List.of(exterior, local)).orElseThrow();
+        assertEquals("exito", mvp.oferta().getIdExterno());
+        assertTrue(mvp.razones().contains("La tienda vende desde Colombia."));
+
+        ProductoMvp soloExterior = seleccion.elegir(List.of(exterior)).orElseThrow();
+        assertTrue(soloExterior.razones().stream().anyMatch(r -> r.startsWith("Atención: la tienda vende desde el "
+                + "exterior. Puede tardar más")));
+    }
+
+    @Test
     void elPuntajeVaDeCeroACien() {
         ProductoMvp mvp = seleccion.elegir(List.of(oferta("unica", "50000", "0", "5", 100000, "nuevo")))
                 .orElseThrow();

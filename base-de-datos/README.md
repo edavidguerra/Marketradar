@@ -20,6 +20,7 @@ aplica los scripts en orden cuando arranca la aplicación.
 | `V8__google_shopping.sql` | Datos: agrega Google Shopping, que trae por SerpApi los precios de muchas tiendas colombianas. |
 | `V9__retira_tienda_demostracion.sql` | Datos: apaga la tienda de demostración y borra sus ofertas de ejemplo, porque los productos reales ya llegan por Google Shopping. |
 | `V10__imagen_en_historial.sql` | Estructura y datos: agrega la foto de cada búsqueda para el historial y se la pone a las búsquedas que ya estaban, buscando una oferta guardada con el mismo nombre. |
+| `V11__idioma_usuario.sql` | Estructura: agrega el idioma de cada cuenta (español por defecto), para ofrecer traducir las reseñas que están en otro idioma. |
 
 ## Vistas y consultas de reportes
 
@@ -99,6 +100,7 @@ psql -U postgres -d marketradar_revision -f migraciones/V7__tienda_demostracion.
 psql -U postgres -d marketradar_revision -f migraciones/V8__google_shopping.sql
 psql -U postgres -d marketradar_revision -f migraciones/V9__retira_tienda_demostracion.sql
 psql -U postgres -d marketradar_revision -f migraciones/V10__imagen_en_historial.sql
+psql -U postgres -d marketradar_revision -f migraciones/V11__idioma_usuario.sql
 ```
 
 ## Scripts de administración

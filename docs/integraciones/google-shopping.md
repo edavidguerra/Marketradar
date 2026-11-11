@@ -27,7 +27,8 @@ Falabella, Alkosto, Mercado Libre y otras), así que reemplaza a las tiendas cuy
 | `title` | `titulo` | |
 | `extracted_price` | `precio` | Número sin formato. |
 | `price` | `moneda` | `COP`, o `USD` si el texto dice US$. |
-| `delivery` | `costoEnvio` | 0 si dice "gratis" o "free"; si no, queda sin valor. |
+| `delivery` | `costoEnvio` | 0 si dice "gratis" o "free"; el valor si dice "Envío: $ 12.900" o "Get it today ($17)". Si el envío gratis tiene condiciones ("en compras de más de...") o está en otra moneda, queda sin valor y la página dice "Envío: se confirma en la tienda". |
+| `source` | `vendedor` y ubicación | `UbicacionVendedor` deduce desde dónde vende: "Colombia" en el nombre, terminación `.co`/`.com.co` o tiendas conocidas (Éxito, Alkosto, Falabella...); eBay, Amazon, AliExpress o terminaciones como `.it` son del exterior. Si no se sabe, la página dice "Vende desde: revíselo en la tienda". |
 | `source` | `vendedor` | La tienda real. En pantalla se ve solo "Éxito". |
 | `link` (o `product_link`) | `urlDestino` | Si SerpApi trae el enlace directo de la tienda, se usa ese; si no, la página del producto en Google. En Colombia casi ningún producto trae esos enlaces, así que entonces se abre la búsqueda del producto y su tienda en Google Shopping Colombia (`AdaptadorGoogleShopping.enlaceBusqueda`). Antes esos productos se descartaban y por eso "playstation 5" salía sin resultados. Solo se aceptan enlaces `https`. |
 | `thumbnail` | `urlImagen` | Si llega con `http`, se cambia a `https`. |

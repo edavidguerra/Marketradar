@@ -3,6 +3,7 @@ package co.edu.unicesar.marketradar.service.mvp;
 import co.edu.unicesar.marketradar.config.PropiedadesMarketradar;
 import co.edu.unicesar.marketradar.domain.OfertaNormalizada;
 import co.edu.unicesar.marketradar.domain.ProductoMvp;
+import co.edu.unicesar.marketradar.domain.UbicacionVendedor;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -30,6 +31,8 @@ public class SeleccionPonderadaMvp implements EstrategiaSeleccionMvp {
 
     static final double CALIFICACION_NEUTRA = 3.0;
     static final double PENALIZACION_USADO = 0.9;
+    static final double ENVIO_DESCONOCIDO = 0.5;
+    static final double ENVIO_DESCONOCIDO_EXTERIOR = 0.1;
     private static final double CALIFICACION_MAXIMA = 5.0;
     private static final Locale COLOMBIA = Locale.forLanguageTag("es-CO");
 
@@ -89,7 +92,8 @@ public class SeleccionPonderadaMvp implements EstrategiaSeleccionMvp {
     private static double puntajeEnvio(OfertaNormalizada oferta) {
         BigDecimal envio = oferta.getCostoEnvio();
         if (envio == null) {
-            return 0.5;
+            // Desde otro país el envío casi siempre es caro y puede sumar impuestos; en Colombia, se supone normal.
+            return oferta.ubicacion().desdeExterior() ? ENVIO_DESCONOCIDO_EXTERIOR : ENVIO_DESCONOCIDO;
         }
         if (envio.signum() == 0) {
             return 1.0;
@@ -125,6 +129,13 @@ public class SeleccionPonderadaMvp implements EstrategiaSeleccionMvp {
             razones.add("El envío es gratis.");
         } else {
             razones.add("El precio ya incluye el envío de " + pesos(envio) + ".");
+        }
+        UbicacionVendedor ubicacion = oferta.ubicacion();
+        if (ubicacion.alcance() == UbicacionVendedor.Alcance.COLOMBIA) {
+            razones.add("La tienda vende desde Colombia.");
+        } else if (ubicacion.desdeExterior()) {
+            razones.add("Atención: la tienda vende desde " + ubicacion.texto()
+                    + ". Puede tardar más en llegar y cobrar impuestos de importación.");
         }
         if (esUsado(oferta)) {
             razones.add("Atención: es un producto usado o reacondicionado.");

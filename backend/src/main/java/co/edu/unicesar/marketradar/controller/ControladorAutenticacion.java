@@ -57,7 +57,7 @@ public class ControladorAutenticacion {
     public SesionDto registrar(@RequestBody SolicitudRegistroDto solicitud, HttpServletRequest peticion,
                                HttpServletResponse respuesta) {
         servicioCuentas.registrar(solicitud.nombres(), solicitud.apellidos(), solicitud.correo(), solicitud.clave(),
-                solicitud.confirmacionClave());
+                solicitud.confirmacionClave(), solicitud.idioma());
         return iniciarSesion(servicioCuentas.ingresar(solicitud.correo(), solicitud.clave()), peticion, respuesta);
     }
 

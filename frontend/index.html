@@ -111,6 +111,19 @@
                 <button type="button" class="boton boton-enlace" id="ver-clave-registro" aria-pressed="false">
                     Mostrar contraseña</button>
             </div>
+            <div class="campo">
+                <label for="registro-idioma">Idioma en que lee</label>
+                <select id="registro-idioma" aria-describedby="ayuda-registro-idioma">
+                    <option value="es">Español</option>
+                    <option value="en">Inglés (English)</option>
+                    <option value="pt">Portugués (Português)</option>
+                    <option value="fr">Francés (Français)</option>
+                    <option value="it">Italiano</option>
+                    <option value="de">Alemán (Deutsch)</option>
+                </select>
+                <p id="ayuda-registro-idioma" class="ayuda">Si una opinión de compradores está en otro idioma, le
+                    ofrecemos traducirla a este. Lo puede cambiar después en Mi perfil.</p>
+            </div>
             <p id="resultado-registro" class="aviso-formulario" role="alert" hidden></p>
             <button type="submit" class="boton boton-principal">Crear mi cuenta <svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#flecha"></use></svg></button>
         </form>

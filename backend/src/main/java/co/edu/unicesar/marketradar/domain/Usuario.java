@@ -20,6 +20,7 @@ public class Usuario {
     private LocalDate fechaNacimiento;
     private String celular;
     private String ciudad;
+    private Idioma idioma = Idioma.ES;
     private boolean activo = true;
     private OffsetDateTime creadoEn;
 
@@ -148,6 +149,19 @@ public class Usuario {
 
     public void setCiudad(String ciudad) {
         this.ciudad = ciudad;
+    }
+
+    /**
+     * Idioma en que la persona lee; las reseñas escritas en otro idioma se pueden traducir a este.
+     *
+     * @return idioma de la cuenta, español si no eligió otro
+     */
+    public Idioma getIdioma() {
+        return idioma;
+    }
+
+    public void setIdioma(Idioma idioma) {
+        this.idioma = idioma == null ? Idioma.ES : idioma;
     }
 
     public boolean isActivo() {

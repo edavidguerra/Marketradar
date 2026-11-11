@@ -20,6 +20,7 @@ mismo PR que cambia el código.
 | 11 | Velocidad | Caché de 60 minutos (`BUSQUEDA_CACHE_MINUTOS`), ofertas guardadas en una sola consulta y archivos comprimidos | Cada búsqueda repetida responde al instante y gasta menos consultas de SerpApi. Ver [arquitectura.md](arquitectura.md#velocidad). |
 | 12 | Animaciones | Cortas (menos de 5 s), decorativas y apagadas con "reducir movimiento" | Llamativas sin marear ni distraer (WCAG 2.2.2 y 2.3.3). |
 | 13 | IA en la búsqueda | Gemini (plan gratis de Google AI Studio) entiende la búsqueda, elige los productos que sí son lo buscado y escribe un resumen; el chatbot sigue con Claude | Google Shopping trae forros y accesorios mezclados con el producto, y los filtros por palabras no bastan. Sin clave o si falla, se usan los filtros propios. Ver [integraciones/gemini.md](integraciones/gemini.md). |
+| 14 | Envío, ubicación y traducción | El envío se lee del texto de Google; la ubicación de la tienda se deduce de su nombre y dirección; las reseñas en otro idioma se traducen con Gemini solo cuando la persona lo pide | Google no dice desde dónde vende cada tienda, y comprar del exterior tarda y cobra impuestos. Traducir solo al pulsar ahorra cuota. Ver [integraciones/google-shopping.md](integraciones/google-shopping.md) y [integraciones/gemini.md](integraciones/gemini.md). |
 
 ## Pendientes
 

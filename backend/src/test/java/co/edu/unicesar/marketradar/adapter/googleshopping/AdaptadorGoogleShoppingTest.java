@@ -282,7 +282,33 @@ class AdaptadorGoogleShoppingTest {
         assertEquals("USD", AdaptadorGoogleShopping.moneda("US$ 25,00"));
         assertEquals("COP", AdaptadorGoogleShopping.moneda(null));
         assertEquals(BigDecimal.ZERO, AdaptadorGoogleShopping.costoEnvio("Free delivery"));
-        assertNull(AdaptadorGoogleShopping.costoEnvio("Envío: $ 10.000"));
+        assertEquals(BigDecimal.ZERO, AdaptadorGoogleShopping.costoEnvio("Envío gratis"));
         assertNull(AdaptadorGoogleShopping.costoEnvio(null));
+    }
+
+    @Test
+    void leeElCostoDelEnvio() {
+        assertEquals(new BigDecimal("10000"), AdaptadorGoogleShopping.costoEnvio("Envío: $ 10.000", "COP"));
+        assertEquals(new BigDecimal("12900"), AdaptadorGoogleShopping.costoEnvio("Envío por COP 12.900", "COP"));
+        assertEquals(new BigDecimal("8500"), AdaptadorGoogleShopping.costoEnvio("Recíbelo mañana ($8,500)", "COP"));
+        assertEquals(new BigDecimal("17"), AdaptadorGoogleShopping.costoEnvio("Get it today ($17)", "USD"));
+        assertEquals(new BigDecimal("9.99"), AdaptadorGoogleShopping.costoEnvio("US$ 9,99 delivery", "USD"));
+    }
+
+    @Test
+    void siElEnvioTieneCondicionesOEstaEnOtraMonedaNoSeAdivina() {
+        // Gratis solo por encima de un valor: no se sabe si esta compra lo alcanza.
+        assertNull(AdaptadorGoogleShopping.costoEnvio("Envío gratis en compras superiores a $ 150.000", "COP"));
+        assertNull(AdaptadorGoogleShopping.costoEnvio("Free delivery on $45+", "USD"));
+        assertNull(AdaptadorGoogleShopping.costoEnvio("Envío US$ 20", "COP"));
+        assertNull(AdaptadorGoogleShopping.costoEnvio("Llega en 3 días", "COP"));
+    }
+
+    @Test
+    void leeNumerosConPuntosYComas() {
+        assertEquals(new BigDecimal("1299.50"), AdaptadorGoogleShopping.numero("1.299,50"));
+        assertEquals(new BigDecimal("1299.50"), AdaptadorGoogleShopping.numero("1,299.50"));
+        assertEquals(new BigDecimal("1323605"), AdaptadorGoogleShopping.numero("1.323.605"));
+        assertEquals(new BigDecimal("45"), AdaptadorGoogleShopping.numero("45."));
     }
 }
