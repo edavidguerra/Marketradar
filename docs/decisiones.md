@@ -36,3 +36,4 @@ mismo PR que cambia el código.
 - Shopify: cómo se obtiene el token del Global Catalog y su límite de consultas.
 - Mercado Libre: si las búsquedas sin OAuth responden 403 y los límites de uso.
 - Formato del conjunto 32sa-8pi3 de datos.gov.co (TRM) y condiciones de uso de open.er-api.com.
+| 15 | Avisos del inicio en carrusel | Los avisos cambian solos cada 5 segundos y se pasan con flechas, deslizando el dedo o con ← y →; hay botón "Pausar" y el cambio se detiene con el ratón o el foco encima | Muestra todas las ofertas sin que la persona tenga que pulsar. Para cumplir WCAG 2.2.2 (pausar lo que se mueve solo), empieza en pausa si el sistema pide reducir el movimiento y el lector de pantalla solo anuncia los cambios que pide la persona |
