@@ -7,8 +7,8 @@ Comparador de precios accesible para adultos mayores. Proyecto de aula de **Prog
 ## Qué hace
 
 1. La persona escribe un producto, por ejemplo "olla arrocera".
-2. Marketradar consulta al mismo tiempo AliExpress, Shopify y Mercado Libre, convierte los precios a pesos con la TRM del día y los ordena por precio total.
-3. Muestra el **producto MVP**: la mejor compra según precio (60 %), opiniones (30 %) y envío (10 %), con las razones en palabras sencillas y un enlace directo a la tienda.
+2. Marketradar consulta al mismo tiempo AliExpress, Shopify y Mercado Libre, convierte los precios a pesos con la TRM oficial más reciente (mostrando el precio original, la tasa, su fuente y la fecha) y los ordena por precio más el envío informado. Solo recomienda entre las ofertas que cumplen lo que pidió la persona; las demás las muestra aparte con lo que les falta.
+3. Muestra el **producto MVP**: la mejor compra según precio (60 %), opiniones (30 %) y envío (10 %), con las razones en palabras sencillas, un puntaje de conveniencia (no es una probabilidad), la confianza y un botón que dice a dónde lleva (la tienda o una búsqueda en Google).
 4. Además: historial de búsquedas, reseñas de compradores por oferta, perfil, PQR, tutorial y un asistente con IA.
 5. El administrador ve y responde las PQR.
 
@@ -44,7 +44,7 @@ Comparador de precios accesible para adultos mayores. Proyecto de aula de **Prog
 
 | Entregable | Archivo |
 |---|---|
-| Migraciones V1 a V11 (11 tablas y 4 vistas) | [base-de-datos/migraciones/](../base-de-datos/migraciones/) |
+| Migraciones V1 a V12 (11 tablas y 4 vistas) | [base-de-datos/migraciones/](../base-de-datos/migraciones/) |
 | Modelo entidad relación | [base-de-datos/docs/mer/](../base-de-datos/docs/mer/) |
 | Diccionario de datos | [base-de-datos/docs/diccionario-datos.md](../base-de-datos/docs/diccionario-datos.md) |
 | Normalización | [base-de-datos/docs/normalizacion.md](../base-de-datos/docs/normalizacion.md) |
@@ -64,7 +64,7 @@ Comparador de precios accesible para adultos mayores. Proyecto de aula de **Prog
 
 | Qué | Resultado |
 |---|---|
-| Pruebas automáticas (`mvn -f backend/pom.xml verify`) | 220 pruebas; las 7 de DAO con Testcontainers corren en GitHub Actions |
+| Pruebas automáticas (`mvn -f backend/pom.xml verify`) | 328 pruebas; las 8 de DAO con Testcontainers corren en GitHub Actions |
 | Integración continua | Check `pruebas` obligatorio en cada PR hacia `develop` |
 | Accesibilidad con axe (WCAG 2.1 AA) | 0 fallas en 14 pantallas |
 | Lighthouse en la pantalla de ingreso | 100 en accesibilidad, buenas prácticas, rendimiento y SEO |

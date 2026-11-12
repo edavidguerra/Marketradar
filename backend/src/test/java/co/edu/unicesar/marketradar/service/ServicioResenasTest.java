@@ -75,6 +75,76 @@ class ServicioResenasTest {
         verify(googleShopping, never()).resenas(anyString());
     }
 
+    @Test
+    void lasOpinionesDelMismoModeloSeAceptanYSeDiceQueSonDelProducto() {
+        servicio.recordar(resultado(celular("token-1", "Apple iPhone 13 128 GB Azul"), 1L));
+
+        ServicioResenas.Procedencia procedencia = servicio.procedencia(1L, deProducto("Apple iPhone 13"));
+
+        assertEquals(ServicioResenas.Procedencia.Estado.VERIFICADA, procedencia.estado());
+        assertTrue(procedencia.nota().startsWith("Son opiniones del producto, reunidas por Google de varias tiendas; "
+                + "no son opiniones sobre Éxito."), procedencia.nota());
+        assertTrue(procedencia.nota().contains("pueden incluir otras capacidades o colores"), procedencia.nota());
+    }
+
+    @Test
+    void lasOpinionesDeOtraVersionSeRechazan() {
+        servicio.recordar(resultado(celular("token-2", "Apple iPhone 13 128 GB Azul"), 2L));
+
+        ServicioResenas.Procedencia pro = servicio.procedencia(2L, deProducto("Apple iPhone 13 Pro Max"));
+        ServicioResenas.Procedencia otro = servicio.procedencia(2L, deProducto("Apple iPhone 12"));
+
+        assertEquals(ServicioResenas.Procedencia.Estado.RECHAZADA, pro.estado());
+        assertTrue(pro.nota().contains("otro modelo o versión"), pro.nota());
+        assertEquals(ServicioResenas.Procedencia.Estado.RECHAZADA, otro.estado());
+    }
+
+    @Test
+    void siGoogleNoDiceDeQueProductoSonNoSeDanPorVerificadas() {
+        servicio.recordar(resultado(celular("token-3", "Apple iPhone 13 128 GB Azul"), 3L));
+
+        ServicioResenas.Procedencia procedencia = servicio.procedencia(3L, RESENAS);
+
+        assertEquals(ServicioResenas.Procedencia.Estado.SIN_VERIFICAR, procedencia.estado());
+        assertTrue(procedencia.nota().contains("pueden ser de otra versión"), procedencia.nota());
+    }
+
+    @Test
+    void sinNumeroDeModeloSoloSeDiceAQueProductoLasAsociaGoogle() {
+        servicio.recordar(resultado(oferta("token-4"), 4L));
+
+        ServicioResenas.Procedencia procedencia = servicio.procedencia(4L, deProducto("Olla arrocera Imusa 1,8 L"));
+
+        assertEquals(ServicioResenas.Procedencia.Estado.SIN_VERIFICAR, procedencia.estado());
+        assertTrue(procedencia.nota().endsWith("Google las asocia a \"Olla arrocera Imusa 1,8 L\"."),
+                procedencia.nota());
+    }
+
+    @Test
+    void unaOpinionRepetidaEnDosSitiosSeMuestraUnaVez() {
+        ResenasProducto.Resena luis = new ResenasProducto.Resena("Buena", "Funciona  bien", "Luis", "Éxito",
+                new BigDecimal("5"), null);
+        ResenasProducto.Resena copia = new ResenasProducto.Resena("Buena", "Funciona bien", "luis", "Alkosto",
+                new BigDecimal("5"), null);
+
+        ResenasProducto resenas = new ResenasProducto(new BigDecimal("5"), 2, List.of(), List.of(luis, copia));
+
+        assertEquals(1, resenas.resenas().size());
+    }
+
+    private static ResenasProducto deProducto(String titulo) {
+        return new ResenasProducto(RESENAS.calificacion(), RESENAS.totalResenas(), RESENAS.distribucion(),
+                RESENAS.resenas(), titulo);
+    }
+
+    private static OfertaNormalizada celular(String token, String titulo) {
+        return OfertaNormalizada.builder()
+                .codigoMarketplace("googleshopping").idExterno("p-" + token).titulo(titulo)
+                .precio(new BigDecimal("2899900")).moneda("COP").condicion("nuevo").vendedor("Éxito")
+                .urlDestino("https://www.exito.com/iphone").tokenResenas(token)
+                .build();
+    }
+
     private static OfertaNormalizada oferta(String token) {
         return OfertaNormalizada.builder()
                 .codigoMarketplace("googleshopping").idExterno("p-" + token).titulo("Olla arrocera")
@@ -84,6 +154,6 @@ class ServicioResenasTest {
     }
 
     private static ResultadoBusqueda resultado(OfertaNormalizada oferta, long id) {
-        return new ResultadoBusqueda(List.of(oferta), List.of(), 1, Map.of(oferta.clave(), id), oferta.precioTotal(), null);
+        return new ResultadoBusqueda(List.of(oferta), List.of(), 1, Map.of(oferta.clave(), id), oferta.costoConocido(), null);
     }
 }

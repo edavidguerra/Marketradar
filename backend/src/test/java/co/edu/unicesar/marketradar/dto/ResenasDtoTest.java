@@ -49,4 +49,32 @@ class ResenasDtoTest {
         ResenasDto dto = ResenasDto.desde(producto, Idioma.ES, false);
         assertTrue(dto.resenas().stream().noneMatch(ResenasDto.ResenaDto::traducible));
     }
+
+    @Test
+    void explicaPorQueElTotalNoCuadraConLasEstrellasNiConLasOpinionesMostradas() {
+        ResenasProducto distinto = new ResenasProducto(new BigDecimal("4.5"), 312,
+                List.of(new ResenasProducto.Estrellas(5, 200), new ResenasProducto.Estrellas(4, 90)),
+                producto.resenas());
+
+        assertEquals("El total de 312 opiniones y la suma de las estrellas (290) vienen de conteos distintos de "
+                + "Google; se muestran 3 de las 312 opiniones.", ResenasDto.notaConteo(distinto));
+    }
+
+    @Test
+    void siTodoCuadraNoHayNota() {
+        ResenasProducto cuadra = new ResenasProducto(new BigDecimal("4.5"), 3,
+                List.of(new ResenasProducto.Estrellas(5, 2), new ResenasProducto.Estrellas(4, 1)), producto.resenas());
+
+        assertNull(ResenasDto.notaConteo(cuadra));
+    }
+
+    @Test
+    void lasOpinionesRechazadasNoSeMuestranYSeDicePorQue() {
+        ResenasDto dto = ResenasDto.rechazadas(Idioma.ES, "Google entregó opiniones de otro modelo.");
+
+        assertFalse(dto.disponibles());
+        assertTrue(dto.resenas().isEmpty());
+        assertEquals("rechazada", dto.procedencia());
+        assertEquals("Google entregó opiniones de otro modelo.", dto.notaProcedencia());
+    }
 }

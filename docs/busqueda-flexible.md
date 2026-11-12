@@ -112,8 +112,9 @@ un precio que ya no está en la lista.
 
 ## 4b. Filtro de precio
 
-Después de buscar aparece "Filtrar por precio" con "Desde" y "Hasta" (se puede llenar solo uno). Cuenta el precio total,
-con envío, y acepta "1.500.000", "1500000" o "$ 1.500.000". La API lo recibe como `precio_minimo` y `precio_maximo`.
+Después de buscar aparece "Filtrar por precio" con "Desde" y "Hasta" (se puede llenar solo uno). Compara el precio más
+el envío cuando la tienda lo informa (si no lo informa, solo el precio, y la página avisa cuántas no tienen el total
+confirmado), y acepta "1.500.000", "1500000" o "$ 1.500.000". La API lo recibe como `precio_minimo` y `precio_maximo`.
 
 - El filtro se aplica sobre los resultados que ya están en caché: cambiarlo no gasta búsquedas de SerpApi ni vuelve a
   preguntarle a Gemini, y no repite la búsqueda en el historial.
@@ -124,11 +125,15 @@ con envío, y acepta "1.500.000", "1500000" o "$ 1.500.000". La API lo recibe co
 
 ## 5. Enlaces de compra seguros
 
-- El adaptador de Google Shopping solo guarda enlaces `https` con dominio válido (`AdaptadorGoogleShopping.esSeguro`).
-  Prefiere el enlace directo de la tienda y, si no lo hay, abre el producto en Google Shopping.
-- En la página, `enlaceTienda` no muestra botón si el enlace no es `https`.
-- Antes de salir, una ventana dice a qué dominio va la persona ("Va a abrir www.exito.com (Éxito) en otra pestaña, con
-  conexión segura") y le recuerda que Marketradar nunca le pide datos bancarios.
+- El adaptador de Google Shopping solo guarda enlaces `https` con nombre de servidor, sin IP ni usuario antes del
+  servidor (`EnlaceCompra.esSeguro`). Prefiere el enlace de la tienda, después la ficha de Google Shopping y, si no hay
+  ninguno, una búsqueda en Google con el nombre de la oferta.
+- El botón dice a dónde lleva: "Ver la oferta en exito.com", "Ver las tiendas en Google Shopping" o "Buscar esta oferta
+  en Google" (`EnlaceCompra.textoBoton`). Ver [recomendacion.md](recomendacion.md#5-enlaces).
+- En la página, `enlaceTienda` no muestra botón si el enlace no pasa la misma revisión (`dominioSeguro`).
+- Antes de salir, una ventana dice a dónde va la persona ("Va a abrir exito.com (Éxito) en otra pestaña, con conexión
+  segura", o que es una búsqueda en Google y hay que revisar el producto y el precio) y le recuerda que Marketradar
+  nunca le pide datos bancarios.
 
 ## Pruebas
 

@@ -10,6 +10,10 @@ import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import co.edu.unicesar.marketradar.domain.TasaCambio;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Lógica común de los adaptadores (método plantilla): verifica que esté habilitado, respeta el límite
@@ -17,6 +21,8 @@ import java.util.List;
  * Cada subclase solo implementa {@link #consultarApi(ConsultaBusqueda)}.
  */
 public abstract class AdaptadorMarketplaceBase implements AdaptadorMarketplace {
+
+    private static final Logger LOG = LoggerFactory.getLogger(AdaptadorMarketplaceBase.class);
 
     private final String codigo;
     private final ConversorMoneda conversor;
@@ -72,15 +78,24 @@ public abstract class AdaptadorMarketplaceBase implements AdaptadorMarketplace {
     private List<OfertaNormalizada> convertirAMonedaDestino(List<OfertaNormalizada> ofertas) {
         String destino = conversor.getMonedaDestino();
         List<OfertaNormalizada> convertidas = new ArrayList<>();
+        int sinTasa = 0;
         for (OfertaNormalizada oferta : ofertas) {
-            if (destino.equals(oferta.getMoneda())) {
+            // Una oferta que ya está en pesos, o que ya se convirtió, no se vuelve a convertir.
+            if (destino.equals(oferta.getMoneda()) || oferta.getPrecioOriginal() != null) {
                 convertidas.add(oferta);
-            } else {
-                convertidas.add(oferta.conPrecio(
-                        conversor.convertir(oferta.getPrecio(), oferta.getMoneda()),
-                        conversor.convertir(oferta.getCostoEnvio(), oferta.getMoneda()),
-                        destino));
+                continue;
             }
+            Optional<TasaCambio> tasa = conversor.tasaPara(oferta.getMoneda());
+            if (tasa.isEmpty()) {
+                // Sin tasa no se puede mostrar un precio en pesos: se deja por fuera, sin tumbar las demás ofertas.
+                sinTasa++;
+                continue;
+            }
+            convertidas.add(oferta.convertida(ConversorMoneda.convertir(oferta.getPrecio(), tasa.get()),
+                    ConversorMoneda.convertir(oferta.getCostoEnvio(), tasa.get()), destino, tasa.get()));
+        }
+        if (sinTasa > 0) {
+            LOG.warn("{}: se omitieron {} ofertas porque no hay tasa de cambio para su moneda", codigo, sinTasa);
         }
         return convertidas;
     }

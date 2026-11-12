@@ -50,6 +50,7 @@ public class ProveedorIAClaude implements ProveedorIA {
 
     static final String HERRAMIENTA_BUSCAR = "buscarMejorOpcion";
     static final String HERRAMIENTA_DOLAR = "valorDelDolar";
+    static final String HERRAMIENTA_PUNTAJE = "explicarPuntaje";
 
     /** Máximo de idas y vueltas con herramientas en una sola pregunta, para no gastar créditos de más. */
     static final int MAXIMO_RONDAS = 4;
@@ -58,9 +59,10 @@ public class ProveedorIAClaude implements ProveedorIA {
     private static final List<Tool> HERRAMIENTAS = List.of(
             Tool.builder()
                     .name(HERRAMIENTA_BUSCAR)
-                    .description("Busca un producto en las tiendas conectadas a Marketradar y devuelve la mejor "
-                            + "opción de compra (producto MVP) con su enlace directo, y las ofertas más baratas en "
-                            + "pesos colombianos.")
+                    .description("Busca un producto en las tiendas conectadas a Marketradar. Devuelve lo que "
+                            + "pidió la persona, la mejor opción de compra (si alguna cumple todo), las ofertas más "
+                            + "baratas que cumplen y las alternativas que no cumplen, con lo que les falta, en pesos "
+                            + "colombianos. Cada enlace dice a dónde lleva.")
                     .inputSchema(Tool.InputSchema.builder()
                             .properties(Tool.InputSchema.Properties.builder()
                                     .putAdditionalProperty("producto", JsonValue.from(Map.of(
@@ -72,7 +74,16 @@ public class ProveedorIAClaude implements ProveedorIA {
                     .build(),
             Tool.builder()
                     .name(HERRAMIENTA_DOLAR)
-                    .description("Devuelve cuántos pesos colombianos vale hoy un dólar (TRM) según Marketradar.")
+                    .description("Devuelve cuántos pesos colombianos vale un dólar según Marketradar, con la fuente "
+                            + "y la fecha de la tasa.")
+                    .inputSchema(Tool.InputSchema.builder()
+                            .properties(Tool.InputSchema.Properties.builder().build())
+                            .build())
+                    .build(),
+            Tool.builder()
+                    .name(HERRAMIENTA_PUNTAJE)
+                    .description("Explica cómo elige Marketradar la mejor opción de compra y cómo calcula el puntaje "
+                            + "de 0 a 100: qué datos usa, cuánto pesa cada uno y qué pasa cuando falta un dato.")
                     .inputSchema(Tool.InputSchema.builder()
                             .properties(Tool.InputSchema.Properties.builder().build())
                             .build())
@@ -171,6 +182,7 @@ public class ProveedorIAClaude implements ProveedorIA {
             return switch (uso.name()) {
                 case HERRAMIENTA_BUSCAR -> herramientas.buscarMejorOpcion(texto(uso._input(), "producto"));
                 case HERRAMIENTA_DOLAR -> herramientas.valorDelDolar();
+                case HERRAMIENTA_PUNTAJE -> herramientas.explicarPuntaje();
                 default -> "Herramienta desconocida: " + uso.name();
             };
         } catch (RuntimeException e) {

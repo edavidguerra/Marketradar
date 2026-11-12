@@ -1217,6 +1217,8 @@ main > section:not([hidden]) { animation: entrar-seccion .5s var(--curva) both; 
 
 .mvp ul li { display: flex; gap: .55rem; align-items: baseline; }
 .mvp ul li::before { content: "✓"; font-weight: 800; color: var(--color-principal); }
+/* Los datos (envío, estado, ubicación) no llevan ✓: pueden decir que algo no se sabe. */
+.mvp ul.datos li::before { content: none; }
 
 .puntaje {
     height: .7rem;
@@ -1360,6 +1362,123 @@ main > section:not([hidden]) { animation: entrar-seccion .5s var(--curva) both; 
 }
 
 .nota-exterior { font-weight: 500; }
+
+/* Condición distinta de "nuevo" o no informada: se ve, sin parecer un error. */
+.dato-aviso { background: var(--color-acento-suave); color: var(--color-acento); }
+
+/* Qué le falta al precio para ser el total, y precios que no se pudieron verificar. */
+.falta-total {
+    font-size: .95rem;
+    font-weight: 600;
+    color: var(--color-acento);
+}
+
+.alerta-precio {
+    display: flex;
+    gap: .5rem;
+    align-items: flex-start;
+    padding: .6rem .8rem;
+    border-left: 6px solid var(--color-error);
+    border-radius: 10px;
+    background: var(--color-error-suave);
+    color: var(--color-error);
+    font-weight: 700;
+}
+
+.alerta-precio .icono { flex: none; margin-top: .15rem; }
+.conversion { font-size: .9rem; }
+
+/* Lo que se exigió a cada oferta. */
+.requisitos-busqueda { margin: 0 0 1.25rem; }
+.requisitos-busqueda p { margin: 0 0 .4rem; font-weight: 600; }
+
+.chips {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+}
+
+.chips li {
+    padding: .2rem .8rem;
+    border-radius: 999px;
+    border: 2px solid var(--color-principal);
+    color: var(--color-principal-oscuro);
+    background: var(--color-principal-suave);
+    font-weight: 700;
+}
+
+.nota-totales, .sin-recomendacion {
+    margin: 0 0 1.25rem;
+    padding: .75rem var(--espacio);
+    border-left: 6px solid var(--color-acento);
+    border-radius: 10px;
+    background: var(--color-acento-suave);
+    color: var(--color-acento);
+    font-weight: 600;
+}
+
+.sin-recomendacion { font-size: 1.1rem; }
+
+/* Alternativas: aparte, con lo que les falta arriba. */
+.alternativas { margin: 2rem 0 1.5rem; }
+.alternativas h2 { margin: 0 0 .25rem; }
+.alternativas > .ayuda { margin: 0 0 1rem; }
+.tarjeta.alternativa { border-style: dashed; }
+
+.faltantes {
+    padding: .6rem .8rem;
+    border-radius: 12px;
+    background: var(--color-acento-suave);
+    color: var(--color-acento);
+}
+
+.faltantes.incumple { background: var(--color-error-suave); color: var(--color-error); }
+.faltantes-titulo { font-weight: 800; }
+.faltantes ul { margin: .25rem 0 0; padding-left: 1.25rem; font-weight: 600; }
+
+/* Confianza de la recomendación y cómo se calcula. */
+.confianza {
+    display: grid;
+    gap: .2rem;
+    padding: .6rem .8rem;
+    border-radius: 12px;
+    background: var(--color-superficie);
+    border: 1px solid var(--color-borde);
+}
+
+.confianza-nivel { font-weight: 800; }
+.confianza-alta .confianza-nivel { color: var(--color-exito); }
+.confianza-media .confianza-nivel, .confianza-baja .confianza-nivel { color: var(--color-acento); }
+
+.como-se-calcula summary {
+    cursor: pointer;
+    font-weight: 700;
+    color: var(--color-principal-oscuro);
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+}
+
+.como-se-calcula ol { margin: .25rem 0 0; padding-left: 1.4rem; display: grid; gap: .35rem; }
+
+/* De dónde son las opiniones. */
+.nota-procedencia {
+    padding: .6rem .8rem;
+    border-radius: 10px;
+    background: var(--color-info-suave);
+    color: var(--color-info);
+    font-weight: 600;
+}
+
+.nota-procedencia.sin-verificar { background: var(--color-acento-suave); color: var(--color-acento); }
+.nota-procedencia.rechazada { background: var(--color-error-suave); color: var(--color-error); }
+
+:root.alto-contraste .nota-totales, :root.alto-contraste .sin-recomendacion, :root.alto-contraste .faltantes,
+:root.alto-contraste .alerta-precio, :root.alto-contraste .confianza, :root.alto-contraste .nota-procedencia,
+:root.alto-contraste .chips li { border: 2px solid var(--color-borde); }
 
 @media (max-width: 30rem) {
     .dato { border-radius: 12px; }

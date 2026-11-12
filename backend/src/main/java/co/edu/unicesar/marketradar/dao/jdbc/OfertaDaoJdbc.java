@@ -66,13 +66,30 @@ public class OfertaDaoJdbc extends DaoJdbcBase implements OfertaDao {
     }
 
     @Override
+    public List<OfertaDestacada> listarMasBaratasPorTitulo(String texto, int limite) {
+        return consultarLista("SELECT " + columnasCon("o") + ", m.codigo AS codigo_marketplace, NULL AS precio_anterior "
+                        + "FROM oferta o JOIN marketplace m ON m.id = o.marketplace_id "
+                        + "WHERE to_tsvector('spanish', o.titulo) @@ plainto_tsquery('spanish', ?) "
+                        + "ORDER BY o.precio_actual LIMIT ?",
+                sentencia -> {
+                    sentencia.setString(1, texto);
+                    sentencia.setInt(2, limite);
+                }, this::mapearDestacada);
+    }
+
+    /**
+     * Solo compara mediciones equivalentes: la misma oferta, con el mismo vendedor, la misma condición y la misma
+     * moneda que tiene ahora. Las mediciones viejas sin vendedor no cuentan, porque no se sabe de quién eran.
+     */
+    @Override
     public Optional<OfertaDestacada> buscarMayorBajaDePrecio(int dias) {
         return consultarUno("SELECT " + columnasCon("o") + ", m.codigo AS codigo_marketplace, "
                         + "h.precio_maximo AS precio_anterior "
                         + "FROM oferta o JOIN marketplace m ON m.id = o.marketplace_id "
-                        + "JOIN (SELECT oferta_id, MAX(precio) AS precio_maximo FROM historial_precio "
-                        + "      WHERE registrado_en > now() - make_interval(days => ?) GROUP BY oferta_id) h "
-                        + "  ON h.oferta_id = o.id "
+                        + "JOIN LATERAL (SELECT MAX(hp.precio) AS precio_maximo FROM historial_precio hp "
+                        + "      WHERE hp.oferta_id = o.id AND hp.registrado_en > now() - make_interval(days => ?) "
+                        + "        AND hp.moneda = o.moneda AND hp.vendedor IS NOT NULL AND hp.vendedor = o.vendedor "
+                        + "        AND hp.condicion IS NOT DISTINCT FROM o.condicion) h ON TRUE "
                         + "WHERE h.precio_maximo > o.precio_actual "
                         + "ORDER BY (h.precio_maximo - o.precio_actual) / h.precio_maximo DESC LIMIT 1",
                 sentencia -> sentencia.setInt(1, dias), this::mapearDestacada);
@@ -107,7 +124,7 @@ public class OfertaDaoJdbc extends DaoJdbcBase implements OfertaDao {
                 VALUES %s
             ),
             previos AS (
-                SELECT o.marketplace_id, o.id_externo, o.precio_actual
+                SELECT o.marketplace_id, o.id_externo, o.precio_actual, o.moneda, o.vendedor, o.condicion
                 FROM oferta o JOIN datos d ON d.marketplace_id = o.marketplace_id AND d.id_externo = o.id_externo
             ),
             guardadas AS (
@@ -120,14 +137,18 @@ public class OfertaDaoJdbc extends DaoJdbcBase implements OfertaDao {
                     costo_envio = EXCLUDED.costo_envio, condicion = EXCLUDED.condicion, vendedor = EXCLUDED.vendedor,
                     consultado_en = EXCLUDED.consultado_en, calificacion = EXCLUDED.calificacion,
                     total_resenas = EXCLUDED.total_resenas
-                RETURNING id, marketplace_id, id_externo, precio_actual, moneda
+                RETURNING id, marketplace_id, id_externo, precio_actual, moneda, vendedor, condicion
             ),
             historial AS (
-                INSERT INTO historial_precio (oferta_id, precio, moneda)
-                SELECT g.id, g.precio_actual, g.moneda
+                -- Se registra una medición nueva si cambió el precio, o si cambió el vendedor, la condición o la
+                -- moneda: así cada fila dice de qué oferta exacta era el precio.
+                INSERT INTO historial_precio (oferta_id, precio, moneda, vendedor, condicion)
+                SELECT g.id, g.precio_actual, g.moneda, g.vendedor, g.condicion
                 FROM guardadas g
                 LEFT JOIN previos p ON p.marketplace_id = g.marketplace_id AND p.id_externo = g.id_externo
                 WHERE p.precio_actual IS NULL OR p.precio_actual <> g.precio_actual
+                   OR p.moneda IS DISTINCT FROM g.moneda OR p.vendedor IS DISTINCT FROM g.vendedor
+                   OR p.condicion IS DISTINCT FROM g.condicion
             )
             SELECT id, marketplace_id, id_externo FROM guardadas
             """;

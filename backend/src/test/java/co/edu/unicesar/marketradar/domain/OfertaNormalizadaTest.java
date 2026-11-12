@@ -45,6 +45,64 @@ class OfertaNormalizadaTest {
         assertThrows(NullPointerException.class, () -> base().urlDestino(null).build());
     }
 
+    @Test
+    void unEnvioQueNoSeInformaNoValeCero() {
+        OfertaNormalizada oferta = enPesos().costoEnvio(null).build();
+
+        assertEquals(EstadoEnvio.DESCONOCIDO, oferta.getEstadoEnvio());
+        assertEquals(new BigDecimal("100000"), oferta.costoConocido());
+        assertTrue(oferta.totalConfirmado().isEmpty());
+        assertEquals("no incluye el envío, que la tienda no informa", oferta.faltaParaElTotal().orElseThrow());
+    }
+
+    @Test
+    void elTotalSeConfirmaSoloConElEnvioGratisOConValor() {
+        assertEquals(new BigDecimal("100000"), enPesos().costoEnvio(BigDecimal.ZERO).build().totalConfirmado()
+                .orElseThrow());
+        assertEquals(EstadoEnvio.GRATIS, enPesos().costoEnvio(BigDecimal.ZERO).build().getEstadoEnvio());
+        assertEquals(new BigDecimal("112900"), enPesos().costoEnvio(new BigDecimal("12900")).build()
+                .totalConfirmado().orElseThrow());
+    }
+
+    @Test
+    void unEnvioEstimadoSeSumaPeroNoConfirmaElTotal() {
+        OfertaNormalizada oferta = enPesos().costoEnvio(new BigDecimal("9900")).estadoEnvio(EstadoEnvio.ESTIMADO)
+                .build();
+
+        assertEquals(new BigDecimal("109900"), oferta.costoConocido());
+        assertTrue(oferta.totalConfirmado().isEmpty());
+        assertTrue(oferta.faltaParaElTotal().orElseThrow().contains("aproximado"));
+    }
+
+    @Test
+    void desdeElExteriorFaltanLosImpuestos() {
+        OfertaNormalizada oferta = enPesos().vendedor("eBay - rossgames").costoEnvio(new BigDecimal("45000")).build();
+
+        assertTrue(oferta.totalConfirmado().isEmpty());
+        assertEquals("no incluye impuestos de importación, que no se conocen", oferta.faltaParaElTotal().orElseThrow());
+    }
+
+    @Test
+    void unPrecioConAlertaNoSeUsaParaRecomendar() {
+        OfertaNormalizada oferta = enPesos().costoEnvio(BigDecimal.ZERO).build().conAlertaPrecio("Revíselo");
+
+        assertFalse(oferta.precioVerificado());
+        assertTrue(oferta.totalConfirmado().isEmpty());
+    }
+
+    @Test
+    void laCondicionYElEnlaceSeLeenDeLaOferta() {
+        OfertaNormalizada oferta = enPesos().condicion("reacondicionado")
+                .urlDestino("https://www.google.com.co/search?q=x").build();
+
+        assertEquals(CondicionProducto.REACONDICIONADO, oferta.condicionProducto().orElseThrow());
+        assertEquals("Buscar esta oferta en Google", oferta.enlace().textoBoton());
+    }
+
+    private static OfertaNormalizada.Builder enPesos() {
+        return base().precio(new BigDecimal("100000")).moneda("COP").vendedor("Éxito");
+    }
+
     private static OfertaNormalizada.Builder base() {
         return OfertaNormalizada.builder()
                 .codigoMarketplace("simulado").idExterno("1").titulo("Tensiómetro")

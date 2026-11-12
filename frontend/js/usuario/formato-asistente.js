@@ -1,15 +1,16 @@
 /**
  * Convierte la respuesta del asistente en contenido fácil de leer:
- * - [Ver en Falabella](https://...) se vuelve un botón que abre la tienda.
+ * - [Ver la oferta en falabella.com.co](https://...) o [Buscar esta oferta en Google](https://...) se vuelve un botón
+ *   con ese texto, que dice a dónde lleva.
  * - Una dirección https suelta se vuelve un botón "Abrir en dominio", en vez de un texto largo e ilegible.
  * - **texto** se vuelve negrita, y las líneas que empiezan con "1." o "-" se vuelven listas.
  * Todo se construye con nodos de texto (nunca innerHTML), así que la respuesta no puede inyectar HTML.
  */
-import { crear, crearIcono, dominioSeguro } from '../comun/dom.js';
+import { avisoAntesDeAbrir, crear, crearIcono, dominioSeguro } from '../comun/dom.js';
 
 const PATRON = /\[([^\]\n]{1,80})\]\((https?:\/\/[^\s)]+)\)|\*\*([^*\n]+)\*\*|(https?:\/\/[^\s<>()]+)/g;
 
-/** Botón que abre la tienda en otra pestaña, después de avisar a qué página va. */
+/** Botón que abre el enlace en otra pestaña, después de avisar a qué página va (la tienda o una búsqueda de Google). */
 function enlaceCompra(texto, url) {
     const dominio = dominioSeguro(url);
     if (!dominio) {
@@ -21,9 +22,7 @@ function enlaceCompra(texto, url) {
     enlace.rel = 'noopener noreferrer';
     enlace.append(crearIcono('tienda'), crear('span', null, texto), crear('span', 'solo-lectores', ' (se abre en otra pestaña)'));
     enlace.addEventListener('click', (evento) => {
-        const continuar = window.confirm(`Va a abrir ${dominio} en otra pestaña, con conexión segura. Allí podrá `
-            + 'ver y comprar el producto. Nunca le pediremos datos bancarios en Marketradar.');
-        if (!continuar) evento.preventDefault();
+        if (!window.confirm(avisoAntesDeAbrir(dominio, null, null, url))) evento.preventDefault();
     });
     return enlace;
 }

@@ -40,5 +40,6 @@ Actualícela al cierre de cada fase. Estados: completada, en progreso, pendiente
 | Envío, ubicación de la tienda y traducción de reseñas | Ever Guerra | 4 | completada |
 | Avisos del inicio que cambian solos (carrusel) | Ever Guerra | 2 | completada |
 | Búsquedas sin cajas vacías y filtro de precio | Ever Guerra | 3 | completada |
+| Auditoría: lo que pidió la persona, precio total, enlaces, reseñas, puntaje y moneda | Ever Guerra | 4 | completada |
 | Datos de prueba, MER, diccionario de datos y normalización | Jean Mercado | 4 | completada |
 | Documentación final | Ever Guerra | 4 | completada |

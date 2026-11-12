@@ -73,7 +73,8 @@ public class ControladorOfertas {
     public ResenasDto resenas(@PathVariable long id, @AuthenticationPrincipal UsuarioAutenticado usuario) {
         Idioma idioma = idiomaDe(usuario);
         return servicioResenas.obtener(id)
-                .map(resenas -> ResenasDto.desde(resenas, idioma, servicioTraduccion.estaHabilitado()))
+                .map(resenas -> ResenasDto.desde(resenas, idioma, servicioTraduccion.estaHabilitado(),
+                        servicioResenas.procedencia(id, resenas)))
                 .orElseGet(() -> ResenasDto.sinResenas(idioma));
     }
 

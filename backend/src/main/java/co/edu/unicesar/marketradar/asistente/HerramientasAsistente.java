@@ -1,10 +1,13 @@
 package co.edu.unicesar.marketradar.asistente;
 
 import co.edu.unicesar.marketradar.domain.ConsultaBusqueda;
+import co.edu.unicesar.marketradar.config.PropiedadesMarketradar;
+import co.edu.unicesar.marketradar.domain.EnlaceCompra;
 import co.edu.unicesar.marketradar.domain.OfertaNormalizada;
 import co.edu.unicesar.marketradar.domain.ResultadoBusqueda;
 import co.edu.unicesar.marketradar.exception.ValidacionException;
 import co.edu.unicesar.marketradar.service.ServicioBusqueda;
+import co.edu.unicesar.marketradar.service.mvp.PoliticaRecomendacion;
 import co.edu.unicesar.marketradar.service.ServicioBusquedaFlexible;
 import co.edu.unicesar.marketradar.service.ServicioTasasCambio;
 import org.springframework.stereotype.Component;
@@ -27,10 +30,24 @@ public class HerramientasAsistente {
 
     private final ServicioBusquedaFlexible servicioBusqueda;
     private final ServicioTasasCambio servicioTasas;
+    private final PropiedadesMarketradar.Mvp pesos;
 
-    public HerramientasAsistente(ServicioBusquedaFlexible servicioBusqueda, ServicioTasasCambio servicioTasas) {
+    public HerramientasAsistente(ServicioBusquedaFlexible servicioBusqueda, ServicioTasasCambio servicioTasas,
+                                 PropiedadesMarketradar propiedades) {
         this.servicioBusqueda = servicioBusqueda;
         this.servicioTasas = servicioTasas;
+        this.pesos = propiedades.mvp();
+    }
+
+    /**
+     * Cómo se elige la recomendación y se calcula el puntaje, con los pesos que de verdad se usan. Es el mismo texto
+     * que muestra la página en "¿Cómo se calcula?".
+     *
+     * @return explicación para el modelo
+     */
+    public String explicarPuntaje() {
+        return "CÓMO RECOMIENDA MARKETRADAR (explíquelo con estas mismas reglas, sin agregar otras):\n- "
+                + String.join("\n- ", PoliticaRecomendacion.explicar(pesos));
     }
 
     /**
@@ -55,17 +72,37 @@ public class HerramientasAsistente {
             resumen.append("SE BUSCÓ: \"").append(flexible.consulta().getTermino())
                     .append("\" (la persona escribió \"").append(flexible.terminoOriginal()).append("\").\n");
         }
-        if (resultado.getOfertas().isEmpty()) {
+        ResultadoBusqueda.Detalle detalle = resultado.getDetalle();
+        if (!detalle.requisitos().isEmpty()) {
+            resumen.append("LO QUE PIDIÓ LA PERSONA (cada oferta se revisó contra esto): ")
+                    .append(String.join(", ", detalle.requisitos())).append(".\n");
+        }
+        if (resultado.getOfertas().isEmpty() && detalle.alternativas().isEmpty()) {
             return resumen + "No se encontraron ofertas. " + String.join(" ", resultado.getAdvertencias());
         }
         resultado.getProductoMvp().ifPresent(mvp -> resumen
-                .append("MEJOR OPCIÓN: ").append(describir(mvp.oferta()))
+                .append("MEJOR OPCIÓN (puntaje de conveniencia ").append(mvp.puntaje())
+                .append(" de 100 comparada con ").append(mvp.comparadas()).append(" ofertas que cumplen; confianza ")
+                .append(mvp.confianza().name().toLowerCase(COLOMBIA)).append("): ").append(describir(mvp.oferta()))
                 .append(". Razones: ").append(String.join(" ", mvp.razones()))
                 .append(". Enlace: ").append(enlace(mvp.oferta())).append('\n'));
-        resumen.append("MÁS BARATAS:\n").append(resultado.getOfertas().stream()
-                .map(oferta -> "- " + describir(oferta) + ". Enlace: " + enlace(oferta))
-                .collect(Collectors.joining("\n")));
-        return resumen.toString();
+        if (detalle.motivoSinRecomendacion() != null) {
+            resumen.append("SIN RECOMENDACIÓN: ").append(detalle.motivoSinRecomendacion())
+                    .append(" No recomiende ninguna como si cumpliera.\n");
+        }
+        if (!resultado.getOfertas().isEmpty()) {
+            resumen.append("MÁS BARATAS QUE CUMPLEN:\n").append(resultado.getOfertas().stream()
+                    .map(oferta -> "- " + describir(oferta) + ". Enlace: " + enlace(oferta))
+                    .collect(Collectors.joining("\n"))).append('\n');
+        }
+        if (!detalle.alternativas().isEmpty()) {
+            resumen.append("ALTERNATIVAS QUE NO CUMPLEN TODO (diga siempre qué les falta):\n")
+                    .append(detalle.alternativas().stream().limit(OFERTAS_A_MOSTRAR)
+                            .map(a -> "- " + describir(a.oferta()) + ". Le falta: " + String.join("; ", a.motivos())
+                                    + ". Enlace: " + enlace(a.oferta()))
+                            .collect(Collectors.joining("\n")));
+        }
+        return resumen.toString().strip();
     }
 
     /**
@@ -81,27 +118,33 @@ public class HerramientasAsistente {
      * Enlace en el formato que la página convierte en botón. Solo se ofrecen enlaces https.
      *
      * @param oferta oferta con su enlace de compra
-     * @return "[Ver en Éxito](https://...)" o un aviso si el enlace no es seguro
+     * @return "[Ver la oferta en exito.com](https://...)", "[Buscar esta oferta en Google](https://...)" o un aviso
+     *         si el enlace no es seguro. El texto dice a dónde lleva de verdad.
      */
     static String enlace(OfertaNormalizada oferta) {
         String url = oferta.getUrlDestino();
-        if (url == null || !url.startsWith("https://") || url.contains(")") || url.contains(" ")) {
+        if (!EnlaceCompra.esSeguro(url) || url.contains(")") || url.contains(" ")) {
             return "(sin enlace seguro; búsquelo en la página de Buscar)";
         }
-        String tienda = oferta.getVendedor() != null && !oferta.getVendedor().isBlank()
-                ? oferta.getVendedor().replaceAll("[\\[\\]()]", "").strip()
-                : ServicioBusqueda.nombreVisible(oferta.getCodigoMarketplace());
-        return "[Ver en " + tienda + "](" + url + ")";
+        return "[" + oferta.enlace().textoBoton() + "](" + url + ")";
     }
 
     private static String describir(OfertaNormalizada oferta) {
-        String envio = oferta.getCostoEnvio() == null ? " (el envío se confirma en la tienda)"
-                : oferta.getCostoEnvio().signum() == 0 ? " con envío gratis" : " con envío incluido";
+        String envio = switch (oferta.getEstadoEnvio()) {
+            case GRATIS -> " con envío gratis";
+            case CONOCIDO -> " con envío incluido";
+            case ESTIMADO -> " más un envío aproximado (se confirma en la tienda)";
+            case DESCONOCIDO -> " MÁS ENVÍO: la tienda no lo informa, no es el precio total";
+        };
         String desde = oferta.ubicacion().texto();
         String ubicacion = desde == null ? "" : oferta.ubicacion().desdeExterior()
-                ? "; vende desde " + desde + ", puede tardar y cobrar impuestos" : "; vende desde Colombia";
-        return oferta.getTitulo() + " en " + tienda(oferta) + " por " + pesos(oferta.precioTotal()) + envio
-                + ubicacion;
+                ? "; vende desde " + desde + ", puede tardar y cobrar impuestos que no están en el precio"
+                : "; vende desde Colombia";
+        String condicion = oferta.condicionProducto().map(c -> "; condición: " + c.texto().toLowerCase(COLOMBIA))
+                .orElse("; la tienda no dice si es nuevo");
+        String alerta = oferta.precioVerificado() ? "" : "; ALERTA DE PRECIO: " + oferta.getAlertaPrecio();
+        return oferta.getTitulo() + " en " + tienda(oferta) + " por " + pesos(oferta.costoConocido()) + envio
+                + ubicacion + condicion + alerta;
     }
 
     /** En Google Shopping la tienda real va en el vendedor, por ejemplo "Éxito". */

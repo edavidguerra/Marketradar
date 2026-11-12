@@ -63,7 +63,8 @@ public class ServicioBusquedaFlexible {
         String corregido = (ia == null ? Optional.<String>empty() : ia.interpretar(escrito))
                 .or(() -> servicioSugerencias.corregir(limpio))
                 .orElse(limpio);
-        ConsultaBusqueda elegida = consulta.conTermino(corregido);
+        // La consulta corregida recuerda lo que escribió la persona: lo que pidió se sigue exigiendo.
+        ConsultaBusqueda elegida = consulta.conTermino(corregido).conTextoOriginal(escrito);
         boolean ampliada = false;
 
         // Las pruebas se hacen sin el rango de precio: que no haya nada entre dos precios no quiere decir que haya
@@ -74,7 +75,7 @@ public class ServicioBusquedaFlexible {
         if (prueba.getTotalResultados() == 0 && prueba.getAdvertencias().isEmpty()) {
             Optional<String> principal = ServicioSugerencias.nucleo(corregido);
             if (principal.isPresent() && principal.get().length() >= ConsultaBusqueda.LONGITUD_MINIMA) {
-                ConsultaBusqueda amplia = consulta.conTermino(principal.get());
+                ConsultaBusqueda amplia = consulta.conTermino(principal.get()).conTextoOriginal(escrito);
                 if (servicioBusqueda.consultar(amplia.sinRangoDePrecio()).getTotalResultados() > 0) {
                     elegida = amplia;
                     ampliada = true;

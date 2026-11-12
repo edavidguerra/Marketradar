@@ -1,6 +1,8 @@
 package co.edu.unicesar.marketradar.adapter.googleshopping;
 
 import co.edu.unicesar.marketradar.domain.ConsultaBusqueda;
+import co.edu.unicesar.marketradar.domain.EnlaceCompra;
+import co.edu.unicesar.marketradar.domain.EstadoEnvio;
 import co.edu.unicesar.marketradar.domain.OfertaNormalizada;
 import co.edu.unicesar.marketradar.domain.ResenasProducto;
 import co.edu.unicesar.marketradar.exception.MarketplaceException;
@@ -216,8 +218,8 @@ class AdaptadorGoogleShoppingTest {
         StringBuilder opiniones = new StringBuilder();
         for (int i = 1; i <= 12; i++) {
             opiniones.append(i > 1 ? "," : "").append("""
-                    {"title":"Muy buena %d","text":"  Cocina el arroz perfecto.  ","user_name":"Rosa","source":"Éxito",
-                     "rating":5,"date":"hace 2 meses"}""".formatted(i));
+                    {"title":"Muy buena %d","text":"  Cocina el arroz perfecto %d.  ","user_name":"Rosa","source":"Éxito",
+                     "rating":5,"date":"hace 2 meses"}""".formatted(i, i));
         }
         String respuesta = """
                 {"product_results":{"title":"Olla Arrocera","rating":4.6,"reviews":312,
@@ -241,7 +243,7 @@ class AdaptadorGoogleShoppingTest {
         assertEquals(10, resenas.resenas().size(), "máximo 10 opiniones, y sin las que no tienen texto");
         ResenasProducto.Resena primera = resenas.resenas().get(0);
         assertEquals("Muy buena 1", primera.titulo());
-        assertEquals("Cocina el arroz perfecto.", primera.texto());
+        assertEquals("Cocina el arroz perfecto 1.", primera.texto());
         assertEquals("Rosa", primera.autor());
         assertEquals("Éxito", primera.fuente());
         assertEquals("hace 2 meses", primera.fecha());
@@ -310,5 +312,85 @@ class AdaptadorGoogleShoppingTest {
         assertEquals(new BigDecimal("1299.50"), AdaptadorGoogleShopping.numero("1,299.50"));
         assertEquals(new BigDecimal("1323605"), AdaptadorGoogleShopping.numero("1.323.605"));
         assertEquals(new BigDecimal("45"), AdaptadorGoogleShopping.numero("45."));
+    }
+
+    @Test
+    void cadaEstadoDelEnvioSeLeeSinInventarUnCero() {
+        BigDecimal precio = new BigDecimal("80000");
+        assertEquals(EstadoEnvio.GRATIS, AdaptadorGoogleShopping.envio("Envío gratis", "COP", precio).estado());
+        assertEquals(EstadoEnvio.CONOCIDO, AdaptadorGoogleShopping.envio("Envío: $ 12.900", "COP", precio).estado());
+        AdaptadorGoogleShopping.Envio estimado = AdaptadorGoogleShopping.envio("Envío desde $ 9.900", "COP", precio);
+        assertEquals(EstadoEnvio.ESTIMADO, estimado.estado());
+        assertEquals(new BigDecimal("9900"), estimado.costo());
+        AdaptadorGoogleShopping.Envio nada = AdaptadorGoogleShopping.envio(null, "COP", precio);
+        assertEquals(EstadoEnvio.DESCONOCIDO, nada.estado());
+        assertNull(nada.costo(), "un envío que no se informa no vale cero");
+        assertEquals(EstadoEnvio.DESCONOCIDO, AdaptadorGoogleShopping.envio("Llega mañana", "COP", precio).estado());
+    }
+
+    @Test
+    void elEnvioGratisConMinimoSoloCuentaSiElPrecioLoAlcanza() {
+        String texto = "Envío gratis en compras superiores a $ 150.000";
+        assertEquals(EstadoEnvio.GRATIS,
+                AdaptadorGoogleShopping.envio(texto, "COP", new BigDecimal("159900")).estado());
+        assertEquals(EstadoEnvio.DESCONOCIDO,
+                AdaptadorGoogleShopping.envio(texto, "COP", new BigDecimal("99900")).estado());
+        assertEquals(EstadoEnvio.DESCONOCIDO,
+                AdaptadorGoogleShopping.envio("Free delivery on $45+", "USD", null).estado());
+    }
+
+    @Test
+    void reconoceVariasMonedasYNoAdivinaLasDesconocidas() {
+        assertEquals(java.util.Optional.of("COP"), AdaptadorGoogleShopping.monedaDe("$ 159.900"));
+        assertEquals(java.util.Optional.of("COP"), AdaptadorGoogleShopping.monedaDe("COL$ 159.900"));
+        assertEquals(java.util.Optional.of("USD"), AdaptadorGoogleShopping.monedaDe("USD 25.00"));
+        assertEquals(java.util.Optional.of("MXN"), AdaptadorGoogleShopping.monedaDe("MX$ 1.299,00"));
+        assertEquals(java.util.Optional.of("EUR"), AdaptadorGoogleShopping.monedaDe("19,99 €"));
+        assertTrue(AdaptadorGoogleShopping.monedaDe("A$ 45.00").isEmpty());
+        assertTrue(AdaptadorGoogleShopping.monedaDe("¥ 3,000").isEmpty());
+        assertTrue(AdaptadorGoogleShopping.monedaDe("S/ 120.00").isEmpty());
+    }
+
+    @Test
+    void avisaCuandoElPrecioNoEsElPrecioCompleto() {
+        assertNull(AdaptadorGoogleShopping.alertaPrecio("$ 159.900", new BigDecimal("159900")));
+        assertEquals("Es un precio \"desde\" o por cuotas, no el precio completo",
+                AdaptadorGoogleShopping.alertaPrecio("Desde $ 159.900", new BigDecimal("159900")));
+        assertTrue(AdaptadorGoogleShopping.alertaPrecio("$ 99.900/mes", new BigDecimal("99900")) != null);
+        // El texto dice 359.718 pero el valor leído es 100 veces más: no se usa sin revisarlo.
+        assertEquals("El precio que leímos no coincide con el que muestra la tienda",
+                AdaptadorGoogleShopping.alertaPrecio("$ 359.718", new BigDecimal("35971800")));
+    }
+
+    @Test
+    void unaRespuestaConVariasMonedasCondicionesYEnviosQuedaBienClasificada() {
+        String respuesta = """
+                {"search_metadata":{"status":"Success"},
+                 "shopping_results":[
+                   {"title":"Apple iPhone 13 128 GB","product_id":"1","source":"Alkosto","price":"$ 2.899.900",
+                    "extracted_price":2899900,"delivery":"Envío gratis","second_hand_condition":"refurbished"},
+                   {"title":"Apple iPhone 13 128 GB Nuevo","product_id":"2","source":"Éxito","price":"$ 3.199.900",
+                    "extracted_price":3199900,"delivery":"Envío desde $ 9.900"},
+                   {"title":"iPhone 13 128 GB","product_id":"3","source":"Tienda MX","price":"A$ 900.00",
+                    "extracted_price":900},
+                   {"title":"Televisor de exhibición","product_id":"4","source":"Ktronix","price":"$ 1.500.000",
+                    "extracted_price":1500000,"tag":"Exhibición"}
+                 ]}""";
+        servidor.expect(once(), requestTo(startsWith(URL + "/search.json")))
+                .andRespond(withSuccess(respuesta, MediaType.APPLICATION_JSON));
+
+        List<OfertaNormalizada> ofertas = crear(CLAVE).consultarApi(consulta("iphone 13"));
+
+        assertEquals(List.of("1", "2", "4"), ofertas.stream().map(OfertaNormalizada::getIdExterno).toList(),
+                "la de una moneda que no se reconoce queda por fuera");
+        assertEquals("reacondicionado", ofertas.get(0).getCondicion());
+        assertEquals(EstadoEnvio.GRATIS, ofertas.get(0).getEstadoEnvio());
+        assertEquals("nuevo", ofertas.get(1).getCondicion());
+        assertEquals(EstadoEnvio.ESTIMADO, ofertas.get(1).getEstadoEnvio());
+        assertTrue(ofertas.get(1).totalConfirmado().isEmpty(), "con envío estimado no hay precio total confirmado");
+        assertEquals("exhibicion", ofertas.get(2).getCondicion());
+        assertEquals(EstadoEnvio.DESCONOCIDO, ofertas.get(2).getEstadoEnvio());
+        assertNull(ofertas.get(2).getCostoEnvio());
+        assertEquals(EnlaceCompra.Tipo.BUSQUEDA_GOOGLE, ofertas.get(2).enlace().tipo());
     }
 }

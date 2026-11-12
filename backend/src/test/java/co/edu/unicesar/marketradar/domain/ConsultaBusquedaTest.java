@@ -4,6 +4,7 @@ import co.edu.unicesar.marketradar.exception.ValidacionException;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -77,5 +78,28 @@ class ConsultaBusquedaTest {
         assertThrows(ValidacionException.class, () -> base.conRangoDePrecio(new BigDecimal("-1"), null));
         assertThrows(ValidacionException.class,
                 () -> base.conRangoDePrecio(null, ConsultaBusqueda.PRECIO_MAXIMO_PERMITIDO.add(BigDecimal.ONE)));
+    }
+
+    @Test
+    void conservaLoQueEscribioLaPersonaAlCorregirPaginarYFiltrar() {
+        ConsultaBusqueda consulta = ConsultaBusqueda.crear("iphone 13", null, Set.of(), 1, 10)
+                .conTextoOriginal("iphone 13 de 128 gb nuevo");
+
+        ConsultaBusqueda filtrada = consulta.conRangoDePrecio(null, new BigDecimal("3000000")).conTermino("iphone 13");
+
+        assertEquals("iphone 13 de 128 gb nuevo", filtrada.getTextoOriginal());
+        assertEquals(List.of("modelo iphone 13", "128 GB", "nuevo"), filtrada.requisitos().etiquetas());
+        assertEquals(consulta.claveCache(), ConsultaBusqueda.crear("iphone 13", null, Set.of(), 1, 10).claveCache(),
+                "el texto original no cambia lo que se busca en las tiendas");
+    }
+
+    @Test
+    void ignoraUnTextoOriginalVacioOConCaracteresRaros() {
+        ConsultaBusqueda consulta = ConsultaBusqueda.crear("licuadora", null, Set.of(), 1, 10);
+
+        assertEquals("licuadora", consulta.conTextoOriginal(null).getTextoOriginal());
+        assertEquals("licuadora", consulta.conTextoOriginal(" ").getTextoOriginal());
+        assertEquals("licuadora", consulta.conTextoOriginal("licua\u0000dora").getTextoOriginal());
+        assertEquals("licuadora", consulta.conTextoOriginal("x".repeat(101)).getTextoOriginal());
     }
 }
