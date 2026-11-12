@@ -30,7 +30,18 @@ public interface OfertaDao extends Dao<Oferta> {
     Optional<OfertaDestacada> buscarMasBarataPorTitulo(String texto);
 
     /**
-     * Busca la oferta cuyo precio más bajó respecto al precio más alto registrado en el periodo.
+     * Las ofertas guardadas más baratas cuyo título coincide con el texto, para elegir entre ellas la que de verdad es
+     * el producto (sin accesorios ni otras versiones).
+     *
+     * @param texto palabras buscadas
+     * @param limite cuántas como máximo
+     * @return ofertas de la más barata a la más cara
+     */
+    List<OfertaDestacada> listarMasBaratasPorTitulo(String texto, int limite);
+
+    /**
+     * Busca la oferta cuyo precio más bajó respecto al precio más alto registrado en el periodo para la misma
+     * oferta, con el mismo vendedor, la misma condición y la misma moneda.
      *
      * @param dias días hacia atrás que se revisan
      * @return la oferta con su precio anterior, o vacío si ningún precio bajó

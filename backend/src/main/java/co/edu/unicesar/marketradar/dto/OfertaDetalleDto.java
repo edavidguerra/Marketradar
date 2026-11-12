@@ -12,7 +12,7 @@ import java.time.OffsetDateTime;
  * @param titulo nombre del producto
  * @param precio precio sin envío
  * @param costoEnvio costo de envío
- * @param precioTotal precio más envío
+ * @param precioTotal precio más envío; {@code null} si el envío no se conoce (no se cuenta como cero)
  * @param moneda moneda
  * @param condicion condición del producto
  * @param vendedor vendedor
@@ -35,7 +35,7 @@ public record OfertaDetalleDto(Long id, String titulo, BigDecimal precio, BigDec
      */
     public static OfertaDetalleDto desde(Oferta oferta) {
         return new OfertaDetalleDto(oferta.getId(), oferta.getTitulo(), oferta.getPrecioActual(),
-                oferta.getCostoEnvio(), oferta.calcularPrecioTotal(), oferta.getMoneda(), oferta.getCondicion(),
+                oferta.getCostoEnvio(), oferta.totalConocido().orElse(null), oferta.getMoneda(), oferta.getCondicion(),
                 oferta.getVendedor(), oferta.getUrlDestino(), oferta.getUrlImagen(), oferta.getCalificacion(),
                 oferta.getTotalResenas(), oferta.getConsultadoEn());
     }

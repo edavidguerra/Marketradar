@@ -36,6 +36,43 @@ class AdaptadorMarketplaceBaseTest {
     }
 
     @Test
+    void guardaElPrecioOriginalYLaTasaConSuFuenteYFecha() {
+        AdaptadorSimulado adaptador = new AdaptadorSimulado(true, List.of(oferta("10.50", "2.00", "USD")));
+
+        OfertaNormalizada convertida = adaptador.buscar(consulta).get(0);
+
+        assertEquals(new BigDecimal("10.50"), convertida.getPrecioOriginal());
+        assertEquals("USD", convertida.getMonedaOriginal());
+        assertEquals("prueba", convertida.getTasaAplicada().fuente());
+        assertEquals(LocalDate.of(2026, 10, 28), convertida.getTasaAplicada().vigenteDesde());
+    }
+
+    @Test
+    void unaOfertaYaConvertidaNoSeConvierteOtraVez() {
+        TasaCambio tasa = new TasaCambio("USD", new BigDecimal("4000"), LocalDate.of(2026, 10, 28), "prueba");
+        OfertaNormalizada yaEnPesos = oferta("10.50", "2.00", "USD")
+                .convertida(new BigDecimal("42000"), new BigDecimal("8000"), "COP", tasa);
+        AdaptadorSimulado adaptador = new AdaptadorSimulado(true, List.of(yaEnPesos));
+
+        OfertaNormalizada resultado = adaptador.buscar(consulta).get(0);
+
+        assertEquals(new BigDecimal("42000"), resultado.getPrecio(), "no se multiplica dos veces por la tasa");
+        assertThrows(IllegalStateException.class,
+                () -> yaEnPesos.convertida(BigDecimal.ONE, null, "COP", tasa));
+    }
+
+    @Test
+    void sinTasaParaLaMonedaSeDejaPorFueraSoloEsaOferta() {
+        AdaptadorSimulado adaptador = new AdaptadorSimulado(true,
+                List.of(oferta("1299", "0", "MXN"), oferta("10.50", "0", "USD"), oferta("50000", "0", "COP")));
+
+        List<OfertaNormalizada> ofertas = adaptador.buscar(consulta);
+
+        assertEquals(List.of(new BigDecimal("42000"), new BigDecimal("50000")),
+                ofertas.stream().map(OfertaNormalizada::getPrecio).toList());
+    }
+
+    @Test
     void noConsultaSiNoEstaHabilitado() {
         AdaptadorSimulado adaptador = new AdaptadorSimulado(false, List.of());
         assertThrows(MarketplaceException.class, () -> adaptador.buscar(consulta));

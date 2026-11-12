@@ -88,10 +88,12 @@ class ServicioIABusquedaTest {
         String lista = ServicioIABusqueda.lista("iphone 15", ofertas);
 
         assertTrue(lista.startsWith("Búsqueda: iphone 15\nProductos:\n1 | Case Glitter iPhone 11 | ICase Colombia "
-                + "| $ 30.000 | envío: sin confirmar | vende desde: Colombia\n"), lista);
-        assertTrue(lista.contains("5 | Apple iPhone 15 128 GB Azul | Alkosto | $ 3.799.900 | envío: sin confirmar "
+                + "| $ 30.000 | envío: sin confirmar (el precio no lo incluye) | vende desde: Colombia\n"), lista);
+        assertTrue(lista.contains("5 | Apple iPhone 15 128 GB Azul | Alkosto | $ 3.799.900 "
+                + "| envío: sin confirmar (el precio no lo incluye) "
                 + "| vende desde: Colombia\n"), lista);
-        assertTrue(lista.contains("3 | Vidrio templado iPhone 15 | Phone Fox | $ 20.000 | envío: sin confirmar "
+        assertTrue(lista.contains("3 | Vidrio templado iPhone 15 | Phone Fox | $ 20.000 "
+                + "| envío: sin confirmar (el precio no lo incluye) "
                 + "| vende desde: sin confirmar\n"), lista);
     }
 
@@ -104,7 +106,7 @@ class ServicioIABusquedaTest {
 
         String lista = ServicioIABusqueda.lista("licuadora oster", List.of(ebay));
 
-        assertTrue(lista.contains("| $ 104.531 | envío: incluido en el total ($ 45.000) | vende desde: el exterior"),
+        assertTrue(lista.contains("| $ 104.531 | envío: incluido en el precio ($ 45.000) | vende desde: el exterior"),
                 lista);
     }
 

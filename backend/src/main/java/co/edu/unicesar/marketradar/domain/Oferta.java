@@ -33,13 +33,20 @@ public class Oferta {
     }
 
     /**
-     * Calcula el precio que paga el usuario: precio más envío (si se conoce).
+     * Lo que se sabe que se paga: precio más envío si la tienda lo informó; si no, solo el precio. No es un total
+     * confirmado cuando falta el envío: para saberlo está {@link #totalConocido()}.
      *
-     * @return precio total
+     * @return precio más el envío conocido
      */
     public BigDecimal calcularPrecioTotal() {
-        BigDecimal envio = costoEnvio == null ? BigDecimal.ZERO : costoEnvio;
-        return precioActual.add(envio);
+        return costoEnvio == null ? precioActual : precioActual.add(costoEnvio);
+    }
+
+    /**
+     * @return precio más envío, o vacío si el envío no se conoce (un envío desconocido nunca cuenta como cero)
+     */
+    public java.util.Optional<BigDecimal> totalConocido() {
+        return costoEnvio == null ? java.util.Optional.empty() : java.util.Optional.of(precioActual.add(costoEnvio));
     }
 
     /**

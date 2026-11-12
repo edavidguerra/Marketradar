@@ -60,7 +60,8 @@ Publicación concreta de un producto en una tienda. Hay una fila por publicació
 
 ## historial_precio
 
-Cada precio distinto que tuvo una oferta. Se inserta una fila cuando el precio consultado cambia.
+Cada precio distinto que tuvo una oferta. Se inserta una fila cuando cambia el precio consultado, la moneda, la tienda
+que la vende o su condición.
 
 | Columna | Tipo | Nulo | Llave | Restricciones y valor por defecto | Descripción |
 | --- | --- | --- | --- | --- | --- |
@@ -69,6 +70,8 @@ Cada precio distinto que tuvo una oferta. Se inserta una fila cuando el precio c
 | `precio` | NUMERIC(14,2) | No | | `CHECK (precio >= 0)` | Precio registrado. |
 | `moneda` | CHAR(3) | No | | | Moneda del precio. |
 | `registrado_en` | TIMESTAMPTZ | No | | `DEFAULT now()` | Momento en que se registró el precio. |
+| `vendedor` | VARCHAR(150) | Sí | | | Tienda que vendía la oferta con ese precio. En Google Shopping una misma ficha cambia de tienda; el aviso de baja de precio solo compara filas de la misma tienda. Las filas anteriores a V12 quedan nulas y no se usan para ese aviso. Agregada en V12. |
+| `condicion` | VARCHAR(20) | Sí | | | Condición del producto con ese precio (`nuevo`, `usado`, `reacondicionado`, `exhibicion`), o nula si la tienda no la dijo. Agregada en V12. |
 
 ## busqueda
 

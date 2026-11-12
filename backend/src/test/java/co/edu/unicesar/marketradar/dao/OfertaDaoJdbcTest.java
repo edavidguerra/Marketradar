@@ -117,23 +117,44 @@ class OfertaDaoJdbcTest {
 
     @Test
     void encuentraOfertasDestacadasParaElInicio() {
-        Marketplace mercadoLibre = marketplaceDao.buscarPorCodigo("mercadolibre").orElseThrow();
-        Oferta tensiometro = new Oferta();
-        tensiometro.setMarketplaceId(mercadoLibre.getId());
-        tensiometro.setIdExterno("T-1");
-        tensiometro.setTitulo("Tensiómetro digital de brazo");
-        tensiometro.setUrlDestino("https://ejemplo.com/t-1");
-        tensiometro.setPrecioActual(new BigDecimal("90000.00"));
-        ofertaDao.insertar(tensiometro);
-        historialDao.insertar(new HistorialPrecio(tensiometro.getId(), new BigDecimal("120000.00"), "COP"));
-        historialDao.insertar(new HistorialPrecio(tensiometro.getId(), new BigDecimal("90000.00"), "COP"));
+        short mercadoLibre = marketplaceDao.buscarPorCodigo("mercadolibre").orElseThrow().getId();
+        ofertaDao.guardarLote(List.of(tensiometro(mercadoLibre, "T-1", "120000.00", "Salud Total")));
+        ofertaDao.guardarLote(List.of(tensiometro(mercadoLibre, "T-1", "90000.00", "Salud Total")));
 
         OfertaDestacada porTitulo = ofertaDao.buscarMasBarataPorTitulo("tensiómetros").orElseThrow();
         assertEquals("mercadolibre", porTitulo.codigoMarketplace());
         assertEquals("T-1", porTitulo.oferta().getIdExterno());
+        assertEquals("T-1", ofertaDao.listarMasBaratasPorTitulo("tensiómetros", 10).get(0).oferta().getIdExterno());
 
         OfertaDestacada baja = ofertaDao.buscarMayorBajaDePrecio(30).orElseThrow();
+        assertEquals("T-1", baja.oferta().getIdExterno());
         assertEquals(0, new BigDecimal("30000").compareTo(baja.baja()));
         assertTrue(ofertaDao.buscarMasBarataPorTitulo("bicicleta").isEmpty());
+    }
+
+    @Test
+    void unaBajaDePrecioSoloCuentaEnLaMismaTiendaYCondicion() {
+        short google = marketplaceDao.buscarPorCodigo("googleshopping").orElseThrow().getId();
+        // La misma ficha de Google pasa de una tienda a otra más barata: no es una baja de precio.
+        ofertaDao.guardarLote(List.of(tensiometro(google, "B-1", "5000000.00", "Tienda Cara")));
+        ofertaDao.guardarLote(List.of(tensiometro(google, "B-1", "100000.00", "Tienda Barata")));
+        // Otra pasa de nueva a reacondicionada: tampoco.
+        Oferta nueva = tensiometro(google, "B-2", "4000000.00", "Tienda Fija");
+        nueva.setCondicion("nuevo");
+        Oferta reacondicionada = tensiometro(google, "B-2", "150000.00", "Tienda Fija");
+        reacondicionada.setCondicion("reacondicionado");
+        ofertaDao.guardarLote(List.of(nueva));
+        ofertaDao.guardarLote(List.of(reacondicionada));
+
+        assertTrue(ofertaDao.buscarMayorBajaDePrecio(30).stream()
+                .noneMatch(baja -> baja.oferta().getIdExterno().startsWith("B-")),
+                "ninguna de las dos es la misma oferta más barata");
+    }
+
+    private static Oferta tensiometro(short marketplaceId, String idExterno, String precio, String vendedor) {
+        Oferta oferta = ofertaDeLote(marketplaceId, idExterno, precio);
+        oferta.setTitulo("Tensiómetro digital de brazo " + idExterno);
+        oferta.setVendedor(vendedor);
+        return oferta;
     }
 }

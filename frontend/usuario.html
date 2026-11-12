@@ -77,7 +77,8 @@
         </form>
         <form id="filtro-precio" class="filtro-precio" novalidate aria-labelledby="titulo-filtro-precio" hidden>
             <h2 id="titulo-filtro-precio"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#etiqueta"></use></svg> Filtrar por precio</h2>
-            <p id="ayuda-precio" class="ayuda">Es el precio total, con envío. Puede llenar solo uno de los dos.</p>
+            <p id="ayuda-precio" class="ayuda">Compara el precio más el envío, cuando la tienda lo informa. Si no lo informa,
+                se compara solo el precio y la oferta lo dice. Puede llenar solo uno de los dos.</p>
             <div class="campos-precio">
                 <div class="campo">
                     <label for="precio-minimo">Desde</label>
@@ -104,16 +105,27 @@
         </form>
         <p id="quizas" class="quizas" hidden></p>
         <div id="estado-resultados" role="status" aria-live="polite"></div>
+        <p id="nota-totales" class="nota-totales" hidden></p>
         <ul id="advertencias" class="advertencias" hidden></ul>
+        <div id="requisitos-busqueda" class="requisitos-busqueda" hidden></div>
         <section id="resumen-ia" class="resumen-ia" aria-labelledby="titulo-resumen-ia" hidden>
             <h2 id="titulo-resumen-ia"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#estrella"></use></svg> Resumen con inteligencia artificial</h2>
             <p id="texto-resumen-ia"></p>
             <p class="ayuda">Lo escribe una IA a partir de los precios encontrados y puede equivocarse. Confirme el precio en la tienda.</p>
         </section>
         <section id="producto-mvp" class="mvp" aria-label="Mejor opción de compra" hidden></section>
+        <p id="sin-recomendacion" class="sin-recomendacion" hidden></p>
         <ol id="lista-resultados" class="resultados"></ol>
         <button type="button" class="boton boton-secundario" id="ver-mas" hidden>Ver más resultados</button>
-        <p class="ayuda">Los precios de otras monedas se convierten a pesos con la TRM del día.</p>
+        <section id="alternativas" class="alternativas" aria-labelledby="titulo-alternativas" hidden>
+            <h2 id="titulo-alternativas">Parecidas, pero no son lo que pidió</h2>
+            <p id="ayuda-alternativas" class="ayuda"></p>
+            <ol id="lista-alternativas" class="resultados"></ol>
+        </section>
+        <p class="ayuda">Los precios en dólares se pasan a pesos con la tasa más reciente que conseguimos: la TRM oficial
+            (Superintendencia Financiera, datos abiertos del Gobierno) o, si no responde, una tasa internacional de
+            respaldo. Cada precio convertido dice
+            cuánto era en la tienda, la tasa, su fuente y desde qué fecha rige.</p>
     </section>
 
     <!-- Reseñas de una oferta -->
@@ -293,17 +305,25 @@
             </li>
             <li>
                 <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#buscar"></use></svg> Buscar</h2>
-                <p>Escriba el nombre del producto, por ejemplo "tensiómetro", y pulse "Buscar". Arriba verá la
-                    <strong>mejor opción de compra</strong>, elegida por precio, opiniones de otros compradores y
-                    envío, con las razones. Pulse "Comprar este producto" y se abrirá la página exacta del producto
-                    en la tienda. Más abajo están todas las ofertas, de la más barata a la más cara.</p>
+                <p>Escriba el nombre del producto, por ejemplo "tensiómetro" o "iPhone 13 128 GB nuevo", y pulse
+                    "Buscar". Si escribe el modelo, la versión (Pro, mini), la capacidad o "nuevo", solo le
+                    recomendamos ofertas que lo confirman. Arriba verá la <strong>mejor opción de compra</strong>,
+                    elegida por precio, opiniones y envío, con las razones y qué tan completa es la información. Si
+                    ninguna oferta confirma lo que pidió, se lo decimos y no recomendamos ninguna.</p>
+                <p>El botón de cada oferta dice a dónde lleva: "Ver la oferta en" y el nombre de la tienda abre la
+                    tienda; "Buscar esta oferta en Google" abre una búsqueda en Google, porque Google no nos dio el
+                    enlace de la tienda; allí revise que sea el mismo producto y precio.</p>
                 <p>Los precios están en pesos colombianos. Si una tienda cobra en dólares, lo convertimos con la TRM
-                    del día. Cada oferta dice cuánto cuesta el envío y desde dónde vende la tienda: si es del
-                    exterior, puede tardar más en llegar y cobrar impuestos.</p>
+                    oficial más reciente (o una tasa de respaldo, si esa no responde) y le mostramos el
+                    precio original, la tasa y su fecha. Cada oferta dice si el
+                    envío es gratis, cuánto cuesta o si la tienda no lo informa: en ese caso el precio no es el total.
+                    Si la tienda vende desde el exterior, puede tardar más y cobrar impuestos.</p>
                 <p>Después de buscar aparece "Filtrar por precio": escriba desde cuánto y hasta cuánto quiere pagar
-                    (con envío) y pulse "Aplicar". Para ver todo otra vez, pulse "Quitar filtro".</p>
-                <p>En "Ver reseñas", las opiniones escritas en otro idioma tienen un botón "Traducir". El idioma se
-                    elige en Mi perfil.</p>
+                    y pulse "Aplicar". Se compara el precio más el envío, cuando la tienda lo informa. Para ver todo
+                    otra vez, pulse "Quitar filtro".</p>
+                <p>En "Ver reseñas" están las opiniones del producto que reúne Google de varias tiendas: no son
+                    opiniones sobre la tienda que lo vende. Las escritas en otro idioma tienen un botón "Traducir". El
+                    idioma se elige en Mi perfil.</p>
                 <a class="boton boton-secundario" href="#buscar">Ir a Buscar</a>
             </li>
             <li>

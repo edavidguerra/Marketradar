@@ -9,14 +9,41 @@ import java.util.List;
  * @param calificacion promedio de 0 a 5, o {@code null} si no se conoce
  * @param totalResenas cuántas opiniones hay en total, o {@code null}
  * @param distribucion cuántas opiniones hay de cada número de estrellas, de 5 a 1
- * @param resenas algunas opiniones escritas, las primeras que muestra la tienda
+ * @param resenas algunas opiniones escritas, las primeras que muestra la tienda, sin repetidas
+ * @param tituloProducto nombre del producto al que Google asoció estas opiniones, o {@code null} si no lo dijo; sirve
+ *                       para revisar que sean del mismo modelo que la oferta
  */
 public record ResenasProducto(BigDecimal calificacion, Integer totalResenas, List<Estrellas> distribucion,
-                              List<Resena> resenas) {
+                              List<Resena> resenas, String tituloProducto) {
 
     public ResenasProducto {
         distribucion = distribucion == null ? List.of() : List.copyOf(distribucion);
-        resenas = resenas == null ? List.of() : List.copyOf(resenas);
+        resenas = resenas == null ? List.of() : sinRepetidas(resenas);
+    }
+
+    public ResenasProducto(BigDecimal calificacion, Integer totalResenas, List<Estrellas> distribucion,
+                           List<Resena> resenas) {
+        this(calificacion, totalResenas, distribucion, resenas, null);
+    }
+
+    /** @return cuántas opiniones suma la distribución de estrellas */
+    public int totalDistribucion() {
+        return distribucion.stream().mapToInt(Estrellas::cantidad).sum();
+    }
+
+    /** Google a veces repite la misma opinión publicada en dos sitios: se deja una sola. */
+    private static List<Resena> sinRepetidas(List<Resena> resenas) {
+        java.util.Set<String> vistas = new java.util.HashSet<>();
+        List<Resena> unicas = new java.util.ArrayList<>();
+        for (Resena resena : resenas) {
+            String clave = (resena.autor() == null ? "" : resena.autor().strip().toLowerCase(java.util.Locale.ROOT))
+                    + "|" + (resena.texto() == null ? "" : resena.texto().replaceAll("\\s+", " ").strip()
+                    .toLowerCase(java.util.Locale.ROOT));
+            if (vistas.add(clave)) {
+                unicas.add(resena);
+            }
+        }
+        return List.copyOf(unicas);
     }
 
     /** @return {@code true} si la tienda no tiene ninguna opinión de este producto */

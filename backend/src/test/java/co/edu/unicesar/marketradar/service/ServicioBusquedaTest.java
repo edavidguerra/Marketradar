@@ -271,7 +271,11 @@ class ServicioBusquedaTest {
 
         ResultadoBusqueda resultado = servicio.buscar(ConsultaBusqueda.crear("iphone 17 pro", null, Set.of(), 1, 10));
 
-        assertEquals(List.of("2", "4"), resultado.getOfertas().stream().map(OfertaNormalizada::getIdExterno).toList());
+        // Pidió el Pro: el Pro Max no se recomienda, se muestra aparte diciendo por qué.
+        assertEquals(List.of("2"), resultado.getOfertas().stream().map(OfertaNormalizada::getIdExterno).toList());
+        assertEquals("4", resultado.getDetalle().alternativas().get(0).oferta().getIdExterno());
+        assertTrue(resultado.getDetalle().alternativas().get(0).motivos().get(0).contains("Pro Max"),
+                resultado.getDetalle().alternativas().get(0).motivos().toString());
         verify(ia).analizar(eq("iphone 17 pro"), org.mockito.ArgumentMatchers.argThat(lista -> lista.size() == 2));
     }
 
@@ -293,8 +297,132 @@ class ServicioBusquedaTest {
 
         ResultadoBusqueda resultado = servicio.buscar(ConsultaBusqueda.crear("iphone 17 pro", null, Set.of(), 1, 10));
 
-        assertEquals(List.of("2", "3", "4"), resultado.getOfertas().stream().map(OfertaNormalizada::getIdExterno).toList());
+        assertEquals(List.of("2", "3"), resultado.getOfertas().stream().map(OfertaNormalizada::getIdExterno).toList());
+        assertEquals(List.of("4"), resultado.getDetalle().alternativas().stream()
+                .map(a -> a.oferta().getIdExterno()).toList());
         assertTrue(resultado.getResumenIa().isEmpty());
+    }
+
+    @Test
+    void soloSeRecomiendaElIphone13De128GbNuevoQuePidio() {
+        AdaptadorMarketplace tienda = adaptador("a", List.of(
+                conCondicion(titulada("1", "Apple iPhone 13 128 GB Reacondicionado", "2100000"), "reacondicionado"),
+                titulada("2", "Apple iPhone 13 Pro 128 GB", "2600000"),
+                titulada("3", "Apple iPhone 13 256 GB", "2700000"),
+                conCondicion(titulada("4", "Apple iPhone 13 128 GB Azul", "2750000"), null),
+                titulada("5", "Apple iPhone 13 128 GB Medianoche", "2899900"),
+                titulada("6", "Apple iPhone 13 mini 128 GB", "2300000")));
+
+        ResultadoBusqueda resultado = servicio(tienda)
+                .buscar(ConsultaBusqueda.crear("iphone 13 128 gb nuevo", null, Set.of(), 1, 10));
+
+        assertEquals(List.of("5"), resultado.getOfertas().stream().map(OfertaNormalizada::getIdExterno).toList());
+        assertEquals("5", resultado.getProductoMvp().orElseThrow().oferta().getIdExterno());
+        assertNull(resultado.getDetalle().motivoSinRecomendacion());
+        // Primero las que solo falta confirmar, después las que no cumplen; cada una dice qué le falta.
+        Map<String, List<String>> motivos = new java.util.LinkedHashMap<>();
+        resultado.getDetalle().alternativas().forEach(a -> motivos.put(a.oferta().getIdExterno(), a.motivos()));
+        assertEquals(List.of("4", "1", "6", "2", "3"), List.copyOf(motivos.keySet()));
+        assertEquals(List.of("La tienda no dice si es nuevo"), motivos.get("4"));
+        assertEquals(List.of("Es reacondicionado, no nuevo"), motivos.get("1"));
+        assertEquals(List.of("Es la versión Mini, no la que pidió"), motivos.get("6"));
+        assertEquals(List.of("Es de 256 GB, no de 128 GB"), motivos.get("3"));
+        assertEquals(List.of("modelo iphone 13", "128 GB", "nuevo"), resultado.getDetalle().requisitos());
+    }
+
+    @Test
+    void siNingunaCumpleNoSeRecomiendaNingunaYSeDiceQueFalta() {
+        AdaptadorMarketplace tienda = adaptador("a", List.of(
+                conCondicion(titulada("1", "Apple iPhone 13 128 GB", "2100000"), "reacondicionado"),
+                titulada("2", "Apple iPhone 13 Pro 128 GB", "2600000")));
+
+        ResultadoBusqueda resultado = servicio(tienda)
+                .buscar(ConsultaBusqueda.crear("iphone 13 128 gb nuevo", null, Set.of(), 1, 10));
+
+        assertTrue(resultado.getOfertas().isEmpty());
+        assertTrue(resultado.getProductoMvp().isEmpty());
+        assertEquals("Ninguna oferta confirma todo lo que usted pidió (modelo iphone 13, 128 GB, nuevo), así que no "
+                + "recomendamos ninguna. Abajo están las que se parecen, con lo que les falta.",
+                resultado.getDetalle().motivoSinRecomendacion());
+        assertEquals(2, resultado.getDetalle().alternativas().size());
+    }
+
+    @Test
+    void unPrecioAtipicoSeMuestraConAvisoPeroNoSeRecomienda() {
+        AdaptadorMarketplace tienda = adaptador("a", List.of(
+                titulada("1", "Licuadora Oster 6640", "35971"),
+                titulada("2", "Licuadora Oster 6640 vaso de vidrio", "389900"),
+                titulada("3", "Licuadora Oster 6640 negra", "399900"),
+                titulada("4", "Licuadora Oster 6640 3 velocidades", "359718000")));
+
+        ResultadoBusqueda resultado = servicio(tienda)
+                .buscar(ConsultaBusqueda.crear("licuadora oster 6640", null, Set.of(), 1, 10));
+
+        List<OfertaNormalizada> ofertas = resultado.getOfertas();
+        // La de $ 35.971 ya la quitaba el filtro de precios absurdamente bajos (suele ser un repuesto). La de
+        // $ 359.718.000 se muestra, con el aviso.
+        assertEquals(List.of("2", "3", "4"), ofertas.stream().map(OfertaNormalizada::getIdExterno).toList());
+        assertEquals(ServicioBusqueda.ALERTA_ATIPICO, ofertas.get(2).getAlertaPrecio());
+        assertNull(ofertas.get(0).getAlertaPrecio());
+        assertEquals("2", resultado.getProductoMvp().orElseThrow().oferta().getIdExterno());
+        assertTrue(resultado.esMejorPrecio(ofertas.stream().filter(o -> o.getIdExterno().equals("2")).findFirst().orElseThrow()));
+    }
+
+    @Test
+    void elFiltroDePrecioCuentaLosEnviosConocidosYAvisaLosQueFaltan() {
+        AdaptadorMarketplace tienda = adaptador("a", List.of(
+                oferta("a", "1", "95000", "10000"),
+                oferta("a", "2", "98000", null),
+                oferta("a", "3", "90000", "0")));
+
+        ResultadoBusqueda resultado = servicio(tienda).buscar(ConsultaBusqueda.crear("licuadora", null, Set.of(), 1, 10)
+                .conRangoDePrecio(null, new BigDecimal("100000")));
+
+        // La 1 cuesta 105.000 con envío: queda por fuera. La 2 entra, pero su envío no se sabe.
+        assertEquals(List.of("3", "2"), resultado.getOfertas().stream().map(OfertaNormalizada::getIdExterno).toList());
+        assertEquals(1, resultado.getDetalle().sinTotalConfirmado());
+        assertTrue(resultado.getDetalle().mejorPrecioConfirmado());
+    }
+
+    @Test
+    void siLaMasBarataNoTieneElEnvioConfirmadoSeAvisa() {
+        AdaptadorMarketplace tienda = adaptador("a", List.of(oferta("a", "1", "80000", null),
+                oferta("a", "2", "90000", "0")));
+
+        ResultadoBusqueda resultado = servicio(tienda).buscar(consulta(null));
+
+        assertEquals("1", resultado.getOfertas().get(0).getIdExterno());
+        assertTrue(!resultado.getDetalle().mejorPrecioConfirmado(), "su precio no incluye el envío");
+    }
+
+    @Test
+    void siElRangoDejaPorFueraLasQueCumplenSeDiceAsi() {
+        AdaptadorMarketplace tienda = adaptador("a", List.of(titulada("1", "Apple iPhone 13 128 GB Nuevo", "2899900")));
+
+        ResultadoBusqueda resultado = servicio(tienda).buscar(ConsultaBusqueda.crear("iphone 13 nuevo", null,
+                Set.of(), 1, 10).conRangoDePrecio(null, new BigDecimal("1000000")));
+
+        assertEquals("Ninguna de las ofertas que cumplen su búsqueda está en el rango de precio que eligió.",
+                resultado.getDetalle().motivoSinRecomendacion());
+    }
+
+    @Test
+    void laBusquedaCorregidaConservaLoQueEscribioLaPersona() {
+        AdaptadorMarketplace tienda = adaptador("a", List.of(
+                titulada("1", "Apple iPhone 13 256 GB", "2700000"),
+                titulada("2", "Apple iPhone 13 128 GB", "2899900")));
+
+        ResultadoBusqueda resultado = servicio(tienda).buscar(ConsultaBusqueda.crear("iphone 13", null, Set.of(), 1, 10)
+                .conTextoOriginal("iphone 13 de 128 gb"));
+
+        assertEquals(List.of("2"), resultado.getOfertas().stream().map(OfertaNormalizada::getIdExterno).toList());
+    }
+
+    private static OfertaNormalizada conCondicion(OfertaNormalizada oferta, String condicion) {
+        return OfertaNormalizada.builder().codigoMarketplace(oferta.getCodigoMarketplace())
+                .idExterno(oferta.getIdExterno()).titulo(oferta.getTitulo()).precio(oferta.getPrecio())
+                .moneda(oferta.getMoneda()).costoEnvio(oferta.getCostoEnvio()).condicion(condicion)
+                .vendedor(oferta.getVendedor()).urlDestino(oferta.getUrlDestino()).build();
     }
 
     private static OfertaNormalizada titulada(String id, String titulo, String precio) {

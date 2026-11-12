@@ -1,6 +1,8 @@
 package co.edu.unicesar.marketradar.service;
 
+import co.edu.unicesar.marketradar.domain.CondicionProducto;
 import co.edu.unicesar.marketradar.domain.OfertaNormalizada;
+import co.edu.unicesar.marketradar.domain.RequisitosBusqueda;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -11,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.regex.Pattern;
 
 /**
  * Deja los resultados que más se parecen a lo que la persona buscó.
@@ -100,11 +103,11 @@ final class FiltroRelevancia {
         List<OfertaNormalizada> productos = candidatas.stream()
                 .filter(oferta -> !FiltroComplementos.esComplemento(oferta, buscado, palabrasBuscadas)).toList();
         BigDecimal minimo = productos.isEmpty() ? BigDecimal.ZERO
-                : productos.stream().map(OfertaNormalizada::precioTotal).sorted().toList()
+                : productos.stream().map(OfertaNormalizada::costoConocido).sorted().toList()
                         .get(productos.size() / 2).multiply(FRACCION_MINIMA);
         return elegidas.stream()
                 .filter(oferta -> !FiltroComplementos.esComplemento(oferta, buscado, palabrasBuscadas))
-                .filter(oferta -> oferta.precioTotal().compareTo(minimo) >= 0)
+                .filter(oferta -> oferta.costoConocido().compareTo(minimo) >= 0)
                 .toList();
     }
 
@@ -117,10 +120,10 @@ final class FiltroRelevancia {
         if (ofertas.size() <= MINIMO) {
             return ofertas;
         }
-        List<BigDecimal> precios = ofertas.stream().map(OfertaNormalizada::precioTotal).sorted().toList();
+        List<BigDecimal> precios = ofertas.stream().map(OfertaNormalizada::costoConocido).sorted().toList();
         BigDecimal minimo = precios.get(precios.size() / 2).multiply(FRACCION_MINIMA);
         List<OfertaNormalizada> razonables = ofertas.stream()
-                .filter(oferta -> oferta.precioTotal().compareTo(minimo) >= 0).toList();
+                .filter(oferta -> oferta.costoConocido().compareTo(minimo) >= 0).toList();
         return razonables.size() >= MINIMO ? razonables : ofertas;
     }
 
@@ -167,10 +170,19 @@ final class FiltroRelevancia {
         return expandido.strip();
     }
 
+    /** "128 GB", "1 TB": la capacidad la revisa {@link RequisitosBusqueda}, que dice cuál es la que no cumple. */
+    private static final Pattern CAPACIDAD =
+            Pattern.compile("\\b\\d{1,4}\\s?(gb|tb|gigas?|teras?)\\b");
+
+    /**
+     * Palabras de la búsqueda que dicen qué producto es. La capacidad y la condición ("nuevo", "usado") no cuentan:
+     * casi ningún título dice "nuevo", y una oferta de otra capacidad o condición no se esconde aquí, sino que se
+     * muestra aparte diciendo qué le falta.
+     */
     static List<String> palabras(String termino) {
         Map<String, Boolean> unicas = new LinkedHashMap<>();
-        for (String palabra : expandir(termino).split(" ")) {
-            if (!palabra.isEmpty() && !VACIAS.contains(palabra)) {
+        for (String palabra : CAPACIDAD.matcher(expandir(termino)).replaceAll(" ").split(" ")) {
+            if (!palabra.isEmpty() && !VACIAS.contains(palabra) && CondicionProducto.detectar(palabra).isEmpty()) {
                 unicas.put(palabra, true);
             }
         }

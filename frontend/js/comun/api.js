@@ -57,15 +57,21 @@ export const salir = () => pedir('/auth/salida', { metodo: 'POST', redirigirSinS
 /* Búsqueda y ofertas */
 /**
  * Con exacto = true se busca el texto tal cual, sin corregir errores de escritura. precioMinimo y precioMaximo
- * (en pesos, opcionales) dejan solo las ofertas cuyo precio total está entre esos valores.
+ * (en pesos, opcionales) dejan solo las ofertas cuyo precio, más el envío si la tienda lo informa, está entre esos
+ * valores. original es lo que escribió la persona cuando se buscó una corrección: se manda al pasar de página o
+ * filtrar, para que "128 GB" o "nuevo" se sigan exigiendo.
  */
-export function buscar(termino, pagina = 1, tamano = 10, exacto = false, { precioMinimo, precioMaximo } = {}) {
+export function buscar(termino, pagina = 1, tamano = 10, exacto = false,
+    { precioMinimo, precioMaximo, original } = {}) {
     const parametros = new URLSearchParams({ q: termino, pagina, tamano });
     if (exacto) parametros.set('exacto', 'true');
     if (precioMinimo != null) parametros.set('precio_minimo', precioMinimo);
     if (precioMaximo != null) parametros.set('precio_maximo', precioMaximo);
+    if (original && original !== termino) parametros.set('original', original);
     return pedir(`/busqueda?${parametros}`);
 }
+/** Cómo se elige la recomendación: las reglas y los pesos que usa el servidor. */
+export const obtenerComoRecomendamos = () => pedir('/busqueda/como-recomendamos');
 export function obtenerSugerencias(texto) {
     return pedir(`/busqueda/sugerencias?${new URLSearchParams({ q: texto })}`);
 }

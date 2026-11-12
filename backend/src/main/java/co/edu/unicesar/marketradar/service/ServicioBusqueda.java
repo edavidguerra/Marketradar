@@ -6,6 +6,7 @@ import co.edu.unicesar.marketradar.domain.ConsultaBusqueda;
 import co.edu.unicesar.marketradar.domain.OfertaNormalizada;
 import co.edu.unicesar.marketradar.domain.OrdenResultados;
 import co.edu.unicesar.marketradar.domain.ProductoMvp;
+import co.edu.unicesar.marketradar.domain.RequisitosBusqueda;
 import co.edu.unicesar.marketradar.domain.ResultadoBusqueda;
 import co.edu.unicesar.marketradar.exception.AccesoDatosException;
 import co.edu.unicesar.marketradar.service.mvp.EstrategiaSeleccionMvp;
@@ -135,25 +136,119 @@ public class ServicioBusqueda {
     private ResultadoBusqueda buscar(ConsultaBusqueda consulta, Long usuarioId, boolean registrar) {
         long inicio = System.nanoTime();
         ResultadoCompleto completo = cache.get(consulta.claveCache(), clave -> consultarMarketplaces(consulta));
-        List<OfertaNormalizada> todas = ordenar(completo.ofertas(), consulta.getOrden());
+        List<OfertaNormalizada> todas = marcarPreciosAtipicos(ordenar(completo.ofertas(), consulta.getOrden()),
+                consulta.requisitos());
+
+        // Lo que pidió la persona se revisa antes de recomendar: solo las que cumplen todo van arriba y pueden ser la
+        // recomendación. Las demás se muestran aparte, con lo que les falta.
+        RequisitosBusqueda requisitos = consulta.requisitos();
+        List<OfertaNormalizada> cumplen = new ArrayList<>();
+        List<ResultadoBusqueda.Alternativa> porConfirmar = new ArrayList<>();
+        List<ResultadoBusqueda.Alternativa> incumplen = new ArrayList<>();
+        for (OfertaNormalizada oferta : todas) {
+            RequisitosBusqueda.Evaluacion evaluacion = requisitos.evaluar(oferta.getTitulo(), oferta.condicionProducto());
+            switch (evaluacion.nivel()) {
+                case CUMPLE -> cumplen.add(oferta);
+                case SIN_CONFIRMAR -> porConfirmar.add(new ResultadoBusqueda.Alternativa(oferta, evaluacion.nivel(),
+                        evaluacion.motivos()));
+                case INCUMPLE -> incumplen.add(new ResultadoBusqueda.Alternativa(oferta, evaluacion.nivel(),
+                        evaluacion.motivos()));
+            }
+        }
+        List<ResultadoBusqueda.Alternativa> alternativas = new ArrayList<>(porConfirmar);
+        alternativas.addAll(incumplen);
+
         // El rango de precio se aplica sobre lo que ya está en caché: cambiarlo no gasta búsquedas en las tiendas.
+        // Compara el costo conocido (precio más el envío que informa la tienda); la página avisa cuáles no lo informan.
         List<OfertaNormalizada> ordenadas = consulta.tieneRangoDePrecio()
-                ? todas.stream().filter(oferta -> consulta.precioEnRango(oferta.precioTotal())).toList()
-                : todas;
+                ? cumplen.stream().filter(oferta -> consulta.precioEnRango(oferta.costoConocido())).toList()
+                : cumplen;
+        List<ResultadoBusqueda.Alternativa> alternativasEnRango = consulta.tieneRangoDePrecio()
+                ? alternativas.stream().filter(a -> consulta.precioEnRango(a.oferta().costoConocido())).toList()
+                : alternativas;
         int desde = Math.min((consulta.getPagina() - 1) * consulta.getTamano(), ordenadas.size());
         int hasta = Math.min(desde + consulta.getTamano(), ordenadas.size());
-        BigDecimal mejorPrecio = ordenadas.stream().map(OfertaNormalizada::precioTotal)
-                .min(Comparator.naturalOrder()).orElse(null);
-        ProductoMvp mvp = seleccionMvp.elegir(ordenadas).orElse(null);
+        List<OfertaNormalizada> candidatas = ordenadas.stream().filter(OfertaNormalizada::precioVerificado).toList();
+        Optional<OfertaNormalizada> masBarata = candidatas.stream()
+                .min(Comparator.comparing(OfertaNormalizada::costoConocido));
+        BigDecimal mejorPrecio = masBarata.map(OfertaNormalizada::costoConocido).orElse(null);
+        ProductoMvp mvp = seleccionMvp.elegir(candidatas).orElse(null);
         // Filtrar por precio es mirar de otra forma la misma búsqueda: no se repite en el historial.
         if (registrar && consulta.getPagina() == 1 && !consulta.tieneRangoDePrecio()) {
-            registrarBusquedaSinInterrumpir(consulta.getTermino(), todas.size(), inicio, usuarioId,
+            // En el historial queda lo que escribió la persona (sin saludos), no la corrección: así "nuevo" o "128 GB"
+            // no se pierden al repetir la búsqueda.
+            registrarBusquedaSinInterrumpir(ServicioSugerencias.limpiarFrase(consulta.getTextoOriginal()), todas.size(),
+                    inicio, usuarioId,
                     imagenRepresentativa(mvp, ordenadas.isEmpty() ? todas : ordenadas));
         }
-        // Si el rango dejó fuera ofertas, el resumen de la IA podría nombrar precios que ya no se ven.
+        // El resumen de la IA se escribió sin revisar lo que pidió la persona ni el rango: si algo quedó por fuera,
+        // podría nombrar ofertas o precios que ya no están arriba.
         String resumen = ordenadas.size() == todas.size() ? completo.resumenIa() : null;
+        ResultadoBusqueda.Detalle detalle = new ResultadoBusqueda.Detalle(
+                consulta.getPagina() == 1 ? alternativasEnRango : List.of(), requisitos.etiquetas(),
+                motivoSinRecomendacion(mvp, cumplen, ordenadas, todas, requisitos),
+                (int) ordenadas.stream().filter(o -> o.totalConfirmado().isEmpty()).count(),
+                masBarata.map(o -> o.totalConfirmado().isPresent()).orElse(true));
         return new ResultadoBusqueda(ordenadas.subList(desde, hasta), completo.advertencias(), ordenadas.size(),
-                completo.idsPersistidos(), mejorPrecio, mvp, resumen, todas.size());
+                completo.idsPersistidos(), mejorPrecio, mvp, resumen, cumplen.size(), detalle);
+    }
+
+    /** Una oferta cuyo precio es más de 4 veces la mediana es sospechosa, y también si es menos de un cuarto. */
+    static final BigDecimal FACTOR_ATIPICO = new BigDecimal("4");
+    static final String ALERTA_ATIPICO = "Su precio es muy distinto al de las demás ofertas de este producto: puede ser "
+            + "un error de la tienda o de otra moneda. Revíselo antes de comprar.";
+
+    /**
+     * Marca los precios que no se parecen a los demás del mismo producto, sin cambiarlos: se muestran con un aviso y
+     * no se usan para recomendar ni para decir cuál es más barata. Se compara con la mediana de las ofertas que cumplen
+     * o que solo falta confirmar (las de otra versión o capacidad no cuentan), si hay al menos 3.
+     *
+     * @param ofertas ofertas de la búsqueda
+     * @param requisitos lo que pidió la persona
+     * @return las mismas ofertas, con alerta en las de precio atípico
+     */
+    static List<OfertaNormalizada> marcarPreciosAtipicos(List<OfertaNormalizada> ofertas, RequisitosBusqueda requisitos) {
+        List<BigDecimal> precios = ofertas.stream()
+                .filter(o -> requisitos.evaluar(o.getTitulo(), o.condicionProducto()).nivel()
+                        != RequisitosBusqueda.Nivel.INCUMPLE)
+                .map(OfertaNormalizada::getPrecio).sorted().toList();
+        if (precios.size() < 3) {
+            return ofertas;
+        }
+        BigDecimal mediana = precios.size() % 2 == 1 ? precios.get(precios.size() / 2)
+                : precios.get(precios.size() / 2 - 1).add(precios.get(precios.size() / 2))
+                .divide(BigDecimal.valueOf(2), java.math.RoundingMode.HALF_UP);
+        BigDecimal techo = mediana.multiply(FACTOR_ATIPICO);
+        BigDecimal piso = mediana.divide(FACTOR_ATIPICO, java.math.RoundingMode.HALF_UP);
+        List<OfertaNormalizada> marcadas = new ArrayList<>();
+        for (OfertaNormalizada oferta : ofertas) {
+            boolean atipica = oferta.getPrecio().compareTo(techo) > 0 || oferta.getPrecio().compareTo(piso) < 0;
+            if (atipica && oferta.precioVerificado()) {
+                LOG.info("Precio atípico en \"{}\": {} {} (texto original \"{}\"; mediana {})", oferta.getTitulo(),
+                        oferta.getPrecio(), oferta.getMoneda(), oferta.getPrecioTexto(), mediana);
+                marcadas.add(oferta.conAlertaPrecio(ALERTA_ATIPICO));
+            } else {
+                marcadas.add(oferta);
+            }
+        }
+        return marcadas;
+    }
+
+    private static String motivoSinRecomendacion(ProductoMvp mvp, List<OfertaNormalizada> cumplen,
+                                                 List<OfertaNormalizada> enRango, List<OfertaNormalizada> todas,
+                                                 RequisitosBusqueda requisitos) {
+        if (mvp != null || todas.isEmpty()) {
+            return null;
+        }
+        if (cumplen.isEmpty()) {
+            return requisitos.estaVacio() ? null
+                    : "Ninguna oferta confirma todo lo que usted pidió (" + String.join(", ", requisitos.etiquetas())
+                    + "), así que no recomendamos ninguna. Abajo están las que se parecen, con lo que les falta.";
+        }
+        if (enRango.isEmpty()) {
+            return "Ninguna de las ofertas que cumplen su búsqueda está en el rango de precio que eligió.";
+        }
+        return "No recomendamos ninguna porque los precios de las ofertas que cumplen no se pudieron verificar.";
     }
 
     /**
@@ -300,7 +395,7 @@ public class ServicioBusqueda {
 
     private static List<OfertaNormalizada> ordenar(List<OfertaNormalizada> ofertas, OrdenResultados orden) {
         List<OfertaNormalizada> copia = new ArrayList<>(ofertas);
-        Comparator<OfertaNormalizada> porPrecio = Comparator.comparing(OfertaNormalizada::precioTotal);
+        Comparator<OfertaNormalizada> porPrecio = Comparator.comparing(OfertaNormalizada::costoConocido);
         switch (orden) {
             case PRECIO_ASC -> copia.sort(porPrecio);
             case PRECIO_DESC -> copia.sort(porPrecio.reversed());

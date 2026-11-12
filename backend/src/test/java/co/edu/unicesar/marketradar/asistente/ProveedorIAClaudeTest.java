@@ -111,7 +111,7 @@ class ProveedorIAClaudeTest {
         assertEquals(MODELO, peticion.get("model").asText());
         assertEquals("Instrucciones", peticion.get("system").asText());
         assertEquals("low", peticion.get("output_config").get("effort").asText());
-        assertEquals(2, peticion.get("tools").size());
+        assertEquals(3, peticion.get("tools").size());
         JsonNode mensajes = peticion.get("messages");
         assertEquals(3, mensajes.size());
         assertEquals("user", mensajes.get(0).get("role").asText());

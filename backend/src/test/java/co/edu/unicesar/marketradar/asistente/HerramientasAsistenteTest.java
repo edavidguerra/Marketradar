@@ -1,5 +1,6 @@
 package co.edu.unicesar.marketradar.asistente;
 
+import co.edu.unicesar.marketradar.PropiedadesPrueba;
 import co.edu.unicesar.marketradar.domain.ConsultaBusqueda;
 import co.edu.unicesar.marketradar.domain.OfertaNormalizada;
 import co.edu.unicesar.marketradar.domain.ResultadoBusqueda;
@@ -23,9 +24,50 @@ import static org.mockito.Mockito.when;
 class HerramientasAsistenteTest {
 
     @Test
-    void elEnlaceVaListoParaConvertirseEnBoton() {
-        assertEquals("[Ver en Falabella](https://www.falabella.com.co/p/123)",
+    void elEnlaceVaListoParaConvertirseEnBotonYDiceADondeLleva() {
+        assertEquals("[Ver la oferta en falabella.com.co](https://www.falabella.com.co/p/123)",
                 HerramientasAsistente.enlace(oferta("Falabella", "https://www.falabella.com.co/p/123")));
+    }
+
+    @Test
+    void unaBusquedaDeGoogleNoSePresentaComoLaTienda() {
+        String enlace = HerramientasAsistente.enlace(oferta("Falabella",
+                "https://www.google.com.co/search?tbm=shop&gl=co&hl=es&q=Licuadora+Falabella"));
+
+        assertTrue(enlace.startsWith("[Buscar esta oferta en Google]("));
+        assertFalse(enlace.contains("Ver en Falabella"));
+    }
+
+    @Test
+    void explicaElPuntajeConLosPesosConfigurados() {
+        String explicacion = new HerramientasAsistente(mock(ServicioBusquedaFlexible.class),
+                mock(ServicioTasasCambio.class), PropiedadesPrueba.crear()).explicarPuntaje();
+
+        assertTrue(explicacion.contains("Precio (60 %)"));
+        assertTrue(explicacion.contains("Opiniones (30 %)"));
+        assertTrue(explicacion.contains("Envío (10 %)"));
+        assertTrue(explicacion.contains("No es una probabilidad"));
+    }
+
+    @Test
+    void sinRecomendacionLoDiceYDaLasAlternativasConLoQueLesFalta() {
+        ServicioBusquedaFlexible flexible = mock(ServicioBusquedaFlexible.class);
+        OfertaNormalizada reacondicionado = oferta("Tienda", "https://tienda.com/iphone");
+        ResultadoBusqueda resultado = new ResultadoBusqueda(List.of(), List.of(), 0, Map.of(), null, null, null, 0,
+                new ResultadoBusqueda.Detalle(List.of(new ResultadoBusqueda.Alternativa(reacondicionado,
+                        co.edu.unicesar.marketradar.domain.RequisitosBusqueda.Nivel.INCUMPLE,
+                        List.of("Es reacondicionado, no nuevo"))), List.of("modelo 13", "nuevo"),
+                        "Ninguna oferta confirma todo lo que usted pidió", 0, true));
+        when(flexible.buscar(any(), eq(null), eq(false))).thenReturn(new ServicioBusquedaFlexible.Resultado(
+                ConsultaBusqueda.crear("iphone 13 nuevo", null, Set.of(), 1, 3), resultado, null, false));
+
+        String resumen = new HerramientasAsistente(flexible, mock(ServicioTasasCambio.class),
+                PropiedadesPrueba.crear()).buscarMejorOpcion("iphone 13 nuevo");
+
+        assertTrue(resumen.contains("LO QUE PIDIÓ LA PERSONA"));
+        assertTrue(resumen.contains("SIN RECOMENDACIÓN"));
+        assertTrue(resumen.contains("Le falta: Es reacondicionado, no nuevo"));
+        assertFalse(resumen.contains("MEJOR OPCIÓN"));
     }
 
     @Test
@@ -44,11 +86,12 @@ class HerramientasAsistenteTest {
         when(flexible.buscar(any(), eq(null), eq(false))).thenReturn(new ServicioBusquedaFlexible.Resultado(
                 ConsultaBusqueda.crear("licuadora", null, Set.of(), 1, 3), resultado, "licuadorra", false));
 
-        String resumen = new HerramientasAsistente(flexible, mock(ServicioTasasCambio.class))
-                .buscarMejorOpcion("licuadorra");
+        String resumen = new HerramientasAsistente(flexible, mock(ServicioTasasCambio.class),
+                PropiedadesPrueba.crear()).buscarMejorOpcion("licuadorra");
 
         assertTrue(resumen.startsWith("SE BUSCÓ: \"licuadora\" (la persona escribió \"licuadorra\")"));
-        assertTrue(resumen.contains("[Ver en Éxito](https://www.exito.com/licuadora)"));
+        assertTrue(resumen.contains("[Ver la oferta en exito.com](https://www.exito.com/licuadora)"));
+        assertTrue(resumen.contains("MÁS ENVÍO"), "Sin envío informado no se presenta como total");
     }
 
     private static OfertaNormalizada oferta(String vendedor, String url) {

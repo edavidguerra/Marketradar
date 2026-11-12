@@ -2,7 +2,9 @@ package co.edu.unicesar.marketradar.domain;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Modelo común de oferta que producen todos los adaptadores, sin importar el formato de cada API.
@@ -26,6 +28,12 @@ public final class OfertaNormalizada {
     private final Integer totalResenas;
     private final OffsetDateTime consultadoEn;
     private final String tokenResenas;
+    private final EstadoEnvio estadoEnvio;
+    private final String precioTexto;
+    private final BigDecimal precioOriginal;
+    private final String monedaOriginal;
+    private final TasaCambio tasaAplicada;
+    private final String alertaPrecio;
 
     private OfertaNormalizada(Builder builder) {
         this.codigoMarketplace = Objects.requireNonNull(builder.codigoMarketplace, "codigoMarketplace");
@@ -33,7 +41,6 @@ public final class OfertaNormalizada {
         this.titulo = Objects.requireNonNull(builder.titulo, "titulo");
         this.precio = Objects.requireNonNull(builder.precio, "precio");
         this.moneda = Objects.requireNonNull(builder.moneda, "moneda");
-        this.costoEnvio = builder.costoEnvio;
         this.condicion = builder.condicion;
         this.vendedor = builder.vendedor;
         this.urlDestino = Objects.requireNonNull(builder.urlDestino, "urlDestino");
@@ -42,6 +49,14 @@ public final class OfertaNormalizada {
         this.totalResenas = validarTotalResenas(builder.totalResenas);
         this.consultadoEn = builder.consultadoEn == null ? OffsetDateTime.now() : builder.consultadoEn;
         this.tokenResenas = builder.tokenResenas;
+        this.estadoEnvio = estadoEnvio(builder.estadoEnvio, builder.costoEnvio);
+        this.costoEnvio = estadoEnvio == EstadoEnvio.DESCONOCIDO ? null
+                : estadoEnvio == EstadoEnvio.GRATIS ? BigDecimal.ZERO : builder.costoEnvio;
+        this.precioTexto = builder.precioTexto;
+        this.precioOriginal = builder.precioOriginal;
+        this.monedaOriginal = builder.monedaOriginal;
+        this.tasaAplicada = builder.tasaAplicada;
+        this.alertaPrecio = builder.alertaPrecio;
         if (precio.signum() < 0) {
             throw new IllegalArgumentException("El precio no puede ser negativo");
         }
@@ -78,12 +93,103 @@ public final class OfertaNormalizada {
     }
 
     /**
-     * Precio que paga el usuario: precio más envío, si se conoce.
+     * Lo que se sabe que se paga como mínimo: el precio más el envío cuando la tienda lo informa (gratis, con valor o
+     * estimado). Si el envío no se conoce, es solo el precio. Sirve para ordenar y filtrar, pero no es un total
+     * confirmado: para eso está {@link #totalConfirmado()}.
      *
-     * @return precio total
+     * @return precio más el envío conocido
      */
-    public BigDecimal precioTotal() {
+    public BigDecimal costoConocido() {
         return costoEnvio == null ? precio : precio.add(costoEnvio);
+    }
+
+    /**
+     * Precio total confirmado: solo cuando el envío es gratis o tiene valor, la tienda no vende desde el exterior
+     * (allá pueden cobrar impuestos que no se conocen) y el precio no tiene ninguna alerta.
+     *
+     * @return precio más envío, o vacío si falta algo para confirmarlo
+     */
+    public Optional<BigDecimal> totalConfirmado() {
+        if (!estadoEnvio.confirmado() || ubicacion().desdeExterior() || alertaPrecio != null) {
+            return Optional.empty();
+        }
+        return Optional.of(costoConocido());
+    }
+
+    /**
+     * Qué falta para que el precio mostrado sea el total, en palabras sencillas.
+     *
+     * @return por ejemplo "no incluye el envío, que la tienda no informa", o vacío si el total está confirmado
+     */
+    public Optional<String> faltaParaElTotal() {
+        if (alertaPrecio != null) {
+            return Optional.of(alertaPrecio);
+        }
+        List<String> faltan = new java.util.ArrayList<>();
+        switch (estadoEnvio) {
+            case DESCONOCIDO -> faltan.add("no incluye el envío, que la tienda no informa");
+            case ESTIMADO -> faltan.add("el envío es un valor aproximado y puede costar más");
+            default -> { }
+        }
+        if (ubicacion().desdeExterior()) {
+            faltan.add("no incluye impuestos de importación, que no se conocen");
+        }
+        return faltan.isEmpty() ? Optional.empty() : Optional.of(String.join("; ", faltan));
+    }
+
+    /** @return estado del envío */
+    public EstadoEnvio getEstadoEnvio() {
+        return estadoEnvio;
+    }
+
+    /** @return condición del producto, o vacío si la tienda no la dice */
+    public Optional<CondicionProducto> condicionProducto() {
+        return CondicionProducto.deCodigo(condicion);
+    }
+
+    /** @return a dónde lleva el enlace de la oferta */
+    public EnlaceCompra enlace() {
+        return EnlaceCompra.de(urlDestino);
+    }
+
+    /** @return {@code true} si el precio no tiene ninguna alerta y se puede usar para recomendar */
+    public boolean precioVerificado() {
+        return alertaPrecio == null;
+    }
+
+    /** @return por qué el precio no se pudo verificar, o {@code null} */
+    public String getAlertaPrecio() {
+        return alertaPrecio;
+    }
+
+    /** @return el precio tal como lo escribió la tienda, por ejemplo "US$ 899,99"; {@code null} si no vino */
+    public String getPrecioTexto() {
+        return precioTexto;
+    }
+
+    /** @return precio antes de convertirlo a pesos, o {@code null} si ya venía en pesos */
+    public BigDecimal getPrecioOriginal() {
+        return precioOriginal;
+    }
+
+    /** @return moneda en que vino el precio, o {@code null} si ya venía en pesos */
+    public String getMonedaOriginal() {
+        return monedaOriginal;
+    }
+
+    /** @return tasa con que se convirtió el precio, o {@code null} si no se convirtió */
+    public TasaCambio getTasaAplicada() {
+        return tasaAplicada;
+    }
+
+    /**
+     * Copia con una alerta sobre el precio. La oferta se sigue mostrando, con la alerta, pero no se recomienda.
+     *
+     * @param alerta por qué no se puede confiar en el precio
+     * @return copia con la alerta
+     */
+    public OfertaNormalizada conAlertaPrecio(String alerta) {
+        return aBuilder().alertaPrecio(alerta).build();
     }
 
     /**
@@ -116,13 +222,45 @@ public final class OfertaNormalizada {
         return aBuilder().precio(nuevoPrecio).costoEnvio(nuevoEnvio).moneda(nuevaMoneda).build();
     }
 
+    /**
+     * Copia convertida a otra moneda, que recuerda el precio original y la tasa usada, para poder rastrear el valor.
+     * Una oferta ya convertida no se vuelve a convertir.
+     *
+     * @param nuevoPrecio precio convertido
+     * @param nuevoEnvio envío convertido, o {@code null}
+     * @param nuevaMoneda moneda destino
+     * @param tasa tasa aplicada
+     * @return oferta convertida
+     * @throws IllegalStateException si la oferta ya se había convertido
+     */
+    public OfertaNormalizada convertida(BigDecimal nuevoPrecio, BigDecimal nuevoEnvio, String nuevaMoneda,
+                                       TasaCambio tasa) {
+        if (precioOriginal != null) {
+            throw new IllegalStateException("La oferta ya se convirtió desde " + monedaOriginal);
+        }
+        return aBuilder().precio(nuevoPrecio).costoEnvio(nuevoEnvio).moneda(nuevaMoneda)
+                .precioOriginal(precio).monedaOriginal(moneda).tasaAplicada(tasa).build();
+    }
+
+    private static EstadoEnvio estadoEnvio(EstadoEnvio pedido, BigDecimal costo) {
+        if (pedido == EstadoEnvio.ESTIMADO && costo != null && costo.signum() > 0) {
+            return EstadoEnvio.ESTIMADO;
+        }
+        if (pedido == EstadoEnvio.DESCONOCIDO || costo == null || costo.signum() < 0) {
+            return EstadoEnvio.DESCONOCIDO;
+        }
+        return costo.signum() == 0 ? EstadoEnvio.GRATIS : EstadoEnvio.CONOCIDO;
+    }
+
     private Builder aBuilder() {
         return builder()
                 .codigoMarketplace(codigoMarketplace).idExterno(idExterno).titulo(titulo)
                 .precio(precio).moneda(moneda).costoEnvio(costoEnvio).condicion(condicion)
                 .vendedor(vendedor).urlDestino(urlDestino).urlImagen(urlImagen)
                 .calificacion(calificacion).totalResenas(totalResenas).consultadoEn(consultadoEn)
-                .tokenResenas(tokenResenas);
+                .tokenResenas(tokenResenas).estadoEnvio(estadoEnvio).precioTexto(precioTexto)
+                .precioOriginal(precioOriginal).monedaOriginal(monedaOriginal).tasaAplicada(tasaAplicada)
+                .alertaPrecio(alertaPrecio);
     }
 
     private static BigDecimal validarCalificacion(BigDecimal calificacion) {
@@ -211,8 +349,51 @@ public final class OfertaNormalizada {
         private Integer totalResenas;
         private OffsetDateTime consultadoEn;
         private String tokenResenas;
+        private EstadoEnvio estadoEnvio;
+        private String precioTexto;
+        private BigDecimal precioOriginal;
+        private String monedaOriginal;
+        private TasaCambio tasaAplicada;
+        private String alertaPrecio;
 
         private Builder() {
+        }
+
+        /**
+         * Estado del envío. Si no se da, se deduce del costo: sin costo es desconocido, 0 es gratis y otro valor es
+         * conocido. {@link EstadoEnvio#ESTIMADO} necesita un costo mayor que cero.
+         *
+         * @param estadoEnvio estado
+         * @return este builder
+         */
+        public Builder estadoEnvio(EstadoEnvio estadoEnvio) {
+            this.estadoEnvio = estadoEnvio;
+            return this;
+        }
+
+        public Builder precioTexto(String precioTexto) {
+            this.precioTexto = precioTexto;
+            return this;
+        }
+
+        public Builder precioOriginal(BigDecimal precioOriginal) {
+            this.precioOriginal = precioOriginal;
+            return this;
+        }
+
+        public Builder monedaOriginal(String monedaOriginal) {
+            this.monedaOriginal = monedaOriginal;
+            return this;
+        }
+
+        public Builder tasaAplicada(TasaCambio tasaAplicada) {
+            this.tasaAplicada = tasaAplicada;
+            return this;
+        }
+
+        public Builder alertaPrecio(String alertaPrecio) {
+            this.alertaPrecio = alertaPrecio;
+            return this;
         }
 
         public Builder codigoMarketplace(String codigoMarketplace) {

@@ -6,11 +6,12 @@ El chatbot de Marketradar usa **Claude**, el modelo de IA de Anthropic, con los 
 
 1. La persona escribe una pregunta en el botón "¿Necesita ayuda?".
 2. `ServicioAsistente` revisa la pregunta (no vacía, máximo 500 letras) y le agrega las instrucciones del asistente y los últimos 10 mensajes.
-3. `ProveedorIAClaude` envía todo a Claude junto con dos herramientas:
-   - `buscarMejorOpcion`: busca el producto en las tiendas y devuelve la mejor opción y las más baratas.
-   - `valorDelDolar`: devuelve la TRM del día.
+3. `ProveedorIAClaude` envía todo a Claude junto con tres herramientas:
+   - `buscarMejorOpcion`: busca el producto en las tiendas y devuelve lo que pidió la persona, la mejor opción (con su puntaje, con cuántas se comparó y la confianza), las más baratas que cumplen y las alternativas con lo que les falta. Si ninguna cumple, lo dice ("SIN RECOMENDACIÓN") y Claude no recomienda ninguna. Cada oferta dice si el envío está incluido o no ("MÁS ENVÍO").
+   - `explicarPuntaje`: las mismas reglas de [recomendacion.md](recomendacion.md) que muestra la página en "¿Cómo se calcula?".
+   - `valorDelDolar`: devuelve la tasa vigente con su fuente y fecha.
 4. Si Claude pide una herramienta, Marketradar la ejecuta, le devuelve el resultado y Claude responde con precios reales y enlaces directos. Se permiten máximo 4 vueltas por pregunta para no gastar créditos de más.
-5. La herramienta entrega cada enlace ya escrito como `[Ver en Falabella](https://...)` y las instrucciones le piden a Claude copiarlo así, sin pegar direcciones sueltas. En la página, `frontend/js/usuario/formato-asistente.js` convierte ese formato en un botón "Ver en Falabella" que abre la tienda en otra pestaña después de avisar a qué página va. Si aun así llega una dirección suelta, se muestra como un botón "Abrir en dominio". También convierte `**negrita**` y las listas cortas. Todo se arma con nodos de texto, nunca con `innerHTML`, y solo se aceptan enlaces `https`.
+5. La herramienta entrega cada enlace ya escrito con el texto que dice a dónde lleva, como `[Ver la oferta en falabella.com.co](https://...)` o `[Buscar esta oferta en Google](https://...)`, y las instrucciones le piden a Claude copiarlo así, sin pegar direcciones sueltas ni decir que es la página de la tienda cuando es una búsqueda. En la página, `frontend/js/usuario/formato-asistente.js` convierte ese formato en un botón con ese texto que abre la tienda en otra pestaña después de avisar a qué página va. Si aun así llega una dirección suelta, se muestra como un botón "Abrir en dominio". También convierte `**negrita**` y las listas cortas. Todo se arma con nodos de texto, nunca con `innerHTML`, y solo se aceptan enlaces `https`.
 6. Si Claude no responde o la clave está mal, la persona ve un mensaje amable y el resto de la página sigue funcionando.
 
 ## Cómo sacar la clave

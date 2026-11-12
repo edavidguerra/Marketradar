@@ -1,16 +1,23 @@
 /**
- * Sección Buscar: resultados de todas las tiendas, la mejor opción de compra (producto MVP) con su
- * enlace directo, y las reseñas de compradores de cada producto.
+ * Sección Buscar: la mejor opción de compra (producto MVP) entre las ofertas que cumplen lo que pidió la persona,
+ * esas ofertas, las parecidas que no cumplen (con lo que les falta) y las opiniones de cada producto. Cada botón dice
+ * a dónde lleva de verdad, y cada precio dice si es el total o qué le falta.
  */
 
-import { buscar, obtenerResenas, traducirResena } from '../comun/api.js';
+import { buscar, obtenerComoRecomendamos, obtenerResenas, traducirResena } from '../comun/api.js';
 import { crear, crearIcono, boton, enlaceTienda, mostrarEstado } from '../comun/dom.js';
 import { decimal, estrellas, haceCuanto, pesos, tiendaDeOferta } from '../comun/formato.js';
 import { irA } from './navegacion.js';
 import { iniciarSugerencias } from './sugerencias.js';
 
 const TAMANO_PAGINA = 10;
-const estado = { termino: '', pagina: 1, exacto: false, precioMinimo: null, precioMaximo: null };
+const estado = {
+    termino: '', pagina: 1, exacto: false, precioMinimo: null, precioMaximo: null,
+    // Lo que escribió la persona, si se buscó una corrección: se manda al pasar de página o filtrar.
+    original: null,
+    // Si la oferta más barata tiene el precio total confirmado; si no, la etiqueta lo aclara.
+    mejorPrecioConfirmado: true,
+};
 
 const $ = (id) => document.getElementById(id);
 
@@ -39,11 +46,19 @@ function hayFiltroPrecio() {
 }
 
 function textoResultados(respuesta) {
+    const parecidas = (respuesta.alternativas || []).length;
+    if (respuesta.total_resultados === 0 && parecidas > 0) {
+        return `Encontramos ${parecidas} ${parecidas === 1 ? 'oferta parecida' : 'ofertas parecidas'} a `
+            + `"${estado.termino}"${hayFiltroPrecio() ? ` ${textoRango(estado.precioMinimo, estado.precioMaximo)}` : ''}`
+            + ', pero ninguna confirma todo lo que pidió.';
+    }
     if (!hayFiltroPrecio()) {
-        return respuesta.total_resultados === 0
-            ? `No encontramos resultados para "${estado.termino}". Pruebe con otra palabra.`
-            : `Encontramos ${respuesta.total_resultados} resultados para "${estado.termino}". Primero le mostramos `
-              + 'la mejor opción de compra y después todas las ofertas, de la más barata a la más cara.';
+        if (respuesta.total_resultados === 0) {
+            return `No encontramos resultados para "${estado.termino}". Pruebe con otra palabra.`;
+        }
+        return `Encontramos ${respuesta.total_resultados} resultados para "${estado.termino}". `
+            + (respuesta.producto_mvp ? 'Primero le mostramos la mejor opción de compra y después todas las ofertas'
+                : 'Estas son las ofertas') + ', de la más barata a la más cara.';
     }
     const rango = textoRango(estado.precioMinimo, estado.precioMaximo);
     if (respuesta.total_resultados === 0) {
@@ -53,7 +68,17 @@ function textoResultados(respuesta) {
             : `No encontramos resultados para "${estado.termino}". Pruebe con otra palabra.`;
     }
     return `Encontramos ${respuesta.total_resultados} de ${respuesta.total_sin_filtro} resultados para `
-        + `"${estado.termino}" con precio total ${rango}, de la más barata a la más cara.`;
+        + `"${estado.termino}" con precio ${rango} (precio más el envío, cuando la tienda lo informa), de la más `
+        + 'barata a la más cara.';
+}
+
+/** Cuántas ofertas mostradas no tienen el precio total confirmado, para que la persona no las compare como iguales. */
+function textoSinTotal(respuesta) {
+    const cuantas = respuesta.sin_total_confirmado ?? 0;
+    if (cuantas === 0 || respuesta.total_resultados === 0) return '';
+    const todas = cuantas === respuesta.total_resultados;
+    return `${todas ? 'Ninguna de estas ofertas tiene' : `${cuantas} de estas ofertas no tienen`} el precio total `
+        + 'confirmado: no informan el envío, es aproximado o vienen del exterior. Cada una dice qué le falta.';
 }
 
 function crearCalificacion(oferta) {
@@ -73,10 +98,48 @@ function crearDato(icono, texto) {
     return dato;
 }
 
-/** "Envío gratis", "Incluye envío de $ 12.900" o, si la tienda no lo informa, que se confirma allá. */
+/** Lo que se sabe del envío: gratis, con valor, aproximado o sin informar (que nunca se cuenta como gratis). */
 function textoEnvio(oferta) {
-    if (oferta.costo_envio == null) return 'Envío: se confirma en la tienda';
-    return Number(oferta.costo_envio) === 0 ? 'Envío gratis' : `Incluye envío de ${pesos(oferta.costo_envio)}`;
+    switch (oferta.estado_envio) {
+    case 'gratis': return 'Envío gratis';
+    case 'conocido': return `Envío: ${pesos(oferta.costo_envio)}, ya sumado al precio`;
+    case 'estimado': return `Envío aproximado: ${pesos(oferta.costo_envio)} o más, sumado al precio`;
+    default: return 'Envío: la tienda no lo informa. Se paga aparte';
+    }
+}
+
+/** Nuevo, usado, reacondicionado o de exhibición; si la tienda no lo dice, se dice que no lo dice. */
+function crearCondicion(oferta) {
+    const dato = crearDato('etiqueta', `Estado: ${oferta.condicion ? oferta.condicion_texto : 'la tienda no lo dice'}`);
+    if (oferta.condicion !== 'nuevo') dato.classList.add('dato-aviso');
+    return dato;
+}
+
+/** Si el precio llegó en otra moneda: cuánto era, con qué tasa se convirtió, de dónde salió y desde cuándo rige. */
+function crearConversion(oferta) {
+    const { conversion } = oferta;
+    if (!conversion) return null;
+    const fecha = conversion.fecha
+        ? new Date(`${conversion.fecha}T12:00:00`).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })
+        : 'sin fecha';
+    const original = conversion.precio_texto || `${conversion.moneda_original} ${conversion.precio_original}`;
+    return crear('p', 'ayuda conversion', `Precio en la tienda: ${original}. Lo pasamos a pesos con `
+        + `${pesos(conversion.tasa)} por ${conversion.moneda_original === 'USD' ? 'dólar' : conversion.moneda_original}`
+        + ` (${conversion.fuente}, vigente desde el ${fecha}).`);
+}
+
+/** Aviso cuando el precio no se pudo verificar: "desde", por cuotas, distinto al de la tienda o muy raro. */
+function crearAlertaPrecio(oferta) {
+    if (!oferta.alerta_precio) return null;
+    const alerta = crear('p', 'alerta-precio');
+    alerta.append(crearIcono('escudo'), ` Revise este precio: ${oferta.alerta_precio}`);
+    return alerta;
+}
+
+/** Qué le falta al precio mostrado para ser el total, si algo le falta. */
+function crearFaltaTotal(oferta) {
+    if (oferta.total_confirmado != null || oferta.alerta_precio || !oferta.falta_para_el_total) return null;
+    return crear('p', 'falta-total', `No es el precio total: ${oferta.falta_para_el_total}.`);
 }
 
 /** Desde dónde vende la tienda; si es del exterior, avisa que puede tardar y cobrar impuestos. */
@@ -93,16 +156,32 @@ function crearUbicacion(oferta) {
     return dato;
 }
 
-/** El precio total, o el precio y un aviso si el envío no se sabe todavía. */
+/** El precio con lo que se sabe del envío. Solo dice "en total" si el total está confirmado. */
+function notaPrecio(oferta) {
+    if (oferta.total_confirmado != null) return ' en total';
+    switch (oferta.estado_envio) {
+    case 'desconocido': return ' más envío';
+    case 'estimado': return ' con envío aproximado';
+    default: return oferta.desde_exterior ? ' más impuestos' : ' sin confirmar';
+    }
+}
+
 function crearPrecio(oferta, sufijo = '') {
-    const precio = crear('p', 'precio', `${pesos(oferta.precio_total)}${sufijo}`);
-    precio.append(crear('span', 'precio-nota', oferta.costo_envio == null ? ' más envío' : ' en total'));
+    const precio = crear('p', 'precio', `${pesos(oferta.costo_conocido)}${sufijo}`);
+    precio.append(crear('span', 'precio-nota', notaPrecio(oferta)));
     return precio;
 }
 
-function crearTarjeta(oferta) {
+/** El botón dice a dónde lleva de verdad: la tienda, la ficha de Google Shopping o una búsqueda en Google. */
+function enlaceOferta(oferta, clase) {
+    const texto = oferta.enlace?.texto ?? `Ver en ${tiendaDeOferta(oferta)}`;
+    return enlaceTienda(texto, oferta.url_destino, tiendaDeOferta(oferta), clase, oferta.enlace);
+}
+
+function crearTarjeta(oferta, alternativa = null) {
     const tienda = tiendaDeOferta(oferta);
-    const tarjeta = crear('li', oferta.mejor_precio ? 'tarjeta mejor' : 'tarjeta');
+    const mejor = oferta.mejor_precio && !alternativa;
+    const tarjeta = crear('li', `tarjeta${mejor ? ' mejor' : ''}${alternativa ? ' alternativa' : ''}`);
     const imagen = crear('div', 'tarjeta-imagen');
     if (oferta.url_imagen) {
         const foto = document.createElement('img');
@@ -114,29 +193,83 @@ function crearTarjeta(oferta) {
         imagen.append(crearIcono('etiqueta'));
     }
     const cuerpo = crear('div', 'tarjeta-cuerpo');
-    if (oferta.mejor_precio) cuerpo.append(crear('p', 'etiqueta-mejor', '★ Precio más bajo'));
-    const precio = crearPrecio(oferta);
+    if (mejor) {
+        cuerpo.append(crear('p', 'etiqueta-mejor', estado.mejorPrecioConfirmado
+            ? '★ Precio más bajo' : '★ Precio más bajo, sin el total confirmado'));
+    }
+    if (alternativa) cuerpo.append(crearFaltantes(alternativa));
     const datos = crear('ul', 'datos');
     datos.append(
         crearDato('tienda', `Tienda: ${tienda}`),
+        crearCondicion(oferta),
         crearDato('camion', textoEnvio(oferta)),
         crearUbicacion(oferta),
     );
     cuerpo.append(
         crear('h2', null, oferta.titulo),
-        precio,
+        crearPrecio(oferta),
+        ...[crearAlertaPrecio(oferta), crearFaltaTotal(oferta)].filter(Boolean),
         crearCalificacion(oferta),
         datos,
+        ...[crearConversion(oferta)].filter(Boolean),
         crear('p', 'ayuda', `Precio consultado ${haceCuanto(oferta.consultado_en)}. Puede cambiar en la tienda.`),
     );
     const acciones = crear('div', 'acciones');
-    acciones.append(enlaceTienda(`Ver en ${tienda}`, oferta.url_destino, tienda));
+    acciones.append(enlaceOferta(oferta, alternativa ? 'boton boton-secundario' : 'boton boton-principal'));
     if (oferta.resenas_disponibles) {
         acciones.append(botonResenas(oferta));
     }
     cuerpo.append(acciones);
     tarjeta.append(imagen, cuerpo);
     return tarjeta;
+}
+
+/** Lo que le falta a una alternativa para cumplir lo que pidió la persona. */
+function crearFaltantes(alternativa) {
+    const caja = crear('div', `faltantes ${alternativa.nivel === 'incumple' ? 'incumple' : 'sin-confirmar'}`);
+    caja.append(crear('p', 'faltantes-titulo', alternativa.nivel === 'incumple'
+        ? 'No es lo que pidió:' : 'Falta confirmar:'));
+    const lista = crear('ul');
+    alternativa.motivos.forEach((motivo) => lista.append(crear('li', null, motivo)));
+    caja.append(lista);
+    return caja;
+}
+
+/** Lo que se revisó en cada oferta ("modelo iphone 13 · 128 GB · nuevo"), para que la persona sepa qué se exigió. */
+function mostrarRequisitos(requisitos) {
+    const parrafo = $('requisitos-busqueda');
+    if (!requisitos || requisitos.length === 0) {
+        parrafo.replaceChildren();
+        parrafo.hidden = true;
+        return;
+    }
+    const lista = crear('ul', 'chips');
+    requisitos.forEach((requisito) => lista.append(crear('li', null, requisito)));
+    parrafo.replaceChildren(crear('p', null, 'Solo recomendamos ofertas que confirman todo esto:'), lista);
+    parrafo.hidden = false;
+}
+
+/** Por qué no hay recomendación: ninguna oferta cumple todo, o sus precios no se pudieron verificar. */
+function mostrarSinRecomendacion(motivo) {
+    const aviso = $('sin-recomendacion');
+    aviso.textContent = motivo || '';
+    aviso.hidden = !motivo;
+}
+
+/** Las ofertas parecidas que no cumplen todo lo pedido, aparte y con lo que les falta. */
+function mostrarAlternativas(alternativas) {
+    const seccion = $('alternativas');
+    const lista = $('lista-alternativas');
+    if (!alternativas || alternativas.length === 0) {
+        lista.replaceChildren();
+        seccion.hidden = true;
+        return;
+    }
+    $('ayuda-alternativas').textContent = `${alternativas.length === 1 ? 'Esta oferta se parece' : `Estas ${alternativas.length} ofertas se parecen`} `
+        + 'a lo que buscó, pero no confirman todo lo que pidió. No las recomendamos ni las tenemos en cuenta para '
+        + 'decir cuál es más barata.';
+    lista.replaceChildren(...alternativas.map((alternativa) => crearTarjeta(alternativa.oferta, alternativa)));
+    seccion.hidden = false;
 }
 
 /** Tarjetas grises animadas que ocupan el lugar de los resultados mientras llegan. */
@@ -149,7 +282,7 @@ function crearEsqueletos(cantidad) {
     });
 }
 
-function mostrarMvp(mvp) {
+function mostrarMvp(mvp, mostradas = 0) {
     const contenedor = $('producto-mvp');
     if (!mvp) {
         contenedor.replaceChildren();
@@ -178,22 +311,72 @@ function mostrarMvp(mvp) {
         imagen.append(crearIcono('etiqueta'));
     }
     const datosMvp = crear('ul', 'datos');
-    datosMvp.append(crearDato('camion', textoEnvio(oferta)), crearUbicacion(oferta));
+    datosMvp.append(crearCondicion(oferta), crearDato('camion', textoEnvio(oferta)), crearUbicacion(oferta));
+    const comparadas = (mvp.comparadas === 1 ? 'Es la única oferta que cumple su búsqueda'
+        : `Comparado con las ${mvp.comparadas} ofertas que cumplen su búsqueda`)
+        + (mostradas > mvp.comparadas ? ' y tienen el precio verificado (las de precio por revisar no cuentan)' : '');
     contenedor.replaceChildren(
         sello,
         imagen,
         crear('h2', null, oferta.titulo),
         crearPrecio(oferta, ` en ${tienda}`),
+        ...[crearAlertaPrecio(oferta), crearFaltaTotal(oferta)].filter(Boolean),
         crearCalificacion(oferta),
         datosMvp,
+        ...[crearConversion(oferta)].filter(Boolean),
         crear('p', 'razones-titulo', '¿Por qué se la recomendamos?'),
         razones,
-        crear('p', 'ayuda', `Puntaje de compra: ${mvp.puntaje} de 100, según precio, opiniones y envío.`),
+        crear('p', 'ayuda', `Puntaje de conveniencia: ${mvp.puntaje} de 100. ${comparadas}. No es una `
+            + 'probabilidad ni una garantía.'),
         barra,
-        enlaceTienda(`Comprar este producto en ${tienda}`, mvp.enlace_compra, tienda),
+        crearConfianza(mvp),
+        crearComoSeCalcula(),
+        enlaceOferta(oferta, 'boton boton-principal'),
     );
     if (oferta.resenas_disponibles) contenedor.append(botonResenas(oferta));
     contenedor.hidden = false;
+}
+
+/** Qué tan completa es la información de la recomendación, y qué faltó saber. */
+function crearConfianza(mvp) {
+    const nivel = mvp.confianza || 'media';
+    const caja = crear('div', `confianza confianza-${nivel}`);
+    caja.append(crear('p', 'confianza-nivel', `Confianza de la recomendación: ${nivel}`));
+    if (mvp.faltantes && mvp.faltantes.length > 0) {
+        caja.append(crear('p', null, `No sabemos ${unir(mvp.faltantes)}. Revíselo en la tienda antes de comprar.`));
+    } else {
+        caja.append(crear('p', null, 'La tienda informó el envío, la condición, desde dónde vende y hay opiniones.'));
+    }
+    return caja;
+}
+
+/** "a, b y c" */
+function unir(partes) {
+    return partes.length <= 1 ? partes.join('') : `${partes.slice(0, -1).join(', ')} y ${partes[partes.length - 1]}`;
+}
+
+/** "¿Cómo se calcula?": las reglas que usa el servidor, pedidas solo cuando la persona las abre. */
+function crearComoSeCalcula() {
+    const detalles = crear('details', 'como-se-calcula');
+    const resumen = crear('summary', null, '¿Cómo se calcula la recomendación?');
+    const contenido = crear('div');
+    detalles.append(resumen, contenido);
+    let cargado = false;
+    detalles.addEventListener('toggle', async () => {
+        if (!detalles.open || cargado) return;
+        cargado = true;
+        contenido.replaceChildren(crear('p', 'ayuda', 'Cargando…'));
+        try {
+            const { reglas } = await obtenerComoRecomendamos();
+            const lista = crear('ol');
+            reglas.forEach((regla) => lista.append(crear('li', null, regla)));
+            contenido.replaceChildren(lista);
+        } catch (error) {
+            cargado = false;
+            contenido.replaceChildren(crear('p', 'error', error.message));
+        }
+    });
+    return detalles;
 }
 
 /**
@@ -241,21 +424,30 @@ async function cargarPagina() {
     botonBuscar.classList.add('buscando');
     try {
         const respuesta = await buscar(estado.termino, estado.pagina, TAMANO_PAGINA, estado.exacto,
-            { precioMinimo: estado.precioMinimo, precioMaximo: estado.precioMaximo });
+            { precioMinimo: estado.precioMinimo, precioMaximo: estado.precioMaximo, original: estado.original });
         mostrarAdvertencias(respuesta.advertencias || []);
         if (estado.pagina === 1) {
+            estado.mejorPrecioConfirmado = respuesta.mejor_precio_confirmado !== false;
             mostrarResumen(respuesta.resumen_ia);
-            mostrarMvp(respuesta.producto_mvp);
+            mostrarRequisitos(respuesta.requisitos);
+            mostrarMvp(respuesta.producto_mvp, respuesta.total_resultados);
+            mostrarSinRecomendacion(respuesta.motivo_sin_recomendacion);
+            mostrarAlternativas(respuesta.alternativas);
             mostrarCorreccion(respuesta);
             if (respuesta.termino_original) {
-                // Las páginas siguientes y el campo usan lo que se buscó de verdad, sin volver a corregir.
+                // Las páginas siguientes y el campo usan lo que se buscó de verdad, sin volver a corregir, pero lo
+                // que escribió la persona ("128 GB", "nuevo") se sigue exigiendo.
+                estado.original = respuesta.texto_original || respuesta.termino_original;
                 estado.termino = respuesta.termino;
                 estado.exacto = true;
                 $('campo-busqueda').value = respuesta.termino;
             }
         }
-        $('lista-resultados').append(...respuesta.ofertas.map(crearTarjeta));
+        $('lista-resultados').append(...respuesta.ofertas.map((oferta) => crearTarjeta(oferta)));
         mostrarEstado(estadoResultados, textoResultados(respuesta));
+        const notaTotales = $('nota-totales');
+        notaTotales.textContent = textoSinTotal(respuesta);
+        notaTotales.hidden = !notaTotales.textContent;
         // El filtro de precio aparece cuando hay algo que filtrar, o si ya se está usando.
         $('filtro-precio').hidden = (respuesta.total_sin_filtro ?? respuesta.total_resultados) === 0;
         $('ver-mas').hidden = estado.pagina * TAMANO_PAGINA >= respuesta.total_resultados;
@@ -273,6 +465,7 @@ export function buscarTermino(termino, { exacto = false } = {}) {
     estado.termino = termino;
     estado.pagina = 1;
     estado.exacto = exacto;
+    estado.original = null;
     // Una búsqueda nueva empieza sin filtro de precio, para no esconder resultados sin que la persona lo note.
     limpiarFiltroPrecio();
     $('filtro-precio').hidden = true;
@@ -285,7 +478,11 @@ function recargarResultados() {
     $('lista-resultados').replaceChildren();
     mostrarResumen(null);
     mostrarMvp(null);
+    mostrarRequisitos(null);
+    mostrarSinRecomendacion(null);
+    mostrarAlternativas(null);
     mostrarCorreccion(null);
+    $('nota-totales').hidden = true;
     cargarPagina();
 }
 
@@ -430,7 +627,8 @@ function crearResena(resena, oferta, idioma) {
     const texto = resena.texto ? crear('p', 'resena-texto', resena.texto) : null;
     if (titulo) elemento.append(titulo);
     if (texto) elemento.append(texto);
-    const firma = [resena.autor, resena.fuente && `en ${resena.fuente}`, resena.fecha].filter(Boolean).join(' · ');
+    const firma = [resena.autor, resena.fuente ? `publicada en ${resena.fuente}` : 'sitio no informado', resena.fecha]
+        .filter(Boolean).join(' · ');
     if (firma) elemento.append(crear('p', 'ayuda', firma));
     if (resena.traducible && texto) {
         // Si está en otro idioma que el de la cuenta, se ofrece traducirla. El aviso dice que es una traducción.
@@ -453,9 +651,16 @@ async function verResenas(oferta) {
             crear('h2', null, oferta.titulo),
             crearPrecio(oferta, ` en ${tienda}`),
         ];
-        if (!resenas.disponibles) {
+        if (resenas.procedencia === 'rechazada') {
+            partes.push(crear('p', 'nota-procedencia rechazada', resenas.nota_procedencia));
+        } else if (!resenas.disponibles) {
             partes.push(crear('p', null, 'Este producto todavía no tiene reseñas de compradores.'));
         } else {
+            // De dónde salen: en Google Shopping son opiniones del producto, no de la tienda que lo vende.
+            if (resenas.nota_procedencia) {
+                partes.push(crear('p', `nota-procedencia ${resenas.procedencia === 'verificada' ? '' : 'sin-verificar'}`
+                    .trim(), resenas.nota_procedencia));
+            }
             if (resenas.calificacion != null) {
                 const resumen = crear('p', 'calificacion resumen-resenas');
                 const figura = crear('span', 'estrellas', estrellas(resenas.calificacion));
@@ -465,16 +670,17 @@ async function verResenas(oferta) {
                 partes.push(resumen);
             }
             if (resenas.distribucion.length > 0) partes.push(crearDistribucion(resenas.distribucion));
+            if (resenas.nota_conteo) partes.push(crear('p', 'ayuda', resenas.nota_conteo));
             if (resenas.resenas.length > 0) {
                 const lista = crear('ul', 'resenas');
                 const idioma = resenas.nombre_idioma_usuario || 'español';
                 resenas.resenas.forEach((resena) => lista.append(crearResena(resena, oferta, idioma)));
-                partes.push(crear('h3', 'resenas-titulo', 'Lo que dicen los compradores'), lista);
+                partes.push(crear('h3', 'resenas-titulo', 'Lo que dicen los compradores del producto'), lista);
             } else {
                 partes.push(crear('p', 'ayuda', 'Los compradores calificaron este producto, pero no dejaron comentarios escritos.'));
             }
         }
-        partes.push(enlaceTienda(`Ver en ${tienda}`, oferta.url_destino, tienda));
+        partes.push(enlaceOferta(oferta, 'boton boton-principal'));
         contenedor.replaceChildren(...partes);
     } catch (error) {
         mostrarEstado(contenedor, error.message, () => verResenas(oferta));

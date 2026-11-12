@@ -1,6 +1,8 @@
 package co.edu.unicesar.marketradar.controller;
 
 import co.edu.unicesar.marketradar.domain.ConsultaBusqueda;
+import co.edu.unicesar.marketradar.config.PropiedadesMarketradar;
+import co.edu.unicesar.marketradar.service.mvp.PoliticaRecomendacion;
 import co.edu.unicesar.marketradar.dto.RespuestaBusquedaDto;
 import co.edu.unicesar.marketradar.dto.SugerenciasDto;
 import co.edu.unicesar.marketradar.seguridad.UsuarioAutenticado;
@@ -28,12 +30,25 @@ public class ControladorBusqueda {
     private final ServicioBusquedaFlexible servicioBusqueda;
     private final ServicioSugerencias servicioSugerencias;
     private final ServicioResenas servicioResenas;
+    private final PropiedadesMarketradar propiedades;
 
     public ControladorBusqueda(ServicioBusquedaFlexible servicioBusqueda, ServicioSugerencias servicioSugerencias,
-                               ServicioResenas servicioResenas) {
+                               ServicioResenas servicioResenas, PropiedadesMarketradar propiedades) {
         this.servicioBusqueda = servicioBusqueda;
         this.servicioSugerencias = servicioSugerencias;
         this.servicioResenas = servicioResenas;
+        this.propiedades = propiedades;
+    }
+
+    /**
+     * Cómo se elige la recomendación y se calcula el puntaje, con los pesos configurados. Es el mismo texto que usa el
+     * asistente, para que nunca digan cosas distintas.
+     *
+     * @return reglas en frases cortas
+     */
+    @GetMapping("/como-recomendamos")
+    public java.util.Map<String, java.util.List<String>> comoRecomendamos() {
+        return java.util.Map.of("reglas", PoliticaRecomendacion.explicar(propiedades.mvp()));
     }
 
     /**
@@ -45,8 +60,10 @@ public class ControladorBusqueda {
      * @param pagina número de página desde 1
      * @param tamano resultados por página, máximo 20
      * @param exacto {@code true} para buscar el texto tal como se escribió, sin corregir errores
-     * @param precioMinimo precio total mínimo en pesos ("500.000" o "500000"), opcional
-     * @param precioMaximo precio total máximo en pesos, opcional
+     * @param original lo que escribió la persona antes de la corrección, para seguir exigiendo lo que pidió (por
+     *                 ejemplo "nuevo") en las páginas siguientes y al filtrar; opcional
+     * @param precioMinimo precio mínimo en pesos ("500.000" o "500000"), comparado con el precio más el envío informado; opcional
+     * @param precioMaximo precio máximo en pesos, comparado igual; opcional
      * @param usuario persona con sesión, para guardar la búsqueda en su historial
      * @return resultados ordenados, advertencias y, si se corrigió, lo que la persona escribió
      */
@@ -59,9 +76,12 @@ public class ControladorBusqueda {
                                        @RequestParam(defaultValue = "false") boolean exacto,
                                        @RequestParam(name = "precio_minimo", required = false) String precioMinimo,
                                        @RequestParam(name = "precio_maximo", required = false) String precioMaximo,
+                                       @RequestParam(required = false) String original,
                                        @AuthenticationPrincipal UsuarioAutenticado usuario) {
         ConsultaBusqueda consulta = ConsultaBusqueda.crear(q, orden, separarCodigos(marketplaces), pagina, tamano)
-                .conRangoDePrecio(ConsultaBusqueda.leerPrecio(precioMinimo), ConsultaBusqueda.leerPrecio(precioMaximo));
+                .conRangoDePrecio(ConsultaBusqueda.leerPrecio(precioMinimo), ConsultaBusqueda.leerPrecio(precioMaximo))
+                // Al pasar de página o filtrar se sigue exigiendo lo que la persona escribió antes de la corrección.
+                .conTextoOriginal(original);
         Long usuarioId = usuario == null ? null : usuario.getId();
         ServicioBusquedaFlexible.Resultado resultado = servicioBusqueda.buscar(consulta, usuarioId, exacto);
         // Así el botón "Ver reseñas" de cada producto puede pedirlas después a la tienda.

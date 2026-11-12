@@ -24,9 +24,17 @@ public final class ConsultaBusqueda {
     private final int tamano;
     private final BigDecimal precioMinimo;
     private final BigDecimal precioMaximo;
+    /** Lo que escribió la persona, si se buscó otro texto (corregido); {@code null} si se buscó tal cual. */
+    private final String textoOriginal;
 
     private ConsultaBusqueda(String termino, OrdenResultados orden, Set<String> marketplaces, int pagina, int tamano,
                              BigDecimal precioMinimo, BigDecimal precioMaximo) {
+        this(termino, orden, marketplaces, pagina, tamano, precioMinimo, precioMaximo, null);
+    }
+
+    private ConsultaBusqueda(String termino, OrdenResultados orden, Set<String> marketplaces, int pagina, int tamano,
+                             BigDecimal precioMinimo, BigDecimal precioMaximo, String textoOriginal) {
+        this.textoOriginal = textoOriginal == null || textoOriginal.equals(termino) ? null : textoOriginal;
         this.termino = termino;
         this.orden = orden;
         this.marketplaces = marketplaces;
@@ -72,10 +80,10 @@ public final class ConsultaBusqueda {
     }
 
     /**
-     * La misma consulta, mostrando solo lo que cuesta entre dos precios totales (con envío).
+     * La misma consulta, mostrando solo lo que cuesta entre dos precios. Se compara el costo conocido: el precio más el envío cuando la tienda lo informa.
      *
-     * @param minimo precio total mínimo en pesos, o {@code null} para no poner piso
-     * @param maximo precio total máximo en pesos, o {@code null} para no poner techo
+     * @param minimo precio mínimo en pesos, o {@code null} para no poner piso
+     * @param maximo precio máximo en pesos, o {@code null} para no poner techo
      * @return consulta nueva con el rango de precio
      * @throws ValidacionException si un precio es negativo, demasiado alto o el mínimo es mayor que el máximo
      */
@@ -85,7 +93,7 @@ public final class ConsultaBusqueda {
         if (minimo != null && maximo != null && minimo.compareTo(maximo) > 0) {
             throw new ValidacionException("El precio mínimo es mayor que el máximo. Revise los dos valores.");
         }
-        return new ConsultaBusqueda(termino, orden, marketplaces, pagina, tamano, minimo, maximo);
+        return new ConsultaBusqueda(termino, orden, marketplaces, pagina, tamano, minimo, maximo, textoOriginal);
     }
 
     private static void validarPrecio(BigDecimal precio, String cual) {
@@ -122,7 +130,8 @@ public final class ConsultaBusqueda {
 
     /** @return la misma consulta sin rango de precio, para saber cuánto hay en total */
     public ConsultaBusqueda sinRangoDePrecio() {
-        return tieneRangoDePrecio() ? new ConsultaBusqueda(termino, orden, marketplaces, pagina, tamano, null, null)
+        return tieneRangoDePrecio() ? new ConsultaBusqueda(termino, orden, marketplaces, pagina, tamano, null, null,
+                textoOriginal)
                 : this;
     }
 
@@ -140,12 +149,12 @@ public final class ConsultaBusqueda {
                 && (precioMaximo == null || precioTotal.compareTo(precioMaximo) <= 0);
     }
 
-    /** @return precio total mínimo, o {@code null} */
+    /** @return precio mínimo, o {@code null} */
     public BigDecimal getPrecioMinimo() {
         return precioMinimo;
     }
 
-    /** @return precio total máximo, o {@code null} */
+    /** @return precio máximo, o {@code null} */
     public BigDecimal getPrecioMaximo() {
         return precioMaximo;
     }
@@ -178,7 +187,40 @@ public final class ConsultaBusqueda {
      */
     public ConsultaBusqueda conTermino(String otroTermino) {
         return crear(otroTermino, orden.getValor(), marketplaces, pagina, tamano)
-                .conRangoDePrecio(precioMinimo, precioMaximo);
+                .conRangoDePrecio(precioMinimo, precioMaximo)
+                .conTextoOriginal(getTextoOriginal());
+    }
+
+    /**
+     * La misma consulta, recordando lo que escribió la persona antes de corregirlo. Así lo que pidió ("nuevo",
+     * "128 GB") se sigue exigiendo aunque la búsqueda corregida lo haya quitado, también al pasar de página o
+     * filtrar por precio.
+     *
+     * @param original lo que escribió la persona; si está vacío, es muy largo o tiene caracteres de control, se ignora
+     * @return consulta con el texto original
+     */
+    public ConsultaBusqueda conTextoOriginal(String original) {
+        String limpio = original == null ? null : original.strip();
+        if (limpio == null || limpio.length() < LONGITUD_MINIMA || limpio.length() > LONGITUD_MAXIMA
+                || limpio.chars().anyMatch(Character::isISOControl)) {
+            return this;
+        }
+        return new ConsultaBusqueda(termino, orden, marketplaces, pagina, tamano, precioMinimo, precioMaximo, limpio);
+    }
+
+    /** @return lo que escribió la persona (el mismo término si no se corrigió) */
+    public String getTextoOriginal() {
+        return textoOriginal == null ? termino : textoOriginal;
+    }
+
+    /**
+     * Lo que la persona exigió: modelo, versión, capacidad y condición, sacados de lo que escribió y de la búsqueda
+     * corregida.
+     *
+     * @return requisitos
+     */
+    public RequisitosBusqueda requisitos() {
+        return RequisitosBusqueda.combinar(getTextoOriginal(), termino);
     }
 
     /**
