@@ -872,40 +872,12 @@ main > section:not([hidden]) { animation: entrar-seccion .5s var(--curva) both; 
 
 .avisos-puntos .punto.activo { width: 1.6rem; background: var(--color-texto); border-color: var(--color-texto); }
 
-/* Barra que se llena mientras corre el tiempo de cada aviso; se detiene en pausa. */
-.avisos-progreso {
-    height: 4px;
-    margin-top: -.5rem;
-    border-radius: 999px;
-    overflow: hidden;
-    background: #f3d38a;
-}
-
-.avisos-progreso-barra {
-    display: block;
-    height: 100%;
-    background: #b45309;
-    transform-origin: left;
-    animation: aviso-progreso 5s linear both;
-}
-
-.avisos.en-pausa .avisos-progreso-barra { animation-play-state: paused; }
-.avisos.pausado-por-persona .avisos-progreso { visibility: hidden; }
-:root.alto-contraste .avisos-progreso { background: #000000; border: 1px solid var(--color-borde); }
-:root.alto-contraste .avisos-progreso-barra { background: var(--color-principal); }
-
-@keyframes aviso-progreso { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-
 @media (max-width: 30rem) {
     .aviso-inicio .titulo-aviso { font-size: 1.2rem; }
     /* Flechas a los lados de la posición y "Pausar" en su propia fila, para que nada quede cortado. */
     .avisos-controles { display: grid; grid-template-columns: auto 1fr auto; gap: .6rem; }
     .avisos-posicion { justify-content: center; }
     .boton-pausa { grid-column: 1 / -1; margin-left: 0; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .avisos-progreso { display: none; }
 }
 
 .accesos {

@@ -107,11 +107,7 @@ class Carrusel {
             this.botonPausa,
         );
 
-        this.progreso = crear('span', 'avisos-progreso');
-        this.progreso.setAttribute('aria-hidden', 'true');
-        this.progreso.append(crear('span', 'avisos-progreso-barra'));
-
-        this.raiz.append(this.pista, controles, this.progreso, this.anuncio);
+        this.raiz.append(this.pista, controles, this.anuncio);
         contenedor.removeAttribute('aria-live');
         contenedor.replaceChildren(this.raiz);
 
@@ -236,10 +232,7 @@ class Carrusel {
             this.temporizador = null;
             this.restante = Math.max(0, this.restante - (performance.now() - this.inicio));
         }
-        if (reiniciar) {
-            this.restante = INTERVALO;
-            this.reiniciarBarra();
-        }
+        if (reiniciar) this.restante = INTERVALO;
         const detenido = this.detenido();
         this.raiz.classList.toggle('en-pausa', detenido);
         this.raiz.classList.toggle('pausado-por-persona', this.pausadoPorPersona);
@@ -258,14 +251,6 @@ class Carrusel {
             }
             this.mover(1, false);
         }, this.restante);
-    }
-
-    /** La barra de abajo se llena en {@link INTERVALO}; se reinicia con cada aviso. */
-    reiniciarBarra() {
-        const barra = this.progreso.firstElementChild;
-        barra.style.animation = 'none';
-        void barra.offsetWidth;
-        barra.style.removeProperty('animation');
     }
 
     destruir() {
