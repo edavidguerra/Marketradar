@@ -91,7 +91,7 @@ final class PlantillasCorreo {
         if (EnlaceCompra.esSeguro(urlOferta)) {
             enlaces.add(new Enlace("Ver la oferta", urlOferta));
         }
-        enlaces.add(new Enlace("Mis seguimientos", urlSeguimientos));
+        enlaces.add(new Enlace("Ver mis seguimientos", urlSeguimientos));
         enlaces.add(new Enlace("Dejar de seguir este producto", urlCancelar));
         return enlaces;
     }

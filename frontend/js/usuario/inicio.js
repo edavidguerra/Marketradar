@@ -1,10 +1,11 @@
 /**
  * Sección Inicio: saludo, avisos que invitan a comprar y accesos a cada opción.
  *
- * Cuando hay varios avisos se muestran de a uno y cambian solos cada {@link INTERVALO} milisegundos. La persona
- * también los puede pasar con las flechas, deslizando el dedo o con las teclas ← y →, y los puede pausar. El cambio
- * automático se detiene mientras el ratón o el foco están sobre el aviso, mientras se toca la pantalla y cuando la
- * pestaña no está a la vista. Si el sistema pide reducir el movimiento, los avisos empiezan pausados.
+ * Cuando hay varios avisos se muestran de a uno y cambian solos cada {@link INTERVALO} milisegundos, sin barra de
+ * botones debajo. La persona también los puede pasar deslizando el dedo (o arrastrando con el ratón) o con las teclas
+ * ← y → cuando el foco está en el aviso. El cambio automático se detiene mientras el ratón o el foco están sobre el
+ * aviso, mientras se toca la pantalla y cuando la pestaña no está a la vista, para que nadie pierda lo que está
+ * leyendo. Si el sistema pide reducir el movimiento, los avisos siguen cambiando pero sin animación.
  */
 
 import { obtenerAvisos } from '../comun/api.js';
@@ -55,13 +56,6 @@ function crearDiapositiva(aviso, indice, total) {
     return diapositiva;
 }
 
-function botonIcono(icono, etiqueta, clase, alPulsar) {
-    const elemento = boton('', `boton-secundario boton-icono ${clase}`, alPulsar);
-    elemento.setAttribute('aria-label', etiqueta);
-    elemento.append(crearIcono(icono));
-    return elemento;
-}
-
 /**
  * Carrusel de avisos. Todas las diapositivas quedan en la misma celda de la cuadrícula, así el recuadro toma la
  * altura del aviso más largo y la página no salta al cambiar.
@@ -71,7 +65,6 @@ class Carrusel {
     constructor(contenedor, avisos) {
         this.avisos = avisos;
         this.actual = 0;
-        this.pausadoPorPersona = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         this.encima = false;
         this.conFoco = false;
         this.tocando = false;
@@ -91,23 +84,7 @@ class Carrusel {
         this.anuncio = crear('p', 'solo-lectores');
         this.anuncio.setAttribute('aria-live', 'polite');
 
-        this.puntos = crear('span', 'avisos-puntos');
-        this.puntos.setAttribute('aria-hidden', 'true');
-        avisos.forEach(() => this.puntos.append(crear('span', 'punto')));
-        this.contador = crear('span', 'avisos-contador');
-        const posicion = crear('span', 'avisos-posicion');
-        posicion.append(this.puntos, this.contador);
-
-        this.botonPausa = boton('', 'boton-secundario boton-pausa', () => this.alternarPausa());
-        const controles = crear('div', 'avisos-controles');
-        controles.append(
-            botonIcono('anterior', 'Aviso anterior', 'boton-anterior', () => this.mover(-1, true)),
-            posicion,
-            botonIcono('siguiente', 'Aviso siguiente', 'boton-siguiente', () => this.mover(1, true)),
-            this.botonPausa,
-        );
-
-        this.raiz.append(this.pista, controles, this.anuncio);
+        this.raiz.append(this.pista, this.anuncio);
         contenedor.removeAttribute('aria-live');
         contenedor.replaceChildren(this.raiz);
 
@@ -204,20 +181,10 @@ class Carrusel {
                 diapositiva.classList.add(paso > 0 ? 'entra-derecha' : 'entra-izquierda');
             }
         });
-        [...this.puntos.children].forEach((punto, i) => punto.classList.toggle('activo', i === indice));
-        this.contador.textContent = `${indice + 1} de ${this.avisos.length}`;
-    }
-
-    alternarPausa() {
-        this.pausadoPorPersona = !this.pausadoPorPersona;
-        this.anuncio.textContent = this.pausadoPorPersona
-            ? 'Avisos en pausa. Use las flechas para verlos.'
-            : `Los avisos cambiarán solos cada ${INTERVALO / 1000} segundos.`;
-        this.programar(true);
     }
 
     detenido() {
-        return this.pausadoPorPersona || this.encima || this.conFoco || this.tocando || document.hidden;
+        return this.encima || this.conFoco || this.tocando || document.hidden;
     }
 
     /**
@@ -235,11 +202,6 @@ class Carrusel {
         if (reiniciar) this.restante = INTERVALO;
         const detenido = this.detenido();
         this.raiz.classList.toggle('en-pausa', detenido);
-        this.raiz.classList.toggle('pausado-por-persona', this.pausadoPorPersona);
-        this.botonPausa.replaceChildren(crearIcono(this.pausadoPorPersona ? 'reproducir' : 'pausa'),
-            document.createTextNode(this.pausadoPorPersona ? 'Reanudar' : 'Pausar'));
-        this.botonPausa.setAttribute('aria-label', this.pausadoPorPersona
-            ? 'Reanudar el cambio automático de avisos' : 'Pausar el cambio automático de avisos');
         if (detenido) return;
         this.inicio = performance.now();
         this.temporizador = setTimeout(() => {

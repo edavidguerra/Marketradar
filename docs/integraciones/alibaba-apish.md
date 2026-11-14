@@ -1,6 +1,6 @@
-# Al por mayor: Alibaba con API.SH
+# Emprender (al por mayor): Alibaba con API.SH
 
-La sección **Al por mayor** busca proveedores de Alibaba con [API.SH](https://api.sh) y calcula el subtotal de la
+La sección **Emprender** (compras al por mayor) busca proveedores de Alibaba con [API.SH](https://api.sh) y calcula el subtotal de la
 mercancía para la cantidad pedida. La compra se hace en Alibaba con el enlace original.
 
 Documentación revisada el 14 de noviembre de 2026: <https://api.sh/docs>, <https://api.sh/openapi/alibaba.json> y

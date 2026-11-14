@@ -15,6 +15,7 @@ import { alMostrarSeccion, iniciarNavegacion } from './navegacion.js';
 import { cargarPerfil, iniciarPerfil } from './perfil.js';
 import { cargarPqr, iniciarPqr } from './pqr.js';
 import { cargarSeguimientos, iniciarSeguimientos } from './seguimientos.js';
+import { iniciarTutorial, ofrecerTutorial } from './tutorial.js';
 
 async function iniciar() {
     iniciarAccesibilidad();
@@ -32,8 +33,12 @@ async function iniciar() {
     iniciarPerfil();
     iniciarPqr();
     iniciarAsistente();
+    iniciarTutorial();
 
-    alMostrarSeccion('inicio', cargarInicio);
+    alMostrarSeccion('inicio', () => {
+        ofrecerTutorial();
+        cargarInicio();
+    });
     alMostrarSeccion('historial', cargarHistorial);
     alMostrarSeccion('seguimientos', () => cargarSeguimientos());
     alMostrarSeccion('mayoristas', cargarMayoristas);
