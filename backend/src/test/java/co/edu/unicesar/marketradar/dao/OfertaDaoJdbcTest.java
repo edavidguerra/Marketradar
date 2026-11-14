@@ -104,6 +104,19 @@ class OfertaDaoJdbcTest {
         assertTrue(ofertaDao.guardarLote(List.of()).isEmpty());
     }
 
+    @Test
+    void guardarLoteGuardaLasCaracteristicasYNoLasBorraSiNoLlegan() {
+        short google = marketplaceDao.buscarPorCodigo("googleshopping").orElseThrow().getId();
+        Oferta conDetalles = ofertaDeLote(google, "D-1", "100000.00");
+        conDetalles.setDetalles("128 GB | Negro");
+        long id = ofertaDao.guardarLote(List.of(conDetalles)).get(OfertaDao.clave(google, "D-1"));
+        assertEquals(List.of("128 GB", "Negro"), ofertaDao.buscarPorId(id).orElseThrow().listaDetalles());
+
+        ofertaDao.guardarLote(List.of(ofertaDeLote(google, "D-1", "95000.00")));
+        assertEquals("128 GB | Negro", ofertaDao.buscarPorId(id).orElseThrow().getDetalles(),
+                "Si la tienda no manda características esta vez, se conservan las anteriores");
+    }
+
     private static Oferta ofertaDeLote(short marketplaceId, String idExterno, String precio) {
         Oferta oferta = new Oferta();
         oferta.setMarketplaceId(marketplaceId);

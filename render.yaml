@@ -78,3 +78,19 @@ services:
         sync: false
       - key: MERCADOLIBRE_REFRESH_TOKEN
         sync: false
+      # Seguir productos (docs/seguimientos.md). Los secretos se escriben en el panel de Render.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PUERTO
+        sync: false
+      - key: SMTP_USUARIO
+        sync: false
+      - key: SMTP_CLAVE
+        sync: false
+      - key: CORREO_REMITENTE
+        sync: false
+      - key: TAREAS_TOKEN
+        sync: false
+      # Al por mayor (docs/integraciones/alibaba-apish.md)
+      - key: APISH_KEY
+        sync: false

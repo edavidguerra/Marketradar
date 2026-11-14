@@ -7,11 +7,14 @@ import { iniciarEfectos } from '../comun/efectos.js';
 import { conectarSalida, exigirSesion, saludo } from '../comun/sesion.js';
 import { iniciarAsistente } from './asistente.js';
 import { iniciarBusqueda } from './busqueda.js';
+import { iniciarComparacion } from './comparacion.js';
 import { cargarHistorial, iniciarHistorial } from './historial.js';
 import { cargarInicio } from './inicio.js';
+import { cargarMayoristas, iniciarMayoristas } from './mayoristas.js';
 import { alMostrarSeccion, iniciarNavegacion } from './navegacion.js';
 import { cargarPerfil, iniciarPerfil } from './perfil.js';
 import { cargarPqr, iniciarPqr } from './pqr.js';
+import { cargarSeguimientos, iniciarSeguimientos } from './seguimientos.js';
 
 async function iniciar() {
     iniciarAccesibilidad();
@@ -22,6 +25,9 @@ async function iniciar() {
     document.getElementById('saludo').textContent = saludo(sesion.nombre);
     conectarSalida();
     iniciarBusqueda();
+    iniciarComparacion();
+    iniciarSeguimientos();
+    iniciarMayoristas();
     iniciarHistorial();
     iniciarPerfil();
     iniciarPqr();
@@ -29,6 +35,8 @@ async function iniciar() {
 
     alMostrarSeccion('inicio', cargarInicio);
     alMostrarSeccion('historial', cargarHistorial);
+    alMostrarSeccion('seguimientos', () => cargarSeguimientos());
+    alMostrarSeccion('mayoristas', cargarMayoristas);
     alMostrarSeccion('perfil', cargarPerfil);
     alMostrarSeccion('pqr', cargarPqr);
     iniciarNavegacion();

@@ -1,7 +1,9 @@
 package co.edu.unicesar.marketradar.controller;
 
 import co.edu.unicesar.marketradar.domain.Idioma;
+import co.edu.unicesar.marketradar.dto.ComparacionDto;
 import co.edu.unicesar.marketradar.dto.HistorialPrecioDto;
+import co.edu.unicesar.marketradar.service.ServicioComparacion;
 import co.edu.unicesar.marketradar.dto.OfertaDetalleDto;
 import co.edu.unicesar.marketradar.dto.ResenasDto;
 import co.edu.unicesar.marketradar.dto.TraduccionDto;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -30,13 +33,39 @@ public class ControladorOfertas {
     private final ServicioResenas servicioResenas;
     private final ServicioTraduccion servicioTraduccion;
     private final ServicioPerfil servicioPerfil;
+    private final ServicioComparacion servicioComparacion;
 
     public ControladorOfertas(ServicioOfertas servicioOfertas, ServicioResenas servicioResenas,
-                              ServicioTraduccion servicioTraduccion, ServicioPerfil servicioPerfil) {
+                              ServicioTraduccion servicioTraduccion, ServicioPerfil servicioPerfil,
+                              ServicioComparacion servicioComparacion) {
+        this.servicioComparacion = servicioComparacion;
         this.servicioOfertas = servicioOfertas;
         this.servicioResenas = servicioResenas;
         this.servicioTraduccion = servicioTraduccion;
         this.servicioPerfil = servicioPerfil;
+    }
+
+    /**
+     * Compara de 2 a 4 ofertas: productos en columnas y características en filas, con "No disponible" donde falta un
+     * dato y avisos si no son el mismo tipo de producto o el mismo modelo.
+     *
+     * @param ids identificadores separados por coma, por ejemplo {@code 12,15,20}
+     * @return tabla de comparación
+     */
+    @GetMapping("/comparacion")
+    public ComparacionDto comparar(@RequestParam(required = false) String ids) {
+        List<Long> lista = new java.util.ArrayList<>();
+        if (ids != null) {
+            for (String parte : ids.split(",")) {
+                String limpio = parte.strip();
+                if (!limpio.matches("\\d{1,18}")) {
+                    throw new co.edu.unicesar.marketradar.exception.ValidacionException(
+                            "La lista de productos para comparar no es válida. Vuelva a elegirlos.");
+                }
+                lista.add(Long.parseLong(limpio));
+            }
+        }
+        return ComparacionDto.desde(servicioComparacion.comparar(lista));
     }
 
     /**

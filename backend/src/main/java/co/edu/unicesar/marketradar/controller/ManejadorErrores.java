@@ -51,6 +51,13 @@ public class ManejadorErrores {
                 : respuesta(HttpStatus.UNAUTHORIZED, "CREDENCIALES_INVALIDAS", e.getMessage(), e);
     }
 
+    /** Para seguir un producto hay que verificar el correo primero: la página ofrece mandar el enlace. */
+    @ExceptionHandler(co.edu.unicesar.marketradar.exception.CorreoSinVerificarException.class)
+    public ResponseEntity<ErrorRespuestaDto> correoSinVerificar(
+            co.edu.unicesar.marketradar.exception.CorreoSinVerificarException e) {
+        return respuesta(HttpStatus.CONFLICT, "CORREO_SIN_VERIFICAR", e.getMessage(), e);
+    }
+
     @ExceptionHandler(RecursoNoEncontradoException.class)
     public ResponseEntity<ErrorRespuestaDto> noEncontrado(RecursoNoEncontradoException e) {
         return respuesta(HttpStatus.NOT_FOUND, "NO_ENCONTRADO", e.getMessage(), e);

@@ -155,6 +155,35 @@ Creada en V5.
 La llave primaria `pk_seguimiento_oferta` es la pareja `(usuario_id, oferta_id)`, así que una persona no puede seguir
 dos veces la misma oferta.
 
+Desde V13 la tabla guarda además qué avisar y el estado de la revisión:
+
+| Columna | Tipo | Nulo | Para qué |
+|---|---|---|---|
+| `tipo_aviso` | VARCHAR(20) | No | `BAJA_PRECIO` o `PRECIO_OBJETIVO` (este exige `precio_objetivo`). |
+| `estado` | VARCHAR(20) | No | `ACTIVO`, `PAUSADO` o `CANCELADO`. Las filas anteriores a V13 quedan en pausa. |
+| `precio_referencia`, `moneda_referencia` | NUMERIC(14,2), CHAR(3) | Sí | Precio con el que se compara. |
+| `precio_original_referencia`, `moneda_original_referencia` | NUMERIC, CHAR(3) | Sí | Si el precio venía en dólares: se compara en dólares. |
+| `vendedor_referencia`, `condicion_referencia`, `variante_referencia` | VARCHAR | Sí | Si cambian, es otra oferta y no se avisa. |
+| `referencia_desde`, `termino_busqueda`, `ultimo_precio` | | Sí | Desde cuándo vale la referencia, qué se busca para encontrarla y el último precio visto. |
+| `ultima_comprobacion`, `resultado_comprobacion`, `fallos_consecutivos`, `proxima_comprobacion` | | | Qué pasó en la última revisión y cuándo toca la siguiente. |
+| `objetivo_avisado` | BOOLEAN | No | Para avisar el precio objetivo una sola vez. |
+| `token_cancelacion` | VARCHAR(64) | Sí | Enlace "Dejar de seguir" de los correos (único). |
+| `version`, `actualizado_en` | INTEGER, TIMESTAMPTZ | No | Para no pisar cambios hechos durante una revisión. |
+
+## aviso_seguimiento (V13)
+
+Cada correo de un seguimiento: confirmación, bajada o precio objetivo. `clave_evento` es única, así que el mismo
+evento nunca se avisa dos veces. `estado` es `PENDIENTE`, `ENVIADO` (exige `enviado_en`), `FALLIDO` o `DESCARTADO`,
+con `intentos`, `ultimo_error` y `proximo_intento` para los reintentos. Se borra con su seguimiento.
+
+## token_correo (V13)
+
+Enlaces para verificar el correo. Solo se guarda el SHA-256 del enlace (`token_hash`), nunca el enlace. Vencen
+(`vence_en`) y se usan una sola vez (`usado_en`). Al usarlo se llena `usuario.correo_verificado_en`, solo si el
+correo de la cuenta no cambió.
+
+`oferta.detalles` (V13, VARCHAR(1000)): características que informó la tienda, separadas por " | ", para comparar.
+
 ## tasa_cambio
 
 Valor de una moneda en pesos colombianos. Se guarda una fila por moneda y fecha. Creada en V3.

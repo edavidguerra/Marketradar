@@ -7,7 +7,9 @@
 import { buscar, obtenerComoRecomendamos, obtenerResenas, traducirResena } from '../comun/api.js';
 import { crear, crearIcono, boton, enlaceTienda, mostrarEstado } from '../comun/dom.js';
 import { decimal, estrellas, haceCuanto, pesos, tiendaDeOferta } from '../comun/formato.js';
+import { botonComparar, reiniciarSeleccion } from './comparacion.js';
 import { irA } from './navegacion.js';
+import { botonSeguir } from './seguimientos.js';
 import { iniciarSugerencias } from './sugerencias.js';
 
 const TAMANO_PAGINA = 10;
@@ -219,6 +221,8 @@ function crearTarjeta(oferta, alternativa = null) {
     if (oferta.resenas_disponibles) {
         acciones.append(botonResenas(oferta));
     }
+    // Comparar y seguir necesitan que la oferta haya quedado guardada (con id).
+    acciones.append(...[botonComparar(oferta), botonSeguir(oferta, estado.original || estado.termino)].filter(Boolean));
     cuerpo.append(acciones);
     tarjeta.append(imagen, cuerpo);
     return tarjeta;
@@ -466,6 +470,8 @@ export function buscarTermino(termino, { exacto = false } = {}) {
     estado.pagina = 1;
     estado.exacto = exacto;
     estado.original = null;
+    // Lo elegido para comparar es de la búsqueda anterior: no se mezcla con la nueva.
+    reiniciarSeleccion();
     // Una búsqueda nueva empieza sin filtro de precio, para no esconder resultados sin que la persona lo note.
     limpiarFiltroPrecio();
     $('filtro-precio').hidden = true;

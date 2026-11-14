@@ -26,6 +26,7 @@ public class Oferta {
     private BigDecimal calificacion;
     private Integer totalResenas;
     private OffsetDateTime consultadoEn;
+    private String detalles;
     private final List<HistorialPrecio> historial = new ArrayList<>();
 
     /** Constructor vacío requerido por los DAO. */
@@ -195,6 +196,23 @@ public class Oferta {
 
     public void setTotalResenas(Integer totalResenas) {
         this.totalResenas = totalResenas;
+    }
+
+    /** @return características que informó la tienda, separadas por " | ", o {@code null} */
+    public String getDetalles() {
+        return detalles;
+    }
+
+    public void setDetalles(String detalles) {
+        this.detalles = detalles;
+    }
+
+    /** @return características que informó la tienda, en una lista (vacía si no hay) */
+    public List<String> listaDetalles() {
+        if (detalles == null || detalles.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(detalles.split(" \\| ")).map(String::strip).filter(d -> !d.isEmpty()).toList();
     }
 
     public OffsetDateTime getConsultadoEn() {

@@ -34,6 +34,7 @@ public final class OfertaNormalizada {
     private final String monedaOriginal;
     private final TasaCambio tasaAplicada;
     private final String alertaPrecio;
+    private final List<String> detalles;
 
     private OfertaNormalizada(Builder builder) {
         this.codigoMarketplace = Objects.requireNonNull(builder.codigoMarketplace, "codigoMarketplace");
@@ -57,6 +58,7 @@ public final class OfertaNormalizada {
         this.monedaOriginal = builder.monedaOriginal;
         this.tasaAplicada = builder.tasaAplicada;
         this.alertaPrecio = builder.alertaPrecio;
+        this.detalles = builder.detalles == null ? List.of() : List.copyOf(builder.detalles);
         if (precio.signum() < 0) {
             throw new IllegalArgumentException("El precio no puede ser negativo");
         }
@@ -260,7 +262,17 @@ public final class OfertaNormalizada {
                 .calificacion(calificacion).totalResenas(totalResenas).consultadoEn(consultadoEn)
                 .tokenResenas(tokenResenas).estadoEnvio(estadoEnvio).precioTexto(precioTexto)
                 .precioOriginal(precioOriginal).monedaOriginal(monedaOriginal).tasaAplicada(tasaAplicada)
-                .alertaPrecio(alertaPrecio);
+                .alertaPrecio(alertaPrecio).detalles(detalles);
+    }
+
+    /**
+     * Características cortas que informó la tienda junto al producto, por ejemplo "128 GB" o "Wi-Fi". Sirven para
+     * comparar productos; no se inventan ni se completan.
+     *
+     * @return lista, vacía si la tienda no informó ninguna
+     */
+    public List<String> getDetalles() {
+        return detalles;
     }
 
     private static BigDecimal validarCalificacion(BigDecimal calificacion) {
@@ -355,6 +367,12 @@ public final class OfertaNormalizada {
         private String monedaOriginal;
         private TasaCambio tasaAplicada;
         private String alertaPrecio;
+        private List<String> detalles;
+
+        public Builder detalles(List<String> detalles) {
+            this.detalles = detalles;
+            return this;
+        }
 
         private Builder() {
         }
