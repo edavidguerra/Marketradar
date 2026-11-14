@@ -109,7 +109,7 @@ public class ServicioVerificacionCorreo {
     public void verificar(String token) {
         if (!Tokens.pareceToken(token) || verificacionDao.usarToken(Tokens.sha256(token)).isEmpty()) {
             throw new ValidacionException("El enlace no es válido, ya se usó o venció. Pida uno nuevo en "
-                    + "\"Mis seguimientos\".");
+                    + "\"Seguimientos\".");
         }
     }
 

@@ -28,7 +28,7 @@ características son filas.
    mandar el enlace. El enlace vence en 24 horas, se usa una vez y se mandan como máximo 3 por hora.
 3. Al activar el seguimiento se manda un correo de confirmación. Si se vuelve a seguir el mismo producto, se guardan
    las preferencias nuevas sin mandar otra confirmación y sin reiniciar el precio de referencia.
-4. En **Mis seguimientos** se ve el estado, la última revisión y los últimos correos, y se puede pausar, reanudar o
+4. En **Seguimientos** se ve el estado, la última revisión y los últimos correos, y se puede pausar, reanudar o
    dejar de seguir. Cada correo trae un enlace para dejar de seguir sin iniciar sesión.
 
 Cada seguimiento queda ligado a la persona con sesión y a una oferta concreta: tienda, vendedor, condición, moneda y

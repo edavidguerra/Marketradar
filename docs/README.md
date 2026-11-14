@@ -6,7 +6,7 @@
 | Cómo funciona por dentro (capas, búsqueda, velocidad, seguridad) | [arquitectura.md](arquitectura.md) |
 | Sugerencias al escribir y búsqueda que corrige errores | [busqueda-flexible.md](busqueda-flexible.md) |
 | Comparar productos y seguir precios con avisos por correo | [seguimientos.md](seguimientos.md) |
-| Al por mayor con Alibaba (API.SH) | [integraciones/alibaba-apish.md](integraciones/alibaba-apish.md) |
+| Emprender: compras al por mayor con Alibaba (API.SH) | [integraciones/alibaba-apish.md](integraciones/alibaba-apish.md) |
 | Asistente con Claude | [asistente-claude.md](asistente-claude.md) |
 | Publicar en Render | [despliegue.md](despliegue.md) |
 | Decisiones del equipo y lo que falta decidir | [decisiones.md](decisiones.md) |

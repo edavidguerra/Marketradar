@@ -29,8 +29,8 @@
     <ul>
         <li><a href="#inicio"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#casa"></use></svg> Inicio</a></li>
         <li><a href="#buscar"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#buscar"></use></svg> Buscar</a></li>
-        <li><a href="#seguimientos"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#campana"></use></svg> Mis seguimientos</a></li>
-        <li><a href="#mayoristas"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#caja"></use></svg> Al por mayor</a></li>
+        <li><a href="#seguimientos"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#campana"></use></svg> Seguimientos</a></li>
+        <li><a href="#mayoristas"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#caja"></use></svg> Emprender</a></li>
         <li><a href="#historial"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#reloj"></use></svg> Historial</a></li>
         <li><a href="#perfil"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#persona"></use></svg> Mi perfil</a></li>
         <li><a href="#pqr"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#sobre"></use></svg> PQR</a></li>
@@ -48,12 +48,23 @@
             <a class="boton boton-claro" href="#buscar"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#buscar"></use></svg> Buscar un producto</a>
         </div>
         <div id="aviso-inicio" class="aviso-inicio" aria-live="polite"></div>
+        <aside id="invitacion-tutorial" class="invitacion-tutorial" aria-labelledby="titulo-invitacion" hidden>
+            <span class="tema-icono" aria-hidden="true"><svg class="icono" focusable="false"><use href="img/iconos.svg#ayuda"></use></svg></span>
+            <div>
+                <h2 id="titulo-invitacion">¿Es su primera vez aquí?</h2>
+                <p>Le mostramos en la pantalla dónde está cada cosa. Toma un minuto.</p>
+                <div class="acciones">
+                    <button type="button" class="boton boton-principal" id="empezar-tutorial">Mostrarme cómo</button>
+                    <button type="button" class="boton boton-secundario" id="rechazar-tutorial">Ahora no</button>
+                </div>
+            </div>
+        </aside>
         <h2>¿Qué quiere hacer hoy?</h2>
         <ul class="accesos">
             <li><a href="#buscar"><span class="acceso-icono"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#buscar"></use></svg></span><strong>Buscar un producto</strong>Le mostramos la mejor opción de compra.<svg class="icono acceso-flecha" aria-hidden="true" focusable="false"><use href="img/iconos.svg#flecha"></use></svg></a></li>
             <li><a href="#historial"><span class="acceso-icono"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#reloj"></use></svg></span><strong>Ver mis búsquedas</strong>Repita una búsqueda con un clic.<svg class="icono acceso-flecha" aria-hidden="true" focusable="false"><use href="img/iconos.svg#flecha"></use></svg></a></li>
             <li><a href="#pqr"><span class="acceso-icono"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#sobre"></use></svg></span><strong>Enviar una PQR</strong>Peticiones, quejas, reclamos o sugerencias.<svg class="icono acceso-flecha" aria-hidden="true" focusable="false"><use href="img/iconos.svg#flecha"></use></svg></a></li>
-            <li><a href="#tutorial"><span class="acceso-icono"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#ayuda"></use></svg></span><strong>Aprender a usar Marketradar</strong>Explicación paso a paso.<svg class="icono acceso-flecha" aria-hidden="true" focusable="false"><use href="img/iconos.svg#flecha"></use></svg></a></li>
+            <li><a href="#tutorial"><span class="acceso-icono"><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#ayuda"></use></svg></span><strong>Aprender a usar Marketradar</strong>Le mostramos en la pantalla dónde tocar.<svg class="icono acceso-flecha" aria-hidden="true" focusable="false"><use href="img/iconos.svg#flecha"></use></svg></a></li>
         </ul>
     </section>
 
@@ -162,19 +173,19 @@
         <div id="tabla-comparacion"></div>
     </section>
 
-    <!-- Mis seguimientos -->
+    <!-- Seguimientos -->
     <section id="seccion-seguimientos" aria-labelledby="titulo-seguimientos" hidden>
-        <h1 id="titulo-seguimientos" tabindex="-1">Mis seguimientos</h1>
+        <h1 id="titulo-seguimientos" tabindex="-1">Seguimientos</h1>
         <div id="estado-correo" class="estado-correo"></div>
         <p id="resultado-seguimientos" class="aviso-formulario" role="status" hidden></p>
         <div id="estado-seguimientos" role="status" aria-live="polite"></div>
         <ol id="lista-seguimientos" class="resultados"></ol>
     </section>
 
-    <!-- Al por mayor -->
+    <!-- Emprender (compras al por mayor) -->
     <section id="seccion-mayoristas" aria-labelledby="titulo-mayoristas" hidden>
-        <h1 id="titulo-mayoristas" tabindex="-1">Comprar al por mayor</h1>
-        <p class="introduccion">Busque proveedores en Alibaba y vea cuánto cuesta la mercancía para la cantidad que
+        <h1 id="titulo-mayoristas" tabindex="-1">Emprender: compre al por mayor</h1>
+        <p class="introduccion">Si quiere montar o surtir un negocio, busque proveedores en Alibaba y vea cuánto cuesta la mercancía para la cantidad que
             necesita, con el pedido mínimo y los precios por cantidad de cada proveedor.</p>
         <p id="sin-configurar-mayoristas" class="alerta-precio" hidden>Esta opción todavía no está configurada en el
             servidor. Por ahora no se puede buscar al por mayor.</p>
@@ -374,94 +385,64 @@
         <ol id="lista-pqr" class="lista-simple"></ol>
     </section>
 
-    <!-- Tutorial -->
+    <!-- Tutorial interactivo (js/usuario/tutorial.js) -->
     <section id="seccion-tutorial" aria-labelledby="titulo-tutorial" hidden>
-        <h1 id="titulo-tutorial" tabindex="-1">¿Cómo usar Marketradar?</h1>
-        <p class="introduccion">Marketradar busca un producto en varias tiendas en línea y le dice dónde le sale
-            mejor comprarlo. Estas son las opciones del menú:</p>
-        <ol class="pasos">
-            <li>
-                <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#casa"></use></svg> Inicio</h2>
-                <p>Le saluda y le muestra avisos con ofertas: productos que bajaron de precio o que usted buscó
-                    hace poco. Los avisos cambian solos cada 5 segundos. Para verlos a su ritmo, pulse las flechas,
-                    deslice el dedo sobre el aviso o pulse "Pausar".</p>
-                <a class="boton boton-secundario" href="#inicio">Ir a Inicio</a>
-            </li>
-            <li>
-                <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#buscar"></use></svg> Buscar</h2>
-                <p>Escriba el nombre del producto, por ejemplo "tensiómetro" o "iPhone 13 128 GB nuevo", y pulse
-                    "Buscar". Si escribe el modelo, la versión (Pro, mini), la capacidad o "nuevo", solo le
-                    recomendamos ofertas que lo confirman. Arriba verá la <strong>mejor opción de compra</strong>,
-                    elegida por precio, opiniones y envío, con las razones y qué tan completa es la información. Si
-                    ninguna oferta confirma lo que pidió, se lo decimos y no recomendamos ninguna.</p>
-                <p>El botón de cada oferta dice a dónde lleva: "Ver la oferta en" y el nombre de la tienda abre la
-                    tienda; "Buscar esta oferta en Google" abre una búsqueda en Google, porque Google no nos dio el
-                    enlace de la tienda; allí revise que sea el mismo producto y precio.</p>
-                <p>Los precios están en pesos colombianos. Si una tienda cobra en dólares, lo convertimos con la TRM
-                    oficial más reciente (o una tasa de respaldo, si esa no responde) y le mostramos el
-                    precio original, la tasa y su fecha. Cada oferta dice si el
-                    envío es gratis, cuánto cuesta o si la tienda no lo informa: en ese caso el precio no es el total.
-                    Si la tienda vende desde el exterior, puede tardar más y cobrar impuestos.</p>
-                <p>Después de buscar aparece "Filtrar por precio": escriba desde cuánto y hasta cuánto quiere pagar
-                    y pulse "Aplicar". Se compara el precio más el envío, cuando la tienda lo informa. Para ver todo
-                    otra vez, pulse "Quitar filtro".</p>
-                <p>En "Ver reseñas" están las opiniones del producto que reúne Google de varias tiendas: no son
-                    opiniones sobre la tienda que lo vende. Las escritas en otro idioma tienen un botón "Traducir". El
-                    idioma se elige en Mi perfil.</p>
-                <a class="boton boton-secundario" href="#buscar">Ir a Buscar</a>
-            </li>
-            <li>
-                <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#balanza"></use></svg> Comparar y seguir productos</h2>
-                <p>En los resultados, pulse "Comparar" en 2, 3 o 4 productos. Abajo aparece una barra con los
-                    elegidos; pulse "Ver comparación" para verlos lado a lado. Si un dato no lo informa la tienda,
-                    dice "No disponible". Marque "Mostrar solo las diferencias" para ver solo lo que cambia. Si los
-                    productos son de tipos distintos (por ejemplo, un celular y un forro), se lo advertimos.</p>
-                <p>Con "Seguir producto" le avisamos por correo cuando baje de precio o cuando llegue al precio que
-                    usted espera. Antes debe verificar su correo. En "Mis seguimientos" puede pausar o dejar de
-                    seguir cada producto; cada correo trae también un enlace para dejar de seguirlo.</p>
-                <a class="boton boton-secundario" href="#seguimientos">Ir a Mis seguimientos</a>
-            </li>
-            <li>
-                <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#caja"></use></svg> Al por mayor</h2>
-                <p>Para comprar muchas unidades a proveedores de Alibaba. Escriba el producto, la cantidad y la
-                    unidad. Le mostramos el pedido mínimo, los precios por cantidad y el subtotal de la mercancía.
-                    El envío y los impuestos no están incluidos y la compra se hace en Alibaba.</p>
-                <a class="boton boton-secundario" href="#mayoristas">Ir a Al por mayor</a>
-            </li>
-            <li>
-                <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#reloj"></use></svg> Historial</h2>
-                <p>Guarda las búsquedas que usted hizo, cada una con la foto de un producto que encontró. Pulse
-                    "Buscar otra vez" para ver los precios de hoy sin volver a escribir. Si lo desea, puede borrar todo el historial.</p>
-                <a class="boton boton-secundario" href="#historial">Ir a Historial</a>
-            </li>
-            <li>
-                <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#persona"></use></svg> Mi perfil</h2>
-                <p>Allí puede revisar y corregir sus datos: nombres, documento, fecha de nacimiento, celular y
-                    ciudad. También puede cambiar su contraseña.</p>
-                <a class="boton boton-secundario" href="#perfil">Ir a Mi perfil</a>
-            </li>
-            <li>
-                <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#sobre"></use></svg> PQR</h2>
-                <p>Si tiene una pregunta, una queja, un reclamo o una sugerencia, escríbala aquí. Le daremos un
-                    número de solicitud y la respuesta aparecerá en la misma sección.</p>
-                <a class="boton boton-secundario" href="#pqr">Ir a PQR</a>
-            </li>
-            <li>
-                <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#chat"></use></svg> Asistente</h2>
-                <p>Abajo a la derecha de cada página está el botón "¿Necesita ayuda?". Escriba su pregunta con sus palabras,
-                    por ejemplo "¿dónde está más barato un tensiómetro?", y el asistente le responderá.</p>
-            </li>
-            <li>
-                <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#letra"></use></svg> Letra y contraste</h2>
-                <p>Arriba a la derecha, "A+" agranda la letra, "A−" la achica y "Alto contraste" pone la pantalla en
-                    negro y amarillo. Marketradar recuerda su preferencia.</p>
-            </li>
-            <li>
-                <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#candado"></use></svg> Su seguridad</h2>
-                <p>Marketradar nunca le pedirá datos bancarios. La compra se hace en la página de la tienda.
-                    Cuando termine, pulse "Salir".</p>
-            </li>
-        </ol>
+        <h1 id="titulo-tutorial" tabindex="-1">Aprenda a usar Marketradar</h1>
+        <p class="introduccion">Elija qué quiere aprender. Le mostramos en la pantalla, paso a paso, dónde tocar.
+            Usted pasa al siguiente paso cuando esté listo y puede salir cuando quiera. Mientras aprende no se compra
+            ni se envía nada.</p>
+        <ul id="lista-temas" class="temas" aria-label="Temas del tutorial"></ul>
+
+        <details class="guia-escrita">
+            <summary>Prefiero leer todo en una sola página</summary>
+            <ol class="pasos">
+                <li>
+                    <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#casa"></use></svg> Inicio</h2>
+                    <p>Le saluda y le muestra avisos con ofertas: productos que bajaron de precio o que usted buscó
+                        hace poco. Los avisos cambian solos cada 5 segundos. Para pasarlos usted mismo, deslice el dedo
+                        sobre el aviso. Mientras tenga el ratón o el dedo encima, el aviso se queda quieto.</p>
+                </li>
+                <li>
+                    <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#buscar"></use></svg> Buscar</h2>
+                    <p>Escriba el nombre del producto, por ejemplo "tensiómetro" o "iPhone 13 128 GB nuevo", y pulse
+                        "Buscar". Arriba verá la <strong>mejor opción de compra</strong>, con las razones. Si ninguna
+                        oferta tiene lo que pidió, se lo decimos y no recomendamos ninguna.</p>
+                    <p>El botón de cada oferta abre la tienda; la compra se hace allá. Los precios están en pesos
+                        colombianos; si una tienda cobra en dólares, le mostramos el precio original y la tasa usada.
+                        Cada oferta dice si el envío es gratis, cuánto cuesta o si la tienda no lo informa.</p>
+                    <p>"Filtrar por precio" le deja escribir desde cuánto y hasta cuánto quiere pagar. "Ver reseñas"
+                        muestra opiniones del producto.</p>
+                </li>
+                <li>
+                    <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#balanza"></use></svg> Comparar</h2>
+                    <p>Pulse "Comparar" en 2, 3 o 4 productos y luego "Ver comparación". Lo que la tienda no informa
+                        dice "No disponible". "Mostrar solo las diferencias" deja solo lo que cambia.</p>
+                </li>
+                <li>
+                    <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#campana"></use></svg> Seguimientos</h2>
+                    <p>Con "Seguir producto" le avisamos por correo cuando baje de precio o llegue al precio que
+                        espera. Antes debe verificar su correo. En "Seguimientos" puede pausar o dejar de seguir cada
+                        producto; cada correo trae también un enlace para dejar de seguirlo.</p>
+                </li>
+                <li>
+                    <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#caja"></use></svg> Emprender</h2>
+                    <p>Para comprar muchas unidades a proveedores de Alibaba. Escriba el producto, la cantidad y la
+                        unidad. Le mostramos el pedido mínimo, los precios por cantidad y el subtotal de la mercancía.
+                        El envío y los impuestos no están incluidos y la compra se hace en Alibaba.</p>
+                </li>
+                <li>
+                    <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#reloj"></use></svg> Historial, Mi perfil y PQR</h2>
+                    <p>El historial guarda sus búsquedas para repetirlas con "Buscar otra vez". En Mi perfil corrige
+                        sus datos y su contraseña. En PQR nos escribe preguntas, quejas o sugerencias.</p>
+                </li>
+                <li>
+                    <h2><svg class="icono" aria-hidden="true" focusable="false"><use href="img/iconos.svg#chat"></use></svg> Asistente, letra y seguridad</h2>
+                    <p>El botón "¿Necesita ayuda?", abajo a la derecha, abre el asistente. "A+" y "A−" cambian el tamaño
+                        de la letra y "Alto contraste" pone la pantalla en negro y amarillo. Marketradar nunca le pedirá
+                        datos bancarios. Cuando termine, pulse "Salir".</p>
+                </li>
+            </ol>
+        </details>
     </section>
 </main>
 

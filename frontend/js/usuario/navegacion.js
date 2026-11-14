@@ -7,7 +7,7 @@ const SECCIONES = ['inicio', 'buscar', 'detalle', 'comparar', 'seguimientos', 'm
     'tutorial'];
 const TITULOS = {
     inicio: 'Inicio', buscar: 'Buscar', detalle: 'Reseñas', comparar: 'Comparar productos',
-    seguimientos: 'Mis seguimientos', mayoristas: 'Al por mayor', historial: 'Mis búsquedas',
+    seguimientos: 'Seguimientos', mayoristas: 'Emprender', historial: 'Mis búsquedas',
     perfil: 'Mi perfil', pqr: 'PQR', tutorial: 'Tutorial',
 };
 const alMostrar = new Map();

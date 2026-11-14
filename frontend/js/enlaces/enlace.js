@@ -23,7 +23,7 @@ function iniciar() {
     const confirmar = document.getElementById('confirmar-enlace');
     if (!token) {
         confirmar.hidden = true;
-        avisar(resultado, 'El enlace está incompleto. Ábralo otra vez desde el correo o pida uno nuevo en Mis seguimientos.', 'error');
+        avisar(resultado, 'El enlace está incompleto. Ábralo otra vez desde el correo o pida uno nuevo en Seguimientos.', 'error');
         return;
     }
     confirmar.addEventListener('click', async () => {
