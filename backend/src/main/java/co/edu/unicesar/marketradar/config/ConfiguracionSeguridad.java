@@ -29,7 +29,8 @@ public class ConfiguracionSeguridad {
     /** Rutas que no exigen sesión: páginas, recursos estáticos, ingreso, registro y salud. */
     private static final String[] RUTAS_PUBLICAS = {
             "/", "/index.html", "/usuario.html", "/admin.html", "/favicon.ico", "/css/**", "/js/**", "/img/**",
-            "/api/v1/auth/**", "/api/v1/marketplaces", "/api/v1/salud", "/actuator/health",
+            "/verificar-correo.html", "/cancelar-seguimiento.html", "/fuentes/**",
+            "/api/v1/auth/**", "/api/v1/enlaces/**", "/api/v1/tareas/**", "/api/v1/marketplaces", "/api/v1/salud", "/actuator/health",
             "/api/docs/**", "/swagger-ui/**", "/v3/api-docs/**", "/error"
     };
 
@@ -42,12 +43,14 @@ public class ConfiguracionSeguridad {
         http
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                        .csrfTokenRequestHandler(manejadorCsrf))
+                        .csrfTokenRequestHandler(manejadorCsrf)
+                        // La llama un servicio de tareas programadas, no el navegador: la protege su propia clave.
+                        .ignoringRequestMatchers("/api/v1/tareas/**"))
                 .authorizeHttpRequests(permisos -> permisos
                         .requestMatchers(RUTAS_PUBLICAS).permitAll()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMINISTRADOR")
                         .requestMatchers("/api/v1/usuario/**", "/api/v1/busqueda/**", "/api/v1/ofertas/**",
-                                "/api/v1/asistente/**").hasRole("USUARIO")
+                                "/api/v1/asistente/**", "/api/v1/mayoristas/**").hasRole("USUARIO")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll())
                 .securityContext(contexto -> contexto.securityContextRepository(repositorioContexto()))

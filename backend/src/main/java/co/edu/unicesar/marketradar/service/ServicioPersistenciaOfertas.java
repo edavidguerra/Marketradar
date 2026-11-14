@@ -116,6 +116,10 @@ public class ServicioPersistenciaOfertas {
         oferta.setConsultadoEn(normalizada.getConsultadoEn());
         oferta.setCalificacion(normalizada.getCalificacion());
         oferta.setTotalResenas(normalizada.getTotalResenas());
+        if (!normalizada.getDetalles().isEmpty()) {
+            String detalles = String.join(" | ", normalizada.getDetalles());
+            oferta.setDetalles(detalles.length() <= 1000 ? detalles : detalles.substring(0, 1000));
+        }
         return oferta;
     }
 

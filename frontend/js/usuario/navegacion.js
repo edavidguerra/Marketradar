@@ -3,9 +3,11 @@
  * #buscar...), para que el botón "Atrás" del navegador funcione como la persona espera.
  */
 
-const SECCIONES = ['inicio', 'buscar', 'detalle', 'historial', 'perfil', 'pqr', 'tutorial'];
+const SECCIONES = ['inicio', 'buscar', 'detalle', 'comparar', 'seguimientos', 'mayoristas', 'historial', 'perfil', 'pqr',
+    'tutorial'];
 const TITULOS = {
-    inicio: 'Inicio', buscar: 'Buscar', detalle: 'Reseñas', historial: 'Mis búsquedas',
+    inicio: 'Inicio', buscar: 'Buscar', detalle: 'Reseñas', comparar: 'Comparar productos',
+    seguimientos: 'Mis seguimientos', mayoristas: 'Al por mayor', historial: 'Mis búsquedas',
     perfil: 'Mi perfil', pqr: 'PQR', tutorial: 'Tutorial',
 };
 const alMostrar = new Map();

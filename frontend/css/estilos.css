@@ -2133,3 +2133,130 @@ kbd {
 
     .encabezado::after, .onda, .chispas { display: none; }
 }
+
+/* ---------- Comparar productos ---------- */
+.barra-comparacion {
+    position: sticky;
+    bottom: .5rem;
+    z-index: 20;
+    margin: var(--espacio) 0;
+    padding: var(--espacio);
+    border: 2px solid var(--color-principal);
+    border-radius: var(--radio-grande);
+    background: var(--color-superficie);
+    box-shadow: var(--sombra-alta);
+}
+.barra-comparacion h2 { font-size: 1.1rem; margin-bottom: .5rem; }
+.miniaturas { display: flex; flex-wrap: wrap; gap: .5rem; list-style: none; margin: 0 0 .5rem; padding: 0; }
+.miniatura {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    max-width: 16rem;
+    padding: .25rem .25rem .25rem .5rem;
+    border: 1px solid var(--color-borde);
+    border-radius: var(--radio);
+    background: var(--color-tarjeta);
+}
+.miniatura img, .miniatura > .icono { width: 40px; height: 40px; object-fit: contain; flex: none; }
+.miniatura-texto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .9rem; }
+.boton-quitar { min-width: var(--tactil); min-height: var(--tactil); font-size: 1.3rem; }
+.boton-comparar[aria-pressed="true"], .boton-seguir.siguiendo {
+    background: var(--color-principal-suave);
+    border-color: var(--color-principal);
+}
+.tabla-desplazable { overflow-x: auto; border-radius: var(--radio); border: 1px solid var(--color-borde); }
+.tabla-desplazable:focus-visible { outline: 3px solid var(--color-foco); outline-offset: 2px; }
+table.comparacion { width: 100%; border-collapse: collapse; background: var(--color-superficie); min-width: 36rem; }
+table.comparacion th, table.comparacion td {
+    padding: .6rem .75rem;
+    border-bottom: 1px solid var(--color-borde);
+    text-align: left;
+    vertical-align: top;
+}
+table.comparacion thead th { min-width: 11rem; font-weight: 700; }
+table.comparacion thead img { display: block; width: 96px; height: 96px; object-fit: contain; margin-bottom: .4rem; }
+table.comparacion thead .boton { margin-top: .5rem; }
+table.comparacion tbody th[scope="row"] {
+    position: sticky;
+    left: 0;
+    background: var(--color-superficie);
+    min-width: 9rem;
+}
+table.comparacion tr.grupo th { background: var(--color-tarjeta); font-size: 1.05rem; }
+table.comparacion tr.difiere td, table.comparacion tr.difiere th[scope="row"] {
+    background: var(--color-destacado);
+}
+table.comparacion th.mas-barato { box-shadow: inset 0 4px 0 var(--color-principal); }
+.comparacion-titulo { display: block; }
+.no-disponible { color: var(--color-suave); font-style: italic; }
+.fuente-dato, .nota-fila { display: block; font-size: .85rem; font-weight: 400; color: var(--color-suave); }
+.campo-casilla { display: flex; align-items: center; gap: .6rem; margin: .5rem 0; }
+.campo-casilla input { width: 1.5rem; height: 1.5rem; flex: none; }
+
+/* ---------- Seguir producto y Mis seguimientos ---------- */
+.dialogo {
+    max-width: min(36rem, calc(100vw - 2rem));
+    width: 100%;
+    padding: 1.25rem;
+    border: 2px solid var(--color-principal);
+    border-radius: var(--radio-grande);
+    background: var(--color-superficie);
+    color: var(--color-texto);
+    box-shadow: var(--sombra-alta);
+}
+.dialogo::backdrop { background: rgb(15 23 42 / 55%); }
+.dialogo fieldset { border: 1px solid var(--color-borde); border-radius: var(--radio); margin: 0 0 var(--espacio); }
+.dialogo legend { font-weight: 700; padding: 0 .3rem; }
+.estado-correo {
+    padding: var(--espacio);
+    margin-bottom: var(--espacio);
+    border-radius: var(--radio);
+    background: var(--color-info-suave);
+}
+.estado-seguimiento { font-weight: 700; }
+.estado-activo { color: var(--color-exito); }
+.estado-pausado { color: var(--color-acento); }
+.seguimiento.pausado { opacity: .85; }
+.avisos-seguimiento { font-size: .95rem; padding-left: 1.2rem; }
+.boton-peligro { border-color: var(--color-error); color: var(--color-error); }
+.boton-peligro:hover { border-color: var(--color-error); color: var(--color-error); background: var(--color-error-suave); }
+
+/* ---------- Al por mayor ---------- */
+.nota-subtotal {
+    font-weight: 700;
+    color: var(--color-acento);
+    background: var(--color-acento-suave);
+    padding: .5rem .75rem;
+    border-radius: var(--radio);
+}
+.calculo-mayorista .precio { margin-bottom: .2rem; }
+.calculo-mayorista.sin-precio .alerta-precio { margin: .3rem 0; }
+.etiqueta-anuncio {
+    width: fit-content;
+    display: inline-block;
+    padding: .1rem .6rem;
+    border: 1px solid var(--color-acento);
+    border-radius: 999px;
+    color: var(--color-acento);
+    font-weight: 700;
+    font-size: .9rem;
+}
+.tarjeta.fuera-orden { border-style: dashed; }
+table.escalas { border-collapse: collapse; margin: .5rem 0; font-size: .95rem; }
+table.escalas caption { text-align: left; font-weight: 700; }
+table.escalas th, table.escalas td { padding: .3rem .6rem; border-bottom: 1px solid var(--color-borde); text-align: left; }
+table.escalas tr.escala-actual td { background: var(--color-principal-suave); font-weight: 700; }
+.variantes select { max-width: 100%; }
+.detalle-mayorista { margin: var(--espacio) 0; }
+.enlace-correo { padding-block: 2rem; }
+
+@media (max-width: 40rem) {
+    .barra-comparacion { bottom: 0; border-radius: var(--radio) var(--radio) 0 0; }
+    .barra-comparacion .acciones .boton { width: 100%; }
+    table.comparacion { min-width: 0; font-size: .95rem; }
+    table.comparacion tbody th[scope="row"] { min-width: 6.5rem; max-width: 7.5rem; }
+    table.comparacion thead th { min-width: 9.5rem; }
+    table.comparacion th, table.comparacion td { padding: .5rem; }
+    .nota-fila { display: none; }
+}

@@ -110,6 +110,44 @@ marketradar:
     proveedor: ${ASISTENTE_PROVEEDOR:claude}
     api-key: ${ASISTENTE_API_KEY:}
     modelo: ${ASISTENTE_MODELO:claude-opus-5-5}
+  correo:
+    # Servidor de correo (SMTP) para los avisos de los seguimientos. Sin SMTP_HOST y CORREO_REMITENTE no se manda
+    # ningún correo: los avisos quedan pendientes y la página lo dice. Ver docs/seguimientos.md.
+    host: ${SMTP_HOST:}
+    puerto: ${SMTP_PUERTO:587}
+    usuario: ${SMTP_USUARIO:}
+    clave: ${SMTP_CLAVE:}
+    remitente: ${CORREO_REMITENTE:}
+    nombre-remitente: ${CORREO_NOMBRE_REMITENTE:Marketradar}
+    starttls: ${SMTP_STARTTLS:true}
+    ssl: ${SMTP_SSL:false}
+    timeout-segundos: 10
+    # Dirección pública de la página, para los enlaces de los correos. En Render se toma sola de RENDER_EXTERNAL_URL.
+    url-publica: ${URL_PUBLICA:${RENDER_EXTERNAL_URL:http://localhost:8080}}
+  seguimientos:
+    # Tarea del servidor que revisa los precios de las ofertas seguidas. Cuida la cuota de SerpApi (250 al mes).
+    habilitado: ${SEGUIMIENTOS_HABILITADO:true}
+    frecuencia-minutos: ${SEGUIMIENTOS_FRECUENCIA_MINUTOS:720}
+    revisar-cada-minutos: ${SEGUIMIENTOS_REVISAR_CADA_MINUTOS:15}
+    max-seguimientos-por-ronda: 25
+    max-consultas-por-ronda: ${SEGUIMIENTOS_CONSULTAS_POR_RONDA:5}
+    baja-minima-porcentaje: ${SEGUIMIENTOS_BAJA_MINIMA_PORCENTAJE:1}
+    max-intentos-correo: 3
+    horas-vigencia-aviso: 48
+    max-por-usuario: 20
+    # Clave para que un cron externo despierte la tarea (POST /api/v1/tareas/seguimientos). Vacía, la ruta no existe.
+    token-tareas: ${TAREAS_TOKEN:}
+  mayoristas:
+    # Compras al por mayor en Alibaba con API.SH (https://api.sh). La clave va en APISH_KEY; sin ella el apartado
+    # "Al por mayor" lo dice y no consulta nada. Ver docs/integraciones/alibaba-apish.md.
+    api-key: ${APISH_KEY:}
+    url-api: ${APISH_URL:https://api.api.sh}
+    # API.SH guarda cada respuesta 24 horas y cobra igual las repetidas: aquí se guardan 6 horas para no gastar créditos.
+    cache-horas: ${APISH_CACHE_HORAS:6}
+    paginas-maximas: 3
+    detalles-por-busqueda: ${APISH_DETALLES_POR_BUSQUEDA:4}
+    consultas-por-dia: ${APISH_CONSULTAS_POR_DIA:200}
+    timeout-segundos: 60
   administrador:
     # Cuenta de administrador que se crea al arrancar si no existe. La clave debe ser segura.
     correo: ${ADMIN_CORREO:}

@@ -25,7 +25,7 @@ import java.util.Optional;
 public class OfertaDaoJdbc extends DaoJdbcBase implements OfertaDao {
 
     private static final String COLUMNAS = "id, producto_id, marketplace_id, id_externo, titulo, url_destino, "
-            + "url_imagen, precio_actual, moneda, costo_envio, condicion, vendedor, consultado_en, calificacion, total_resenas";
+            + "url_imagen, precio_actual, moneda, costo_envio, condicion, vendedor, consultado_en, calificacion, total_resenas, detalles";
 
     public OfertaDaoJdbc(DataSource dataSource) {
         super(dataSource);
@@ -111,7 +111,7 @@ public class OfertaDaoJdbc extends DaoJdbcBase implements OfertaDao {
                 }) > 0;
     }
 
-    /** Filas por consulta: 13 parámetros por fila, muy por debajo del límite de PostgreSQL. */
+    /** Filas por consulta: 14 parámetros por fila, muy por debajo del límite de PostgreSQL. */
     private static final int FILAS_POR_LOTE = 100;
 
     /**
@@ -120,7 +120,7 @@ public class OfertaDaoJdbc extends DaoJdbcBase implements OfertaDao {
      */
     private static final String SQL_LOTE = """
             WITH datos (marketplace_id, id_externo, titulo, url_destino, url_imagen, precio_actual, moneda,
-                        costo_envio, condicion, vendedor, consultado_en, calificacion, total_resenas) AS (
+                        costo_envio, condicion, vendedor, consultado_en, calificacion, total_resenas, detalles) AS (
                 VALUES %s
             ),
             previos AS (
@@ -129,14 +129,17 @@ public class OfertaDaoJdbc extends DaoJdbcBase implements OfertaDao {
             ),
             guardadas AS (
                 INSERT INTO oferta (marketplace_id, id_externo, titulo, url_destino, url_imagen, precio_actual, moneda,
-                                    costo_envio, condicion, vendedor, consultado_en, calificacion, total_resenas)
+                                    costo_envio, condicion, vendedor, consultado_en, calificacion, total_resenas,
+                                    detalles)
                 SELECT * FROM datos
                 ON CONFLICT (marketplace_id, id_externo) DO UPDATE SET
                     titulo = EXCLUDED.titulo, url_destino = EXCLUDED.url_destino, url_imagen = EXCLUDED.url_imagen,
                     precio_actual = EXCLUDED.precio_actual, moneda = EXCLUDED.moneda,
                     costo_envio = EXCLUDED.costo_envio, condicion = EXCLUDED.condicion, vendedor = EXCLUDED.vendedor,
                     consultado_en = EXCLUDED.consultado_en, calificacion = EXCLUDED.calificacion,
-                    total_resenas = EXCLUDED.total_resenas
+                    total_resenas = EXCLUDED.total_resenas,
+                    -- Si esta vez la tienda no mandó características, se conservan las que ya se conocían.
+                    detalles = COALESCE(EXCLUDED.detalles, oferta.detalles)
                 RETURNING id, marketplace_id, id_externo, precio_actual, moneda, vendedor, condicion
             ),
             historial AS (
@@ -155,7 +158,7 @@ public class OfertaDaoJdbc extends DaoJdbcBase implements OfertaDao {
 
     private static final String FILA_LOTE = "(CAST(? AS SMALLINT), CAST(? AS VARCHAR), CAST(? AS VARCHAR), "
             + "CAST(? AS TEXT), CAST(? AS TEXT), CAST(? AS NUMERIC), CAST(? AS CHAR(3)), CAST(? AS NUMERIC), "
-            + "CAST(? AS VARCHAR), CAST(? AS VARCHAR), CAST(? AS TIMESTAMPTZ), CAST(? AS NUMERIC), CAST(? AS INTEGER))";
+            + "CAST(? AS VARCHAR), CAST(? AS VARCHAR), CAST(? AS TIMESTAMPTZ), CAST(? AS NUMERIC), CAST(? AS INTEGER), CAST(? AS VARCHAR))";
 
     @Override
     public Map<String, Long> guardarLote(List<Oferta> ofertas) {
@@ -185,6 +188,7 @@ public class OfertaDaoJdbc extends DaoJdbcBase implements OfertaDao {
                             ? OffsetDateTime.now() : oferta.getConsultadoEn());
                     sentencia.setBigDecimal(i++, oferta.getCalificacion());
                     asignarEnteroNulable(sentencia, i++, oferta.getTotalResenas());
+                    sentencia.setString(i++, oferta.getDetalles());
                 }
             }, fila -> {
                 ids.put(OfertaDao.clave(fila.getShort("marketplace_id"), fila.getString("id_externo")), fila.getLong("id"));
@@ -244,6 +248,7 @@ public class OfertaDaoJdbc extends DaoJdbcBase implements OfertaDao {
         oferta.setCalificacion(fila.getBigDecimal("calificacion"));
         int totalResenas = fila.getInt("total_resenas");
         oferta.setTotalResenas(fila.wasNull() ? null : totalResenas);
+        oferta.setDetalles(fila.getString("detalles"));
         return oferta;
     }
 }

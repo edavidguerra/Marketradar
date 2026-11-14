@@ -233,7 +233,21 @@ public class AdaptadorGoogleShopping extends AdaptadorMarketplaceBase {
                 .totalResenas(resultado.resenas() != null && resultado.resenas() > 0 ? resultado.resenas() : null)
                 .tokenResenas(tieneValor(resultado.tokenResenas()) && resultado.tokenResenas().length() <= LARGO_TOKEN
                         ? resultado.tokenResenas() : null)
+                .detalles(detalles(resultado.extensiones()))
                 .build();
+    }
+
+    /** Hasta 8 características cortas de la tienda ("128 GB", "Wi-Fi"); se guardan tal como llegan, sin inventar. */
+    static List<String> detalles(List<String> extensiones) {
+        if (extensiones == null) {
+            return List.of();
+        }
+        return extensiones.stream()
+                .filter(texto -> texto != null && !texto.isBlank() && texto.strip().length() <= 60)
+                .map(texto -> texto.strip().replace("|", "/"))
+                .distinct()
+                .limit(8)
+                .toList();
     }
 
     /** Precios que no son el valor completo del producto: "desde", por cuotas o por mes. */

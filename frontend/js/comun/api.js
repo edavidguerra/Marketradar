@@ -42,7 +42,10 @@ export async function pedir(ruta, { metodo = 'GET', cuerpo, redirigirSinSesion =
     if (respuesta.status === 204) return null;
     const datos = await respuesta.json().catch(() => ({}));
     if (!respuesta.ok) {
-        throw new Error(datos.mensaje_usuario || 'Algo salió mal. Intente de nuevo.');
+        const error = new Error(datos.mensaje_usuario || 'Algo salió mal. Intente de nuevo.');
+        error.codigo = datos.codigo;
+        error.estado = respuesta.status;
+        throw error;
     }
     return datos;
 }
@@ -81,6 +84,37 @@ export const obtenerResenas = (id) => pedir(`/ofertas/${encodeURIComponent(id)}/
 export const traducirResena = (id, indice) => pedir(
     `/ofertas/${encodeURIComponent(id)}/resenas/${encodeURIComponent(indice)}/traduccion`, { metodo: 'POST' });
 export const obtenerTasas = () => pedir('/tasas');
+/** Compara de 2 a 4 ofertas de la misma búsqueda. */
+export const compararOfertas = (ids) => pedir(`/ofertas/comparacion?${new URLSearchParams({ ids: ids.join(',') })}`);
+
+/* Seguimientos y correo */
+export const obtenerEstadoCorreo = () => pedir('/usuario/correo');
+export const pedirVerificacionCorreo = () => pedir('/usuario/correo/verificacion', { metodo: 'POST' });
+export const obtenerSeguimientos = () => pedir('/usuario/seguimientos');
+/** tipoAviso: BAJA_PRECIO o PRECIO_OBJETIVO; precioObjetivo en pesos (solo para PRECIO_OBJETIVO). */
+export const seguirOferta = (ofertaId, tipoAviso, precioObjetivo, termino) => pedir('/usuario/seguimientos',
+    { metodo: 'POST', cuerpo: { oferta_id: ofertaId, tipo_aviso: tipoAviso, precio_objetivo: precioObjetivo, termino } });
+/** cambios: { tipo_aviso, precio_objetivo, estado } (estado ACTIVO o PAUSADO). */
+export const cambiarSeguimiento = (ofertaId, cambios) =>
+    pedir(`/usuario/seguimientos/${encodeURIComponent(ofertaId)}`, { metodo: 'PUT', cuerpo: cambios });
+export const dejarDeSeguir = (ofertaId) =>
+    pedir(`/usuario/seguimientos/${encodeURIComponent(ofertaId)}`, { metodo: 'DELETE' });
+/** Enlaces de los correos: el token llega en el ancla (#token=...) y se manda en el cuerpo, nunca en la dirección. */
+export const verificarCorreo = (token) =>
+    pedir('/enlaces/verificacion-correo', { metodo: 'POST', cuerpo: { token }, redirigirSinSesion: false });
+export const cancelarPorEnlace = (token) =>
+    pedir('/enlaces/cancelacion-seguimiento', { metodo: 'POST', cuerpo: { token }, redirigirSinSesion: false });
+
+/* Al por mayor (Alibaba vía API.SH; la clave queda en el servidor) */
+export const obtenerEstadoMayoristas = () => pedir('/mayoristas/estado');
+export function buscarMayoristas(termino, cantidad, unidad, pagina = 1) {
+    return pedir(`/mayoristas/busqueda?${new URLSearchParams({ q: termino, cantidad, unidad, pagina })}`);
+}
+export function obtenerDetalleMayorista(referencia, cantidad, unidad, variante) {
+    const parametros = new URLSearchParams({ ref: referencia, cantidad, unidad });
+    if (variante) parametros.set('variante', variante);
+    return pedir(`/mayoristas/producto?${parametros}`);
+}
 
 /* Interfaz de usuario */
 export const obtenerAvisos = () => pedir('/usuario/avisos');

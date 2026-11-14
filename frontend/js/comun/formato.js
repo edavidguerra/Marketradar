@@ -64,3 +64,14 @@ const TIPOS_PQR = { PETICION: 'Petición', QUEJA: 'Queja', RECLAMO: 'Reclamo', S
 
 export const nombreEstadoPqr = (estado) => ESTADOS_PQR[estado] || estado;
 export const nombreTipoPqr = (tipo) => TIPOS_PQR[tipo] || tipo;
+
+/** Un valor en otra moneda (USD, EUR...), con decimales: "US$ 1,75". Si es en pesos, como siempre. */
+export function dinero(valor, moneda) {
+    if (!moneda || moneda === 'COP') return pesos(valor);
+    try {
+        return new Intl.NumberFormat('es-CO', { style: 'currency', currency: moneda, maximumFractionDigits: 2 })
+            .format(Number(valor));
+    } catch {
+        return `${moneda} ${Number(valor).toLocaleString('es-CO', { maximumFractionDigits: 2 })}`;
+    }
+}
