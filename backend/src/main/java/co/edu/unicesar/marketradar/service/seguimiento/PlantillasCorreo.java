@@ -34,7 +34,7 @@ final class PlantillasCorreo {
     static MensajeCorreo verificacion(String para, String nombre, String enlace) {
         List<String> parrafos = List.of(
                 "Hola " + nombre + ":",
-                "Para recibir avisos de precio en este correo, confirme que es suyo abriendo el enlace de abajo. "
+                "Para recibir en este correo los avisos de Seguimientos, confirme que es suyo abriendo el enlace de abajo. "
                         + "El enlace sirve durante 24 horas y solo una vez.",
                 "Si usted no lo pidió, no haga nada: no le mandaremos avisos.");
         return armar(para, "Confirme su correo en Marketradar", parrafos, Map.of(), List.of(
@@ -50,7 +50,7 @@ final class PlantillasCorreo {
         datos.put("Precio actual", precio(precio, moneda) + " (sin el envío)");
         datos.put("Moneda", moneda);
         datos.put("Le avisaremos", queAvisamos);
-        datos.put("Revisamos el precio", "cada " + frecuencia(frecuenciaMinutos));
+        datos.put("Revisamos el precio", "aproximadamente cada " + frecuencia(frecuenciaMinutos));
         List<String> parrafos = List.of(
                 "Hola " + nombre + ":",
                 "Empezó a seguir este producto en Marketradar. Le escribiremos cuando ocurra lo que eligió.",
@@ -91,7 +91,7 @@ final class PlantillasCorreo {
         if (EnlaceCompra.esSeguro(urlOferta)) {
             enlaces.add(new Enlace("Ver la oferta", urlOferta));
         }
-        enlaces.add(new Enlace("Ver mis seguimientos", urlSeguimientos));
+        enlaces.add(new Enlace("Abrir Seguimientos", urlSeguimientos));
         enlaces.add(new Enlace("Dejar de seguir este producto", urlCancelar));
         return enlaces;
     }

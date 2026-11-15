@@ -8,6 +8,7 @@ import co.edu.unicesar.marketradar.config.PropiedadesMayoristas;
 import co.edu.unicesar.marketradar.domain.TasaCambio;
 import co.edu.unicesar.marketradar.domain.mayorista.CalculadoraMayorista;
 import co.edu.unicesar.marketradar.domain.mayorista.OfertaMayorista;
+import co.edu.unicesar.marketradar.domain.mayorista.RelevanciaMayorista;
 import co.edu.unicesar.marketradar.domain.mayorista.UnidadVenta;
 import co.edu.unicesar.marketradar.exception.RecursoNoEncontradoException;
 import co.edu.unicesar.marketradar.exception.ServicioNoDisponibleException;
@@ -50,6 +51,10 @@ public class ServicioMayoristas {
     public static final String NOTA_SUBTOTAL = "Subtotal de mercancía; envío e impuestos pendientes";
 
     static final long CANTIDAD_MAXIMA = 10_000_000L;
+    /** Tiempo total para las consultas externas de una búsqueda; después se devuelve lo que haya. */
+    static final Duration PRESUPUESTO_BUSQUEDA = Duration.ofSeconds(45);
+    /** Fallos seguidos al pedir fichas tras los que se deja de pedir más en esa búsqueda. */
+    static final int MAX_FALLOS_SEGUIDOS = 2;
     private static final ZoneId COLOMBIA = ZoneId.of("America/Bogota");
     private static final Pattern ID_ALIBABA = Pattern.compile("\\d{6,20}");
     private static final Pattern URL_ALIBABA = Pattern.compile(
@@ -63,6 +68,8 @@ public class ServicioMayoristas {
     private final Clock reloj;
     private final Cache<String, LectorRespuestasAlibaba.Pagina> busquedas;
     private final Cache<String, OfertaMayorista> detalles;
+    /** Lo que mostró la búsqueda de cada oferta, para contrastarlo con la ficha cuando se abre el detalle. */
+    private final Cache<String, OfertaMayorista> indice;
 
     private LocalDate diaConsumo;
     private int consultasHoy;
@@ -87,38 +94,68 @@ public class ServicioMayoristas {
         Duration vigencia = Duration.ofHours(Math.max(1, propiedades.cacheHoras()));
         this.busquedas = Caffeine.newBuilder().maximumSize(300).expireAfterWrite(vigencia).build();
         this.detalles = Caffeine.newBuilder().maximumSize(1000).expireAfterWrite(vigencia).build();
+        this.indice = Caffeine.newBuilder().maximumSize(3000).expireAfterWrite(vigencia).build();
     }
 
     /**
      * Una oferta con su cálculo.
      *
-     * @param oferta publicación (la del detalle, si se consultó)
+     * @param oferta publicación (la de la ficha, si se consultó)
      * @param calculo precio para la cantidad pedida
-     * @param posicion lugar en el orden por subtotal, o {@code null} si queda fuera del orden
-     * @param motivoFuera por qué no entra al orden, o {@code null}
-     * @param consultoDetalle si se consultó el detalle para aclarar el precio
+     * @param posicion lugar en el orden por subtotal (las empatadas comparten lugar), o {@code null} si queda fuera
+     * @param motivoFuera por qué no entra al orden por precio, o {@code null}
+     * @param consultoDetalle si se usó la ficha del producto
      * @param aproximadoPesos subtotal aproximado en pesos, o {@code null}
      * @param tasa tasa con que se calculó el valor en pesos, o {@code null}
+     * @param relevancia si es lo que se buscó, si es dudosa, o {@code null} si no se evaluó (detalle directo)
+     * @param motivoRelevancia por qué es dudosa, o {@code null}
+     * @param empate si comparte el mismo subtotal con otra oferta del orden
      */
     public record Resultado(OfertaMayorista oferta, CalculadoraMayorista.Calculo calculo, Integer posicion,
-                            String motivoFuera, boolean consultoDetalle, BigDecimal aproximadoPesos, TasaCambio tasa) {
+                            String motivoFuera, boolean consultoDetalle, BigDecimal aproximadoPesos, TasaCambio tasa,
+                            RelevanciaMayorista.Nivel relevancia, String motivoRelevancia, boolean empate) {
+
+        /** Sin datos de relevancia ni empate. */
+        public Resultado(OfertaMayorista oferta, CalculadoraMayorista.Calculo calculo, Integer posicion,
+                         String motivoFuera, boolean consultoDetalle, BigDecimal aproximadoPesos, TasaCambio tasa) {
+            this(oferta, calculo, posicion, motivoFuera, consultoDetalle, aproximadoPesos, tasa, null, null, false);
+        }
+
+        Resultado conPosicion(Integer nuevaPosicion, boolean nuevoEmpate) {
+            return new Resultado(oferta, calculo, nuevaPosicion, motivoFuera, consultoDetalle, aproximadoPesos, tasa,
+                    relevancia, motivoRelevancia, nuevoEmpate);
+        }
+
+        Resultado conMotivo(String motivo) {
+            return new Resultado(oferta, calculo, null, motivo, consultoDetalle, aproximadoPesos, tasa, relevancia,
+                    motivoRelevancia, false);
+        }
+
+        Resultado conPesos(BigDecimal valor, TasaCambio nuevaTasa) {
+            return new Resultado(oferta, calculo, posicion, motivoFuera, consultoDetalle, valor, nuevaTasa, relevancia,
+                    motivoRelevancia, empate);
+        }
     }
 
     /**
-     * Respuesta de una búsqueda.
+     * Respuesta de una búsqueda: todas las páginas cargadas hasta {@code pagina}, sin repetidos y en un solo orden.
      *
      * @param termino lo que se buscó
-     * @param pagina página
+     * @param pagina última página cargada
      * @param siguientePagina siguiente página, o {@code null} si no hay más (o se llegó al tope)
      * @param cantidad cantidad pedida
      * @param unidad unidad pedida
-     * @param resultados ofertas: primero las ordenadas por subtotal, luego las que quedan fuera
-     * @param descartados cuántos resultados se quitaron por repetidos o por no tener que ver
+     * @param resultados ofertas: primero las ordenadas por subtotal, luego las que quedan fuera del orden y al final
+     *                   las coincidencias dudosas
+     * @param descartados cuántos resultados se quitaron por repetidos o por ser de otro tipo o material
      * @param avisos avisos para la persona
      * @param consultadoEn cuándo se consultó Alibaba
+     * @param comparables cuántas ofertas entraron al orden por precio
+     * @param parcial si faltó algo por errores, límites o tiempo
      */
     public record Busqueda(String termino, int pagina, Integer siguientePagina, long cantidad, UnidadVenta unidad,
-                           List<Resultado> resultados, int descartados, List<String> avisos, Instant consultadoEn) {
+                           List<Resultado> resultados, int descartados, List<String> avisos, Instant consultadoEn,
+                           int comparables, boolean parcial) {
     }
 
     /** @return {@code true} si hay clave de API.SH */
@@ -132,57 +169,146 @@ public class ServicioMayoristas {
      * @param termino producto a buscar
      * @param cantidad cantidad deseada
      * @param unidad unidad en que la pide (piezas, pares, paquetes)
-     * @param pagina página, desde 1
+     * @param pagina hasta qué página cargar, desde 1
      * @return resultados
      */
     public Busqueda buscar(String termino, long cantidad, UnidadVenta unidad, int pagina) {
+        return buscar(termino, cantidad, unidad, pagina, Map.of());
+    }
+
+    /**
+     * Carga las páginas 1 a {@code hastaPagina} (las ya consultadas salen de la caché y no gastan créditos), quita los
+     * repetidos, separa lo que no es lo buscado y ordena por subtotal <b>todas</b> las ofertas cargadas.
+     *
+     * @param termino producto a buscar
+     * @param cantidad cantidad deseada
+     * @param unidad unidad
+     * @param hastaPagina última página a cargar
+     * @param variantes variante elegida por oferta (id de la oferta → id de la variante)
+     * @return resultados
+     */
+    public Busqueda buscar(String termino, long cantidad, UnidadVenta unidad, int hastaPagina,
+                           Map<String, String> variantes) {
         String limpio = limpiarTermino(termino);
         validarCantidad(cantidad, unidad);
-        if (pagina < 1 || pagina > propiedades.paginasMaximas()) {
+        if (hastaPagina < 1 || hastaPagina > propiedades.paginasMaximas()) {
             throw new ValidacionException("Se pueden ver hasta " + propiedades.paginasMaximas() + " páginas por búsqueda.");
         }
         exigirConfiguracion();
-        String clave = limpio.toLowerCase(Locale.ROOT) + "|" + pagina;
-        LectorRespuestasAlibaba.Pagina leida = busquedas.getIfPresent(clave);
-        if (leida == null) {
-            leida = consultar(() -> cliente.buscar(limpio, pagina));
-            busquedas.put(clave, leida);
+        Instant limite = reloj.instant().plus(PRESUPUESTO_BUSQUEDA);
+        List<String> avisos = new ArrayList<>();
+        boolean parcial = false;
+
+        List<OfertaMayorista> todas = new ArrayList<>();
+        Integer siguiente = null;
+        Instant consultado = null;
+        int cargada = 0;
+        for (int numero = 1; numero <= hastaPagina; numero++) {
+            String clave = limpio.toLowerCase(Locale.ROOT) + "|" + numero;
+            LectorRespuestasAlibaba.Pagina leida = busquedas.getIfPresent(clave);
+            if (leida == null) {
+                if (numero > 1 && reloj.instant().isAfter(limite)) {
+                    avisos.add("Se acabó el tiempo de la búsqueda antes de cargar la página " + numero + ".");
+                    parcial = true;
+                    // Se ofrece otra vez esa página con "Ver más".
+                    siguiente = numero;
+                    break;
+                }
+                int pedida = numero;
+                try {
+                    leida = consultarConReintento(() -> cliente.buscar(limpio, pedida), limite);
+                } catch (ServicioNoDisponibleException e) {
+                    if (numero == 1) {
+                        throw e;
+                    }
+                    avisos.add("No se pudo cargar la página " + numero + ": " + e.getMessage()
+                            + " Se muestran las páginas anteriores.");
+                    parcial = true;
+                    siguiente = numero;
+                    break;
+                }
+                busquedas.put(clave, leida);
+            }
+            cargada = numero;
+            todas.addAll(leida.ofertas());
+            leida.ofertas().forEach(o -> indice.put(o.id(), o));
+            siguiente = leida.siguientePagina();
+            if (consultado == null && leida.actualizadoEn() != null) {
+                consultado = leida.actualizadoEn().toInstant();
+            }
+            if (siguiente == null) {
+                break;
+            }
         }
 
-        List<String> avisos = new ArrayList<>();
-        List<OfertaMayorista> unicas = sinRepetidos(leida.ofertas());
-        List<OfertaMayorista> relevantes = relevantes(limpio, unicas);
-        if (!unicas.isEmpty() && !algunaCoincide(limpio, unicas)) {
-            avisos.add("Ningún resultado menciona lo que buscó. Alibaba funciona mejor con palabras en inglés.");
-        } else if (relevantes == unicas && !todasCoinciden(limpio, unicas)) {
-            avisos.add("Algunos resultados podrían no ser lo que busca. Revise el título antes de comprar.");
+        List<OfertaMayorista> unicas = sinRepetidos(todas);
+        int repetidos = todas.size() - unicas.size();
+        int incompatibles = 0;
+        List<OfertaMayorista> evaluadas = new ArrayList<>();
+        Map<String, RelevanciaMayorista.Evaluacion> relevancias = new LinkedHashMap<>();
+        for (OfertaMayorista oferta : unicas) {
+            RelevanciaMayorista.Evaluacion evaluacion = RelevanciaMayorista.evaluar(limpio, oferta.titulo());
+            if (evaluacion.nivel() == RelevanciaMayorista.Nivel.INCOMPATIBLE) {
+                incompatibles++;
+                continue;
+            }
+            relevancias.put(oferta.id(), evaluacion);
+            evaluadas.add(oferta);
         }
-        int descartados = leida.ofertas().size() - relevantes.size();
+        if (incompatibles > 0) {
+            avisos.add(incompatibles == 1 ? "Se quitó 1 resultado que es otro tipo de producto o de otro material."
+                    : "Se quitaron " + incompatibles + " resultados que son otro tipo de producto o de otro material.");
+        }
+        if (repetidos > 0) {
+            avisos.add(repetidos == 1 ? "Se quitó 1 resultado repetido." : "Se quitaron " + repetidos
+                    + " resultados repetidos.");
+        }
 
         int detallesDisponibles = propiedades.detallesPorBusqueda();
+        int fallosSeguidos = 0;
+        boolean detallesCortados = false;
         List<Resultado> resultados = new ArrayList<>();
-        for (OfertaMayorista oferta : relevantes) {
-            boolean consultoDetalle = false;
-            OfertaMayorista usada = oferta;
-            String contradiccion = null;
-            List<String> problemas = CalculadoraMayorista.discrepancias(oferta);
-            if (!problemas.isEmpty() && detallesDisponibles > 0) {
-                Optional<OfertaMayorista> detalle = detalleSiSePuede(oferta.id(), oferta.url());
-                if (detalle.isPresent()) {
+        for (OfertaMayorista oferta : evaluadas) {
+            OfertaMayorista detalle = detalles.getIfPresent(oferta.id());
+            boolean necesita = !CalculadoraMayorista.discrepancias(oferta).isEmpty()
+                    || variantes.containsKey(oferta.id());
+            if (detalle == null && necesita) {
+                if (detallesDisponibles <= 0 || fallosSeguidos >= MAX_FALLOS_SEGUIDOS
+                        || reloj.instant().isAfter(limite)) {
+                    detallesCortados = true;
+                } else {
+                    // Cada intento externo cuenta, salga bien o mal; leer de la caché no cuenta.
                     detallesDisponibles--;
-                    consultoDetalle = true;
-                    if (CalculadoraMayorista.seContradicen(oferta, detalle.get())) {
-                        contradiccion = "La búsqueda y la ficha del producto muestran escalas de precio distintas.";
+                    try {
+                        detalle = consultar(() -> LectorRespuestasAlibaba.leerProducto(cliente.producto(oferta.url())));
+                        detalles.put(oferta.id(), detalle);
+                        fallosSeguidos = 0;
+                    } catch (ApiShException | ServicioNoDisponibleException e) {
+                        fallosSeguidos++;
+                        parcial = true;
                     }
-                    usada = combinar(oferta, detalle.get());
                 }
             }
-            CalculadoraMayorista.Calculo calculo = CalculadoraMayorista.calcular(usada, cantidad, unidad, null);
-            String fuera = contradiccion != null ? contradiccion : calculo.aplicable() ? null : calculo.motivo();
-            resultados.add(new Resultado(usada, calculo, null, fuera, consultoDetalle, null, null));
+            Resultado resultado = evaluar(oferta, detalle, cantidad, unidad, variantes.get(oferta.id()),
+                    relevancias.get(oferta.id()));
+            List<String> sinAclarar = detalle == null ? contradiccionesPropias(oferta) : List.of();
+            if (!sinAclarar.isEmpty() && resultado.motivoFuera() == null) {
+                // La búsqueda se contradice sola y no hubo ficha que lo aclarara: no se adivina cuál precio vale.
+                String motivo = "No pudimos confirmar el precio con la ficha del producto: " + String.join("; ", sinAclarar)
+                        + ".";
+                resultado = new Resultado(resultado.oferta(), new CalculadoraMayorista.Calculo(
+                        CalculadoraMayorista.Estado.PRECIO_AMBIGUO, motivo, resultado.calculo().cantidadCalculada(),
+                        resultado.calculo().unidad(), null, null, null, resultado.calculo().ajustes()), null, motivo,
+                        false, null, null, resultado.relevancia(), resultado.motivoRelevancia(), false);
+            }
+            resultados.add(resultado);
         }
-        if (detallesDisponibles == 0 && resultados.stream().anyMatch(r -> r.motivoFuera() != null && !r.consultoDetalle())) {
-            avisos.add("Algunas ofertas no se aclararon con su ficha para no gastar consultas. Ábralas para ver más.");
+        if (fallosSeguidos >= MAX_FALLOS_SEGUIDOS) {
+            avisos.add("Alibaba falló varias veces seguidas al pedir fichas de producto: se dejaron de pedir para no "
+                    + "gastar consultas. Los precios sin aclarar quedan fuera del orden.");
+        } else if (detallesCortados) {
+            avisos.add("Algunas ofertas no se aclararon con su ficha para no gastar consultas o tiempo. Ábralas para "
+                    + "ver más.");
         }
         long patrocinados = resultados.stream().filter(r -> r.oferta().patrocinado()).count();
         if (patrocinados > 0) {
@@ -190,14 +316,49 @@ public class ServicioMayoristas {
                     : patrocinados + " resultados son anuncios pagados y se marcan como tales.");
         }
         List<Resultado> ordenados = ordenar(resultados, avisos);
-        Integer siguiente = leida.siguientePagina() != null && leida.siguientePagina() <= propiedades.paginasMaximas()
-                ? leida.siguientePagina() : null;
-        Instant consultado = leida.actualizadoEn() != null ? leida.actualizadoEn().toInstant() : reloj.instant();
-        return new Busqueda(limpio, pagina, siguiente, cantidad, unidad, ordenados, descartados, avisos, consultado);
+        int comparables = (int) ordenados.stream().filter(r -> r.posicion() != null).count();
+        // Una ficha que falló no impide cargar más páginas; una página que falló se puede pedir otra vez.
+        Integer siguienteValida = siguiente != null && siguiente <= propiedades.paginasMaximas() ? siguiente : null;
+        return new Busqueda(limpio, Math.max(cargada, 1), siguienteValida, cantidad, unidad, ordenados,
+                repetidos + incompatibles, avisos, consultado != null ? consultado : reloj.instant(), comparables,
+                parcial);
+    }
+
+    /** Discrepancias de la búsqueda que son contradicciones (no solo datos que faltan). */
+    static List<String> contradiccionesPropias(OfertaMayorista oferta) {
+        return CalculadoraMayorista.discrepancias(oferta).stream()
+                .filter(d -> !d.equals("sin escalas de precio") && !d.equals("sin pedido mínimo")
+                        && !d.equals("unidad desconocida"))
+                .toList();
+    }
+
+    /** Calcula una oferta con lo que se sabe: búsqueda y, si la hay, ficha conciliada. */
+    private static Resultado evaluar(OfertaMayorista busqueda, OfertaMayorista detalle, long cantidad,
+                                     UnidadVenta unidad, String variante, RelevanciaMayorista.Evaluacion relevancia) {
+        OfertaMayorista usada = busqueda;
+        String contradiccion = null;
+        if (detalle != null) {
+            CalculadoraMayorista.Conciliacion conciliacion = CalculadoraMayorista.conciliar(busqueda, detalle);
+            usada = conciliacion.oferta();
+            if (conciliacion.hayContradiccion()) {
+                contradiccion = "Los datos no cuadran: " + String.join("; ", conciliacion.contradicciones())
+                        + ". No la ponemos en el orden por precio hasta que el proveedor lo aclare.";
+            }
+        }
+        CalculadoraMayorista.Calculo calculo = CalculadoraMayorista.calcular(usada, cantidad, unidad, variante);
+        String fuera = contradiccion != null ? contradiccion : calculo.aplicable() ? null : calculo.motivo();
+        if (contradiccion != null) {
+            // No se muestra un subtotal que la ficha contradice.
+            calculo = new CalculadoraMayorista.Calculo(CalculadoraMayorista.Estado.PRECIO_AMBIGUO, contradiccion,
+                    calculo.cantidadCalculada(), calculo.unidad(), null, null, null, calculo.ajustes());
+        }
+        return new Resultado(usada, calculo, null, fuera, detalle != null, null, null,
+                relevancia == null ? null : relevancia.nivel(), relevancia == null ? null : relevancia.motivo(), false);
     }
 
     /**
-     * Detalle de una publicación con el cálculo para una cantidad y una variante.
+     * Detalle de una publicación con el cálculo para una cantidad y una variante. Usa las mismas reglas que la lista:
+     * si la búsqueda mostró otra cosa, se contrasta con la ficha.
      *
      * @param referencia enlace de Alibaba o identificador numérico
      * @param cantidad cantidad deseada
@@ -228,78 +389,75 @@ public class ServicioMayoristas {
             }
             detalles.put(oferta.id(), oferta);
         }
-        CalculadoraMayorista.Calculo calculo = CalculadoraMayorista.calcular(oferta, cantidad, unidad, varianteId);
-        return conPesos(new Resultado(oferta, calculo, null, calculo.aplicable() ? null : calculo.motivo(), true,
-                null, null));
-    }
-
-    private Optional<OfertaMayorista> detalleSiSePuede(String id, String url) {
-        OfertaMayorista guardado = detalles.getIfPresent(id);
-        if (guardado != null) {
-            return Optional.of(guardado);
+        OfertaMayorista deBusqueda = indice.getIfPresent(oferta.id());
+        Resultado resultado;
+        if (deBusqueda != null) {
+            resultado = evaluar(deBusqueda, oferta, cantidad, unidad, varianteId, null);
+        } else {
+            CalculadoraMayorista.Conciliacion sola = CalculadoraMayorista.conciliar(null, oferta);
+            CalculadoraMayorista.Calculo calculo = CalculadoraMayorista.calcular(oferta, cantidad, unidad, varianteId);
+            if (sola.hayContradiccion()) {
+                String motivo = "Los datos no cuadran: " + String.join("; ", sola.contradicciones()) + ".";
+                calculo = new CalculadoraMayorista.Calculo(CalculadoraMayorista.Estado.PRECIO_AMBIGUO, motivo,
+                        calculo.cantidadCalculada(), calculo.unidad(), null, null, null, calculo.ajustes());
+            }
+            resultado = new Resultado(oferta, calculo, null, calculo.aplicable() ? null : calculo.motivo(), true,
+                    null, null);
         }
-        try {
-            OfertaMayorista leido = consultar(() -> LectorRespuestasAlibaba.leerProducto(cliente.producto(url)));
-            detalles.put(id, leido);
-            return Optional.of(leido);
-        } catch (ApiShException | ServicioNoDisponibleException e) {
-            // Sin detalle, la oferta sigue con lo que dio la búsqueda y queda fuera del orden si el precio no es claro.
-            return Optional.empty();
-        }
+        return conPesos(resultado);
     }
 
-    /** El detalle manda en precios y variantes; la búsqueda aporta lo que el detalle no trae. */
-    static OfertaMayorista combinar(OfertaMayorista busqueda, OfertaMayorista detalle) {
-        return new OfertaMayorista(busqueda.id(), detalle.titulo() != null ? detalle.titulo() : busqueda.titulo(),
-                busqueda.url(), detalle.imagen() != null ? detalle.imagen() : busqueda.imagen(),
-                detalle.proveedor() != null ? detalle.proveedor() : busqueda.proveedor(),
-                detalle.paisProveedor() != null ? detalle.paisProveedor() : busqueda.paisProveedor(),
-                detalle.aniosProveedor() != null ? detalle.aniosProveedor() : busqueda.aniosProveedor(),
-                busqueda.proveedorVerificado() || detalle.proveedorVerificado(), busqueda.patrocinado(),
-                detalle.pedidoMinimo() != null ? detalle.pedidoMinimo() : busqueda.pedidoMinimo(),
-                detalle.pedidoMinimo() != null ? detalle.unidadPedidoMinimo() : busqueda.unidadPedidoMinimo(),
-                detalle.unidad() != UnidadVenta.DESCONOCIDA ? detalle.unidad() : busqueda.unidad(),
-                detalle.presentacion() != null ? detalle.presentacion() : busqueda.presentacion(),
-                detalle.escalas().isEmpty() ? busqueda.escalas() : detalle.escalas(),
-                detalle.precioMinimo() != null ? detalle.precioMinimo() : busqueda.precioMinimo(),
-                detalle.precioMaximo() != null ? detalle.precioMaximo() : busqueda.precioMaximo(),
-                detalle.moneda() != null ? detalle.moneda() : busqueda.moneda(),
-                detalle.textoPrecio() != null ? detalle.textoPrecio() : busqueda.textoPrecio(), detalle.variantes(),
-                detalle.actualizadoEn() != null ? detalle.actualizadoEn() : busqueda.actualizadoEn(), "detalle");
-    }
-
-    /** Ordena por subtotal las que tienen precio claro y la misma moneda; las demás van después, con su motivo. */
+    /**
+     * Ordena por subtotal las que coinciden con lo buscado, tienen precio claro y la moneda más común. Las que tienen el
+     * mismo subtotal comparten puesto y quedan marcadas como empate. Después van las que quedan fuera del orden y, al
+     * final, las coincidencias dudosas.
+     */
     private List<Resultado> ordenar(List<Resultado> resultados, List<String> avisos) {
         Map<String, Long> porMoneda = new LinkedHashMap<>();
-        resultados.stream().filter(r -> r.motivoFuera() == null)
-                .forEach(r -> porMoneda.merge(String.valueOf(r.oferta().moneda()), 1L, Long::sum));
+        resultados.stream().filter(r -> r.motivoFuera() == null && r.oferta().moneda() != null
+                        && r.relevancia() != RelevanciaMayorista.Nivel.DUDOSA)
+                .forEach(r -> porMoneda.merge(r.oferta().moneda(), 1L, Long::sum));
         String monedaPrincipal = porMoneda.entrySet().stream().max(Map.Entry.comparingByValue())
                 .map(Map.Entry::getKey).orElse(null);
         List<Resultado> enOrden = new ArrayList<>();
         List<Resultado> fuera = new ArrayList<>();
+        List<Resultado> dudosas = new ArrayList<>();
         for (Resultado r : resultados) {
-            if (r.motivoFuera() == null && String.valueOf(r.oferta().moneda()).equals(monedaPrincipal)
-                    && r.oferta().moneda() != null) {
+            if (r.relevancia() == RelevanciaMayorista.Nivel.DUDOSA) {
+                dudosas.add(r.conPosicion(null, false));
+            } else if (r.motivoFuera() == null && r.oferta().moneda() != null
+                    && r.oferta().moneda().equals(monedaPrincipal)) {
                 enOrden.add(r);
             } else if (r.motivoFuera() == null) {
-                fuera.add(new Resultado(r.oferta(), r.calculo(), null, "Está en otra moneda ("
-                        + (r.oferta().moneda() == null ? "sin moneda" : r.oferta().moneda())
-                        + ") y no se mezcla con las demás.", r.consultoDetalle(), null, null));
+                fuera.add(r.conMotivo("Está en otra moneda (" + (r.oferta().moneda() == null ? "sin moneda"
+                        : r.oferta().moneda()) + ") y no se mezcla con las demás."));
             } else {
                 fuera.add(r);
             }
         }
         enOrden.sort(Comparator.comparing((Resultado r) -> r.calculo().subtotal())
-                .thenComparing(r -> r.oferta().patrocinado()));
+                .thenComparing(r -> r.oferta().patrocinado()).thenComparing(r -> r.oferta().id()));
         List<Resultado> todos = new ArrayList<>();
+        int puesto = 0;
         for (int i = 0; i < enOrden.size(); i++) {
             Resultado r = enOrden.get(i);
-            todos.add(conPesos(new Resultado(r.oferta(), r.calculo(), i + 1, null, r.consultoDetalle(), null, null)));
+            BigDecimal subtotal = r.calculo().subtotal();
+            if (i == 0 || subtotal.compareTo(enOrden.get(i - 1).calculo().subtotal()) != 0) {
+                puesto = i + 1;
+            }
+            boolean empate = i > 0 && subtotal.compareTo(enOrden.get(i - 1).calculo().subtotal()) == 0
+                    || i + 1 < enOrden.size() && subtotal.compareTo(enOrden.get(i + 1).calculo().subtotal()) == 0;
+            todos.add(conPesos(r.conPosicion(puesto, empate)));
         }
         fuera.forEach(r -> todos.add(conPesos(r)));
+        dudosas.forEach(r -> todos.add(conPesos(r)));
         if (!fuera.isEmpty()) {
             avisos.add(fuera.size() == 1 ? "1 oferta queda fuera del orden porque su precio no es claro para esa cantidad."
                     : fuera.size() + " ofertas quedan fuera del orden porque su precio no es claro para esa cantidad.");
+        }
+        if (!dudosas.isEmpty()) {
+            avisos.add(dudosas.size() == 1 ? "1 resultado podría no ser lo que busca: va aparte y fuera del orden."
+                    : dudosas.size() + " resultados podrían no ser lo que busca: van aparte y fuera del orden.");
         }
         return todos;
     }
@@ -310,8 +468,7 @@ public class ServicioMayoristas {
             return r;
         }
         Optional<TasaCambio> tasa = conversor.tasaPara(r.oferta().moneda());
-        return tasa.map(t -> new Resultado(r.oferta(), r.calculo(), r.posicion(), r.motivoFuera(), r.consultoDetalle(),
-                ConversorMoneda.convertir(r.calculo().subtotal(), t), t)).orElse(r);
+        return tasa.map(t -> r.conPesos(ConversorMoneda.convertir(r.calculo().subtotal(), t), t)).orElse(r);
     }
 
     /** Quita repetidos: primero por id y después por título y proveedor iguales. */
@@ -326,46 +483,6 @@ public class ServicioMayoristas {
             }
         }
         return unicas;
-    }
-
-    /**
-     * Quita los resultados que no mencionan ninguna palabra de la búsqueda, solo si al menos un 30 % sí lo hace (si la
-     * persona escribió en español, Alibaba responde en inglés y casi nada coincide: en ese caso no se quita nada).
-     */
-    static List<OfertaMayorista> relevantes(String termino, List<OfertaMayorista> ofertas) {
-        List<String> palabras = palabras(termino);
-        if (palabras.isEmpty() || ofertas.isEmpty()) {
-            return ofertas;
-        }
-        List<OfertaMayorista> coinciden = ofertas.stream().filter(o -> coincide(palabras, o.titulo())).toList();
-        return coinciden.size() * 10 >= ofertas.size() * 3 ? coinciden : ofertas;
-    }
-
-    private static boolean algunaCoincide(String termino, List<OfertaMayorista> ofertas) {
-        List<String> palabras = palabras(termino);
-        return palabras.isEmpty() || ofertas.stream().anyMatch(o -> coincide(palabras, o.titulo()));
-    }
-
-    private static boolean todasCoinciden(String termino, List<OfertaMayorista> ofertas) {
-        List<String> palabras = palabras(termino);
-        return palabras.isEmpty() || ofertas.stream().allMatch(o -> coincide(palabras, o.titulo()));
-    }
-
-    private static boolean coincide(List<String> palabras, String titulo) {
-        String normal = " " + normalizar(titulo) + " ";
-        return palabras.stream().anyMatch(p -> normal.contains(" " + p));
-    }
-
-    private static List<String> palabras(String termino) {
-        List<String> palabras = new ArrayList<>();
-        for (String palabra : normalizar(termino).split(" ")) {
-            if (palabra.length() >= 3 && !PALABRAS_VACIAS.contains(palabra)) {
-                // Sin la "s" final, para que "cables" coincida con "cable".
-                palabras.add(palabra.length() > 4 && palabra.endsWith("s") ? palabra.substring(0, palabra.length() - 1)
-                        : palabra);
-            }
-        }
-        return palabras;
     }
 
     static String normalizar(String texto) {
@@ -402,6 +519,21 @@ public class ServicioMayoristas {
         if (!estaConfigurado()) {
             throw new ServicioNoDisponibleException("La búsqueda al por mayor no está configurada todavía en este "
                     + "servidor (falta la clave de API.SH).");
+        }
+    }
+
+    /**
+     * Como {@link #consultar}, pero si Alibaba no respondió (error pasajero) lo intenta una vez más, solo si queda
+     * tiempo. Cada intento cuenta en el tope diario.
+     */
+    private <T> T consultarConReintento(java.util.function.Supplier<T> consulta, Instant limite) {
+        try {
+            return consultar(consulta);
+        } catch (ServicioNoDisponibleException e) {
+            if (!e.getMessage().startsWith("Alibaba no respondió") || reloj.instant().isAfter(limite)) {
+                throw e;
+            }
+            return consultar(consulta);
         }
     }
 

@@ -202,7 +202,7 @@
                     <label for="cantidad-mayorista">Cantidad que necesita</label>
                     <input id="cantidad-mayorista" inputmode="numeric" maxlength="10" required autocomplete="off"
                            aria-describedby="ayuda-cantidad-mayorista error-mayorista">
-                    <p id="ayuda-cantidad-mayorista" class="ayuda">Solo números enteros, por ejemplo 500.</p>
+                    <p id="ayuda-cantidad-mayorista" class="ayuda">Solo números enteros, por ejemplo 500 o 10.000 (los miles van con punto).</p>
                 </div>
                 <div class="campo">
                     <label for="unidad-mayorista">Unidad</label>
@@ -227,6 +227,8 @@
             <ol id="lista-detalle-mayorista" class="resultados"></ol>
         </section>
         <ol id="lista-mayoristas" class="resultados"></ol>
+        <h2 id="titulo-dudosas-mayoristas" hidden>Podrían no ser lo que busca</h2>
+        <ol id="lista-dudosas-mayoristas" class="resultados" aria-labelledby="titulo-dudosas-mayoristas" hidden></ol>
         <button type="button" class="boton boton-secundario" id="mas-mayoristas" hidden>Ver más resultados</button>
     </section>
 

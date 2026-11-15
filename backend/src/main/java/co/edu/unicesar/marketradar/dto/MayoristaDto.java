@@ -13,7 +13,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
- * Respuestas del apartado "Al por mayor". Todo subtotal va con {@link ServicioMayoristas#NOTA_SUBTOTAL}: es solo la
+ * Respuestas del apartado "Emprender" (compras al por mayor). Todo subtotal va con {@link ServicioMayoristas#NOTA_SUBTOTAL}: es solo la
  * mercancía; el envío, los impuestos y la entrega en Colombia no se conocen.
  */
 public final class MayoristaDto {
@@ -57,7 +57,8 @@ public final class MayoristaDto {
                             String unidad, String presentacion, List<EscalaDto> escalas, String moneda,
                             String textoPrecio, List<VarianteDto> variantes, OffsetDateTime actualizadoEn,
                             String fuente, CalculoDto calculo, Integer posicion, String motivoFuera,
-                            boolean consultoDetalle, PesosDto aproximadoPesos) {
+                            boolean consultoDetalle, PesosDto aproximadoPesos, String relevancia,
+                            String motivoRelevancia, boolean empate) {
 
         /**
          * @param r resultado del servicio
@@ -77,14 +78,15 @@ public final class MayoristaDto {
                             .toList(), o.actualizadoEn(), o.fuente(), CalculoDto.desde(r.calculo()), r.posicion(),
                     r.motivoFuera(), r.consultoDetalle(), r.aproximadoPesos() == null ? null
                     : new PesosDto(r.aproximadoPesos(), monedaPesos, r.tasa().valor(), r.tasa().vigenteDesde(),
-                    r.tasa().fuente()));
+                    r.tasa().fuente()), r.relevancia() == null ? null
+                    : r.relevancia().name().toLowerCase(java.util.Locale.ROOT), r.motivoRelevancia(), r.empate());
         }
     }
 
     /** Respuesta de la búsqueda. */
     public record BusquedaDto(String termino, int pagina, Integer siguientePagina, long cantidad, String unidad,
                               List<OfertaDto> ofertas, int descartados, List<String> avisos, Instant consultadoEn,
-                              String nota, String fuente) {
+                              String nota, String fuente, int comparables, boolean parcial) {
 
         /**
          * @param b búsqueda
@@ -94,7 +96,8 @@ public final class MayoristaDto {
         public static BusquedaDto desde(ServicioMayoristas.Busqueda b, String monedaPesos) {
             return new BusquedaDto(b.termino(), b.pagina(), b.siguientePagina(), b.cantidad(), b.unidad().name(),
                     b.resultados().stream().map(r -> OfertaDto.desde(r, monedaPesos)).toList(), b.descartados(),
-                    b.avisos(), b.consultadoEn(), ServicioMayoristas.NOTA_SUBTOTAL, "Alibaba (vía API.SH)");
+                    b.avisos(), b.consultadoEn(), ServicioMayoristas.NOTA_SUBTOTAL, "Alibaba (vía API.SH)",
+                    b.comparables(), b.parcial());
         }
     }
 

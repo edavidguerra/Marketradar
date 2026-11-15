@@ -1,7 +1,7 @@
 package co.edu.unicesar.marketradar.dto;
 
 /**
- * Formulario de "Seguir producto" y de los cambios en "Mis seguimientos".
+ * Formulario de "Seguir producto" y de los cambios en "Seguimientos".
  *
  * @param ofertaId oferta de los resultados (solo al seguir)
  * @param tipoAviso {@code baja_precio} o {@code precio_objetivo}

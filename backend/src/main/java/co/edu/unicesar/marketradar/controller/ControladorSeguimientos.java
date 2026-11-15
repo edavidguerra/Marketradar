@@ -26,7 +26,7 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * "Seguir producto", "Mis seguimientos" y la verificación del correo. Solo responde a cuentas con rol USUARIO, y cada
+ * "Seguir producto", "Seguimientos" y la verificación del correo. Solo responde a cuentas con rol USUARIO, y cada
  * persona ve y cambia únicamente sus propios seguimientos.
  */
 @RestController
@@ -50,8 +50,13 @@ public class ControladorSeguimientos {
     @GetMapping("/correo")
     public Map<String, Object> correo(@AuthenticationPrincipal UsuarioAutenticado usuario) {
         ServicioVerificacionCorreo.EstadoCorreo estado = verificacion.estado(usuario.getId());
-        return Map.of("correo", estado.correo(), "verificado", estado.verificado(),
-                "envio_configurado", estado.envioConfigurado(), "frecuencia_minutos", servicio.frecuenciaMinutos());
+        Map<String, Object> respuesta = new java.util.LinkedHashMap<>();
+        respuesta.put("correo", estado.correo());
+        respuesta.put("verificado", estado.verificado());
+        respuesta.put("envio_configurado", estado.envioConfigurado());
+        respuesta.put("frecuencia_minutos", servicio.frecuenciaMinutos());
+        respuesta.put("ultimo_envio", ultimoEnvio(estado.ultimoEnvio()));
+        return respuesta;
     }
 
     /**
@@ -61,8 +66,32 @@ public class ControladorSeguimientos {
      */
     @PostMapping("/correo/verificacion")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public void pedirVerificacion(@AuthenticationPrincipal UsuarioAutenticado usuario) {
-        verificacion.solicitar(usuario.getId());
+    public Map<String, Object> pedirVerificacion(@AuthenticationPrincipal UsuarioAutenticado usuario) {
+        ServicioVerificacionCorreo.Solicitud solicitud = verificacion.solicitar(usuario.getId());
+        return Map.of("estado", "aceptado", "aceptado_en", solicitud.aceptadoEn(), "vence_en", solicitud.venceEn(),
+                "mensaje", solicitud.mensaje());
+    }
+
+    /** El último enlace pedido, en palabras; nunca dice "entregado" porque no se sabe. */
+    static Map<String, Object> ultimoEnvio(co.edu.unicesar.marketradar.dao.VerificacionCorreoDao.Envio envio) {
+        if (envio == null) {
+            return null;
+        }
+        String texto = switch (envio.estado()) {
+            case PENDIENTE -> "Se está mandando el enlace.";
+            case ACEPTADO -> envio.usado() ? "Ya usó el enlace."
+                    : "El servicio de correo aceptó el último enlace. Puede tardar unos minutos en llegar; revise "
+                    + "también la carpeta de spam.";
+            case FALLIDO -> "No se pudo mandar el último enlace. Pida otro.";
+            case SIN_REGISTRO -> "No sabemos si el último enlace salió. Si no le llegó, pida otro.";
+        };
+        Map<String, Object> datos = new java.util.LinkedHashMap<>();
+        datos.put("estado", envio.estado().name().toLowerCase(Locale.ROOT));
+        datos.put("texto", texto);
+        datos.put("pedido_en", envio.creadoEn());
+        datos.put("aceptado_en", envio.aceptadoEn());
+        datos.put("vence_en", envio.venceEn());
+        return datos;
     }
 
     @GetMapping("/seguimientos")
@@ -115,7 +144,8 @@ public class ControladorSeguimientos {
 
     static String mensajeConfirmacion(AvisoSeguimiento.Estado estado) {
         return switch (estado) {
-            case ENVIADO -> "Listo. Le mandamos un correo de confirmación.";
+            case ENVIADO -> "Listo, el seguimiento quedó activo. El servicio de correo aceptó la confirmación; puede "
+                    + "tardar unos minutos en llegar.";
             case PENDIENTE -> "Quedó activado, pero todavía no pudimos mandar el correo de confirmación. Lo "
                     + "intentaremos de nuevo. Si este servidor no tiene configurado el envío de correos, no le llegarán "
                     + "avisos hasta que el administrador lo configure.";

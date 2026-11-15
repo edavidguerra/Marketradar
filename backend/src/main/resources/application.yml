@@ -111,8 +111,13 @@ marketradar:
     api-key: ${ASISTENTE_API_KEY:}
     modelo: ${ASISTENTE_MODELO:claude-opus-5-5}
   correo:
-    # Servidor de correo (SMTP) para los avisos de los seguimientos. Sin SMTP_HOST y CORREO_REMITENTE no se manda
-    # ningún correo: los avisos quedan pendientes y la página lo dice. Ver docs/seguimientos.md.
+    # Correo de los Seguimientos (enlace de verificación, confirmación y avisos de precio). Ver docs/seguimientos.md.
+    # Dos formas: API HTTPS (CORREO_PROVEEDOR=brevo o resend + CORREO_API_KEY) o SMTP (SMTP_HOST...). Con "auto" se usa
+    # la API si hay CORREO_API_KEY y si no SMTP. El plan gratis de Render bloquea los puertos SMTP 25, 465 y 587: allí
+    # solo funciona la API HTTPS. Sin remitente no se manda nada: los avisos quedan pendientes y la página lo dice.
+    proveedor: ${CORREO_PROVEEDOR:auto}
+    api-key: ${CORREO_API_KEY:}
+    url-api: ${CORREO_API_URL:}
     host: ${SMTP_HOST:}
     puerto: ${SMTP_PUERTO:587}
     usuario: ${SMTP_USUARIO:}

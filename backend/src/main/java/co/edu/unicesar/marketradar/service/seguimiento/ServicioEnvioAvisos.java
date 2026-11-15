@@ -4,10 +4,12 @@ import co.edu.unicesar.marketradar.config.PropiedadesSeguimientos;
 import co.edu.unicesar.marketradar.correo.CorreoNoEnviadoException;
 import co.edu.unicesar.marketradar.correo.MensajeCorreo;
 import co.edu.unicesar.marketradar.correo.PropiedadesCorreo;
+import co.edu.unicesar.marketradar.correo.ResultadoEnvio;
 import co.edu.unicesar.marketradar.correo.TransporteCorreo;
 import co.edu.unicesar.marketradar.dao.AvisoSeguimientoDao;
 import co.edu.unicesar.marketradar.dao.SeguimientoDao;
 import co.edu.unicesar.marketradar.domain.AvisoSeguimiento;
+import co.edu.unicesar.marketradar.domain.Seguimiento;
 import co.edu.unicesar.marketradar.service.ServicioBusqueda;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,8 +24,8 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Manda los correos pendientes de los seguimientos y guarda qué pasó con cada uno. Un correo solo queda como
- * {@code ENVIADO} si el servidor de correo lo aceptó. Sin servidor configurado, los avisos quedan pendientes (y vencen a
+ * Manda los correos pendientes de Seguimientos y guarda qué pasó con cada uno. Un correo solo queda como
+ * {@code ENVIADO} si el servicio de correo lo aceptó (eso no confirma que haya llegado a la bandeja). Sin servidor configurado, los avisos quedan pendientes (y vencen a
  * las 48 horas); si el servidor falla, se reintenta con espera creciente hasta el máximo de intentos.
  */
 @Service
@@ -115,17 +117,31 @@ public class ServicioEnvioAvisos {
                     ahora.plusHours(1));
             return AvisoSeguimiento.Estado.PENDIENTE;
         }
+        // Justo antes de mandar se mira otra vez el estado: si la persona pausó o canceló mientras esta ronda ya tenía
+        // el aviso apartado, no se manda.
+        Optional<Seguimiento.Estado> estadoAhora = seguimientoDao.buscar(aviso.getUsuarioId(), aviso.getOfertaId())
+                .map(Seguimiento::getEstado);
+        if (estadoAhora.isPresent() && (estadoAhora.get() == Seguimiento.Estado.CANCELADO
+                || !confirmacion && estadoAhora.get() != Seguimiento.Estado.ACTIVO)) {
+            avisoDao.descartar(aviso.getId(), "El seguimiento está pausado o cancelado");
+            return AvisoSeguimiento.Estado.DESCARTADO;
+        }
         String token = seguimientoDao.asegurarToken(aviso.getUsuarioId(), aviso.getOfertaId(), Tokens.nuevo());
-        MensajeCorreo mensaje = mensaje(pendiente, token);
+        MensajeCorreo mensaje = mensaje(pendiente, token).conClave("aviso-" + aviso.getClaveEvento().hashCode() + "-"
+                + aviso.getId());
         try {
-            transporte.enviar(mensaje);
-            avisoDao.marcarEnviado(aviso.getId());
+            ResultadoEnvio resultado = transporte.enviar(mensaje);
+            avisoDao.marcarAceptado(aviso.getId(), resultado);
+            LOG.info("Aviso {} ({}) aceptado por {} para {} (id {})", aviso.getId(), aviso.getTipo(),
+                    resultado.proveedor(), mensaje.paraEnRegistro(), resultado.idMensaje());
             return AvisoSeguimiento.Estado.ENVIADO;
         } catch (CorreoNoEnviadoException e) {
             int intentos = aviso.getIntentos() + 1;
-            boolean ultimo = intentos >= propiedades.maxIntentosCorreo();
-            LOG.warn("No se pudo mandar el aviso {} (intento {} de {}): {}", aviso.getId(), intentos,
-                    propiedades.maxIntentosCorreo(), e.getMessage());
+            // Un rechazo definitivo (clave inválida, remitente sin verificar, dirección inválida) no mejora reintentando.
+            boolean ultimo = !e.esTransitorio() || intentos >= propiedades.maxIntentosCorreo();
+            LOG.warn("No se pudo mandar el aviso {} por {} (intento {} de {}, {}): {}", aviso.getId(),
+                    transporte.nombre(), intentos, propiedades.maxIntentosCorreo(),
+                    e.esTransitorio() ? "pasajero" : "definitivo", e.getMessage());
             avisoDao.registrarFallo(aviso.getId(), e.getMessage(), true,
                     ultimo ? null : ahora.plus(Duration.ofMinutes(5L << Math.min(intentos, 6))));
             return ultimo ? AvisoSeguimiento.Estado.FALLIDO : AvisoSeguimiento.Estado.PENDIENTE;

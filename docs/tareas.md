@@ -43,3 +43,4 @@ Actualícela al cierre de cada fase. Estados: completada, en progreso, pendiente
 | Auditoría: lo que pidió la persona, precio total, enlaces, reseñas, puntaje y moneda | Ever Guerra | 4 | completada |
 | Datos de prueba, MER, diccionario de datos y normalización | Jean Mercado | 4 | completada |
 | Documentación final | Ever Guerra | 4 | completada |
+| Correo por API HTTPS, estados de envío, cron con registro y correcciones de Emprender y del comparador | Ever Guerra | 4 | completada |

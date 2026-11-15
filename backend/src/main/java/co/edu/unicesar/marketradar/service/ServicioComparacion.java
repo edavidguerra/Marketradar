@@ -87,7 +87,27 @@ public class ServicioComparacion {
      * @param celdas un valor por producto, en el mismo orden
      * @param difiere si los productos no tienen todos el mismo valor
      */
-    public record Fila(String clave, String etiqueta, String grupo, String nota, List<Celda> celdas, boolean difiere) {
+    public record Fila(String clave, String etiqueta, String grupo, String nota, List<Celda> celdas, boolean difiere,
+                       boolean esencial) {
+
+        /** Fila que no es esencial. */
+        public Fila(String clave, String etiqueta, String grupo, String nota, List<Celda> celdas, boolean difiere) {
+            this(clave, etiqueta, grupo, nota, celdas, difiere, false);
+        }
+
+        Fila comoEsencial() {
+            return new Fila(clave, etiqueta, grupo, nota, celdas, difiere, true);
+        }
+    }
+
+    /** Si los productos son el mismo. */
+    public enum Equivalencia {
+        /** Coinciden todos los datos esenciales de su tipo de producto. */
+        EQUIVALENTES,
+        /** Algún dato esencial es distinto (otro tipo, modelo, versión, capacidad, condición...). */
+        DIFERENTES,
+        /** Falta algún dato esencial: puede que sean el mismo producto, pero no se puede confirmar. */
+        NO_CONFIRMADA
     }
 
     /**
@@ -95,12 +115,14 @@ public class ServicioComparacion {
      *
      * @param productos columnas
      * @param filas filas
-     * @param equivalentes si nada indica que sean productos distintos (tipo, modelo y versión)
+     * @param equivalentes {@code true} solo si la equivalencia está confirmada
      * @param masBaratoId oferta con el precio más bajo entre productos equivalentes y en la misma moneda, o {@code null}
      * @param avisos por qué no se deben comparar como iguales, en frases sencillas
+     * @param equivalencia equivalentes, diferentes o sin confirmar
+     * @param faltantes datos esenciales que faltan ("versión del producto 2"), para decirlos
      */
     public record Comparacion(List<Producto> productos, List<Fila> filas, boolean equivalentes, Long masBaratoId,
-                              List<String> avisos) {
+                              List<String> avisos, Equivalencia equivalencia, List<String> faltantes) {
     }
 
     /**
@@ -138,13 +160,15 @@ public class ServicioComparacion {
         filas.addAll(filasDeEspecificaciones(especificaciones));
 
         List<String> avisos = new ArrayList<>();
-        boolean mismoTipo = mismoTipo(productos, avisos);
-        boolean mismoModelo = mismoModelo(filas, avisos);
+        List<String> faltantes = new ArrayList<>();
+        Equivalencia equivalencia = equivalencia(productos, filas, avisos, faltantes);
+        Set<String> esenciales = new LinkedHashSet<>(esenciales(productos));
+        filas.replaceAll(f -> esenciales.contains(f.clave()) ? f.comoEsencial() : f);
         boolean mismaMoneda = ofertas.stream().map(Oferta::getMoneda).distinct().count() == 1;
         if (!mismaMoneda) {
             avisos.add("Los precios están en monedas distintas: no se pueden comparar directamente.");
         }
-        boolean equivalentes = mismoTipo && mismoModelo;
+        boolean equivalentes = equivalencia == Equivalencia.EQUIVALENTES;
         // Un envío que la tienda no informa nunca cuenta como gratis: sin todos los totales, no hay "más barato".
         boolean totalesConocidos = ofertas.stream().allMatch(o -> o.totalConocido().isPresent());
         if (equivalentes && mismaMoneda && !totalesConocidos) {
@@ -153,7 +177,91 @@ public class ServicioComparacion {
         Long masBarato = equivalentes && mismaMoneda && totalesConocidos ? ofertas.stream()
                 .min(java.util.Comparator.comparing(o -> o.totalConocido().orElseThrow())).map(Oferta::getId)
                 .orElse(null) : null;
-        return new Comparacion(productos, filas, equivalentes, masBarato, avisos);
+        return new Comparacion(productos, filas, equivalentes, masBarato, avisos, equivalencia, List.copyOf(faltantes));
+    }
+
+    /**
+     * Datos esenciales para decir que dos ofertas son el mismo producto, según el tipo. La condición (nuevo, usado,
+     * reacondicionado) siempre lo es.
+     */
+    static List<String> esenciales(CategoriaProducto categoria) {
+        List<String> claves = new ArrayList<>(List.of("condicion", "marca", "modelo"));
+        switch (categoria) {
+            case CELULAR -> claves.addAll(List.of("version", "almacenamiento"));
+            case TABLETA -> claves.addAll(List.of("version", "almacenamiento", "conectividad"));
+            case PORTATIL -> claves.addAll(List.of("ram", "almacenamiento"));
+            case TELEVISOR -> claves.add("pantalla");
+            case CONSOLA -> claves.addAll(List.of("version", "almacenamiento"));
+            case RELOJ -> claves.add("conectividad");
+            case NEVERA, LAVADORA, LICUADORA, FREIDORA -> claves.add("capacidad");
+            default -> {
+            }
+        }
+        return claves;
+    }
+
+    private static List<String> esenciales(List<Producto> productos) {
+        Set<String> todas = new LinkedHashSet<>();
+        productos.forEach(p -> todas.addAll(esenciales(p.categoria())));
+        return List.copyOf(todas);
+    }
+
+    /**
+     * Decide si son el mismo producto. Un dato esencial distinto los hace {@link Equivalencia#DIFERENTES}; uno que falta
+     * deja la equivalencia {@link Equivalencia#NO_CONFIRMADA}. Lo que no se sabe nunca se da por igual. La versión es la
+     * excepción: si ninguno dice versión ("Pro", "Max"), son el modelo base; si solo uno la dice, son distintos.
+     */
+    private Equivalencia equivalencia(List<Producto> productos, List<Fila> filas, List<String> avisos,
+                                      List<String> faltantes) {
+        if (!mismoTipo(productos, avisos)) {
+            return Equivalencia.DIFERENTES;
+        }
+        if (!mismoModelo(filas, avisos)) {
+            return Equivalencia.DIFERENTES;
+        }
+        Optional<Fila> condicion = filas.stream().filter(f -> f.clave().equals("condicion")).findFirst();
+        if (condicion.isPresent()) {
+            List<String> conocidas = condicion.get().celdas().stream().filter(Celda::disponible)
+                    .map(c -> c.valor().toLowerCase(Locale.ROOT)).distinct().toList();
+            if (conocidas.size() > 1) {
+                avisos.add("No están en la misma condición (" + String.join(", ", conocidas) + "). Un producto usado o "
+                        + "reacondicionado no se compara por precio con uno nuevo.");
+                return Equivalencia.DIFERENTES;
+            }
+        }
+        CategoriaProducto categoria = productos.get(0).categoria();
+        for (String clave : esenciales(productos)) {
+            if ("version".equals(clave)) {
+                continue;
+            }
+            Optional<Fila> fila = filas.stream().filter(f -> f.clave().equals(clave)).findFirst();
+            String etiqueta = fila.map(f -> f.etiqueta().toLowerCase(Locale.ROOT))
+                    .orElse(NormalizadorEspecificaciones.ORDEN.contains(clave)
+                            ? NormalizadorEspecificaciones.etiqueta(clave).toLowerCase(Locale.ROOT) : clave);
+            if (fila.isEmpty()) {
+                faltantes.add(etiqueta + " (no la informa ninguno)");
+                continue;
+            }
+            List<Celda> celdas = fila.get().celdas();
+            for (int i = 0; i < celdas.size(); i++) {
+                if (!celdas.get(i).disponible()) {
+                    faltantes.add(etiqueta + " del producto " + (i + 1));
+                }
+            }
+        }
+        if (categoria == CategoriaProducto.DESCONOCIDA) {
+            faltantes.add(0, "tipo de producto (no lo pudimos identificar)");
+        }
+        if (!faltantes.isEmpty()) {
+            avisos.add("No podemos confirmar que sean el mismo producto: falta " + String.join(", ", faltantes)
+                    + ". Los mostramos lado a lado, pero no marcamos cuál es más barato.");
+            return Equivalencia.NO_CONFIRMADA;
+        }
+        avisos.add(0, "Coinciden los datos clave (" + String.join(", ", esenciales(productos).stream()
+                .map(c -> NormalizadorEspecificaciones.ORDEN.contains(c)
+                        ? NormalizadorEspecificaciones.etiqueta(c).toLowerCase(Locale.ROOT) : "condición").toList())
+                + "): se pueden comparar como el mismo producto.");
+        return Equivalencia.EQUIVALENTES;
     }
 
     private String codigoTienda(short marketplaceId) {

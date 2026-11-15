@@ -79,6 +79,11 @@ services:
       - key: MERCADOLIBRE_REFRESH_TOKEN
         sync: false
       # Seguir productos (docs/seguimientos.md). Los secretos se escriben en el panel de Render.
+      # En el plan gratis Render bloquea los puertos SMTP: use la API HTTPS de Brevo o Resend.
+      - key: CORREO_PROVEEDOR
+        sync: false
+      - key: CORREO_API_KEY
+        sync: false
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PUERTO

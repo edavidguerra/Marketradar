@@ -1,6 +1,8 @@
 package co.edu.unicesar.marketradar.dao;
 
+import co.edu.unicesar.marketradar.correo.ResultadoEnvio;
 import co.edu.unicesar.marketradar.dao.jdbc.AvisoSeguimientoDaoJdbc;
+import co.edu.unicesar.marketradar.dao.jdbc.EjecucionTareaDaoJdbc;
 import co.edu.unicesar.marketradar.dao.jdbc.MarketplaceDaoJdbc;
 import co.edu.unicesar.marketradar.dao.jdbc.OfertaDaoJdbc;
 import co.edu.unicesar.marketradar.dao.jdbc.SeguimientoDaoJdbc;
@@ -22,6 +24,8 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -179,8 +183,9 @@ abstract class CasosSeguimientoDao {
         VerificacionCorreoDao dao = new VerificacionCorreoDaoJdbc(fuente);
         Usuario ana = usuario("ana-" + UUID.randomUUID() + "@example.com");
         String hash = UUID.randomUUID().toString().replace("-", "") + UUID.randomUUID().toString().replace("-", "");
-        dao.guardarToken(hash, ana.getId(), ana.getCorreo(), OffsetDateTime.now().plusHours(24));
+        assertTrue(dao.guardarToken(hash, ana.getId(), ana.getCorreo(), OffsetDateTime.now().plusHours(24)));
         assertEquals(1, dao.contarEnviados(ana.getId(), OffsetDateTime.now().minusHours(1)));
+        dao.marcarAceptado(hash, 1, "brevo", "<id@brevo>");
         assertTrue(dao.verificadoEn(ana.getId()).isEmpty());
         assertEquals(ana.getId(), dao.usarToken(hash).orElseThrow());
         assertTrue(dao.verificadoEn(ana.getId()).isPresent());
@@ -188,9 +193,111 @@ abstract class CasosSeguimientoDao {
 
         String vencido = hash.substring(0, 63) + (hash.endsWith("0") ? "1" : "0");
         assertNotEquals(hash, vencido);
-        dao.guardarToken(vencido, ana.getId(), ana.getCorreo(), OffsetDateTime.now().plusHours(24));
+        assertTrue(dao.guardarToken(vencido, ana.getId(), ana.getCorreo(), OffsetDateTime.now().plusHours(24)));
         envejecer(vencido);
         assertTrue(dao.usarToken(vencido).isEmpty(), "Un enlace vencido no sirve");
+    }
+
+    @Test
+    void elEnvioDelEnlaceGuardaSuEstadoYNoHayDosEnCurso() {
+        VerificacionCorreoDao dao = new VerificacionCorreoDaoJdbc(fuente);
+        Usuario ana = usuario("ana-" + UUID.randomUUID() + "@example.com");
+        String primero = hash();
+        String segundo = hash();
+        assertTrue(dao.guardarToken(primero, ana.getId(), ana.getCorreo(), OffsetDateTime.now().plusHours(24)));
+        assertEquals(VerificacionCorreoDao.EstadoEnvio.PENDIENTE, dao.ultimoEnvio(ana.getId()).orElseThrow().estado());
+        assertFalse(dao.guardarToken(segundo, ana.getId(), ana.getCorreo(), OffsetDateTime.now().plusHours(24)),
+                "Mientras uno se está mandando no se crea otro (dos clics seguidos)");
+
+        dao.marcarFallido(primero, 2, "brevo rechazó el correo (HTTP 401)");
+        VerificacionCorreoDao.Envio fallido = dao.ultimoEnvio(ana.getId()).orElseThrow();
+        assertEquals(VerificacionCorreoDao.EstadoEnvio.FALLIDO, fallido.estado());
+        assertNull(fallido.aceptadoEn());
+        assertEquals(0, dao.contarEnviados(ana.getId(), OffsetDateTime.now().minusHours(1)), "Un fallo no cuenta");
+        assertEquals(1, dao.contarSolicitudes(ana.getId(), OffsetDateTime.now().minusHours(1)), "Pero sí como solicitud");
+
+        assertTrue(dao.guardarToken(segundo, ana.getId(), ana.getCorreo(), OffsetDateTime.now().plusHours(24)));
+        dao.marcarAceptado(segundo, 1, "brevo", "<abc@smtp-relay.brevo.com>");
+        VerificacionCorreoDao.Envio aceptado = dao.ultimoEnvio(ana.getId()).orElseThrow();
+        assertEquals(VerificacionCorreoDao.EstadoEnvio.ACEPTADO, aceptado.estado());
+        assertNotNull(aceptado.aceptadoEn());
+        assertFalse(aceptado.usado());
+    }
+
+    @Test
+    void unEnvioColgadoSeLiberaParaPedirOtro() {
+        VerificacionCorreoDao dao = new VerificacionCorreoDaoJdbc(fuente);
+        Usuario ana = usuario("ana-" + UUID.randomUUID() + "@example.com");
+        String colgado = hash();
+        assertTrue(dao.guardarToken(colgado, ana.getId(), ana.getCorreo(), OffsetDateTime.now().plusHours(24)));
+        envejecer(colgado);
+        dao.liberarEnviosColgados(ana.getId(), OffsetDateTime.now().minusMinutes(2));
+        assertTrue(dao.guardarToken(hash(), ana.getId(), ana.getCorreo(), OffsetDateTime.now().plusHours(24)));
+    }
+
+    @Test
+    void elAvisoAceptadoGuardaElProveedor() {
+        Usuario ana = usuario("ana-" + UUID.randomUUID() + "@example.com");
+        Oferta oferta = oferta();
+        new SeguimientoDaoJdbc(fuente).activar(nuevo(ana.getId(), oferta.getId(), token()));
+        AvisoSeguimientoDao dao = new AvisoSeguimientoDaoJdbc(fuente);
+        AvisoSeguimiento aviso = new AvisoSeguimiento();
+        aviso.setUsuarioId(ana.getId());
+        aviso.setOfertaId(oferta.getId());
+        aviso.setTipo(AvisoSeguimiento.Tipo.BAJA_PRECIO);
+        aviso.setClaveEvento("prueba:" + UUID.randomUUID());
+        aviso.setCorreoDestino(ana.getCorreo());
+        long id = dao.insertarSiEsNuevo(aviso).orElseThrow();
+        dao.marcarAceptado(id, new ResultadoEnvio("resend", "re_123"));
+        try (var conexion = fuente.getConnection(); var sentencia = conexion.prepareStatement(
+                "SELECT estado, proveedor_correo, id_mensaje_proveedor, enviado_en FROM aviso_seguimiento WHERE id = ?")) {
+            sentencia.setLong(1, id);
+            try (var fila = sentencia.executeQuery()) {
+                assertTrue(fila.next());
+                assertEquals("ENVIADO", fila.getString(1));
+                assertEquals("resend", fila.getString(2));
+                assertEquals("re_123", fila.getString(3));
+                assertNotNull(fila.getObject(4));
+            }
+        } catch (java.sql.SQLException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    @Test
+    void lasRondasSeRegistranYNoCorrenDosALaVez() throws Exception {
+        EjecucionTareaDao dao = new EjecucionTareaDaoJdbc(fuente);
+        String tarea = "p-" + UUID.randomUUID().toString().substring(0, 8);
+        long id = dao.iniciar(tarea, EjecucionTareaDao.Origen.CRON);
+        dao.terminar(id, EjecucionTareaDao.Estado.TERMINADA, 3, 1, 0, 1, 1, null);
+        dao.omitida(tarea, EjecucionTareaDao.Origen.INTERNA, "Ya había otra ronda en curso");
+        List<EjecucionTareaDao.Ejecucion> recientes = dao.recientes(tarea, 10);
+        assertEquals(2, recientes.size());
+        assertTrue(recientes.stream().anyMatch(e -> e.estado() == EjecucionTareaDao.Estado.TERMINADA
+                && e.revisados() == 3 && e.origen() == EjecucionTareaDao.Origen.CRON && e.terminadaEn() != null));
+
+        // Mientras una ronda tiene el bloqueo, otra (desde otro hilo, como otra copia del servidor) no entra.
+        java.util.concurrent.CountDownLatch dentro = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch salir = new java.util.concurrent.CountDownLatch(1);
+        Thread primera = new Thread(() -> dao.conBloqueo(tarea, () -> {
+            dentro.countDown();
+            try {
+                salir.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return "primera";
+        }));
+        primera.start();
+        assertTrue(dentro.await(10, java.util.concurrent.TimeUnit.SECONDS));
+        assertTrue(dao.conBloqueo(tarea, () -> "segunda").isEmpty(), "La segunda no corre mientras la primera sigue");
+        salir.countDown();
+        primera.join(10_000);
+        assertEquals("tercera", dao.conBloqueo(tarea, () -> "tercera").orElseThrow(), "Al terminar se suelta");
+    }
+
+    private static String hash() {
+        return UUID.randomUUID().toString().replace("-", "") + UUID.randomUUID().toString().replace("-", "");
     }
 
     /** Pasa el enlace al pasado, como si hubieran pasado dos días. */

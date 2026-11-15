@@ -135,7 +135,9 @@ function pintarComparacion() {
     const datos = ultimaComparacion;
     if (!datos) return;
     const avisos = $('avisos-comparacion');
+    // Sin equivalencia confirmada no hay "más barato": los avisos explican por qué.
     avisos.replaceChildren(...datos.avisos.map((texto) => crear('li', null, texto)));
+    avisos.dataset.equivalencia = datos.equivalencia || '';
     avisos.hidden = datos.avisos.length === 0;
     const soloDiferencias = $('solo-diferencias').checked;
 
@@ -181,6 +183,7 @@ function pintarComparacion() {
         const etiqueta = crear('th', null, fila.etiqueta);
         etiqueta.scope = 'row';
         if (fila.nota) etiqueta.append(crear('span', 'ayuda nota-fila', fila.nota));
+        if (fila.esencial) etiqueta.append(crear('span', 'ayuda nota-fila', 'Dato clave para saber si es el mismo producto.'));
         tr.append(etiqueta);
         fila.valores.forEach((valor) => {
             const celda = crear('td', valor.disponible ? null : 'no-disponible', valor.valor);
