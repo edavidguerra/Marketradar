@@ -123,4 +123,55 @@ class ServicioComparacionTest {
         assertThrows(ValidacionException.class, () -> servicio.comparar(List.of(1L, 2L, 3L, 4L, 5L)));
         assertThrows(RecursoNoEncontradoException.class, () -> servicio.comparar(List.of(98L, 99L)));
     }
+
+    @Test
+    void equivalentesConfirmadosTraenElDatoEsencialMarcado() {
+        oferta(1, "Samsung Galaxy A55 128GB", "1500000", "0", "Éxito", null);
+        oferta(2, "Samsung Galaxy A55 128 GB", "1450000", "0", "Alkosto", null);
+        ServicioComparacion.Comparacion c = servicio.comparar(List.of(1L, 2L));
+        assertEquals(ServicioComparacion.Equivalencia.EQUIVALENTES, c.equivalencia());
+        assertTrue(c.faltantes().isEmpty());
+        assertTrue(fila(c, "almacenamiento").esencial());
+        assertTrue(fila(c, "condicion").esencial());
+        assertFalse(fila(c, "tienda").esencial());
+    }
+
+    @Test
+    void usadoYNuevoSonDiferentesYNoHayGanador() {
+        oferta(1, "Samsung Galaxy A55 128GB", "1500000", "0", "Éxito", null);
+        oferta(2, "Samsung Galaxy A55 128GB", "900000", "0", "Otra", null).setCondicion("usado");
+        ServicioComparacion.Comparacion c = servicio.comparar(List.of(1L, 2L));
+        assertEquals(ServicioComparacion.Equivalencia.DIFERENTES, c.equivalencia());
+        assertNull(c.masBaratoId());
+        assertTrue(c.avisos().stream().anyMatch(a -> a.contains("condición")));
+    }
+
+    @Test
+    void sinAlmacenamientoNoSeConfirmaNiSeMarcaElMasBarato() {
+        oferta(1, "Samsung Galaxy A55 128GB", "1500000", "0", "Éxito", null);
+        oferta(2, "Samsung Galaxy A55", "1200000", "0", "Otra", null);
+        ServicioComparacion.Comparacion c = servicio.comparar(List.of(1L, 2L));
+        assertEquals(ServicioComparacion.Equivalencia.NO_CONFIRMADA, c.equivalencia());
+        assertFalse(c.equivalentes());
+        assertNull(c.masBaratoId());
+        assertTrue(c.faltantes().stream().anyMatch(f -> f.contains("producto 2")), c.faltantes().toString());
+        assertEquals(2, c.productos().size(), "Se muestran lado a lado de todos modos");
+    }
+
+    @Test
+    void sinCondicionInformadaNoSeConfirma() {
+        oferta(1, "Samsung Galaxy A55 128GB", "1500000", "0", "Éxito", null);
+        oferta(2, "Samsung Galaxy A55 128GB", "1400000", "0", "Otra", null).setCondicion(null);
+        ServicioComparacion.Comparacion c = servicio.comparar(List.of(1L, 2L));
+        assertEquals(ServicioComparacion.Equivalencia.NO_CONFIRMADA, c.equivalencia());
+        assertNull(c.masBaratoId());
+    }
+
+    @Test
+    void otraVersionEsDiferente() {
+        oferta(1, "Apple iPhone 15 Pro 128GB", "5000000", "0", "Éxito", null);
+        oferta(2, "Apple iPhone 15 128GB", "4000000", "0", "Éxito", null);
+        assertEquals(ServicioComparacion.Equivalencia.DIFERENTES,
+                servicio.comparar(List.of(1L, 2L)).equivalencia());
+    }
 }

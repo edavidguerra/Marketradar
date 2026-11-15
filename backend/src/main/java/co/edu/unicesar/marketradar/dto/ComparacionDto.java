@@ -12,12 +12,14 @@ import java.util.Locale;
  *
  * @param productos productos comparados, en el orden en que se eligieron
  * @param filas características; cada fila tiene un valor por producto
- * @param equivalentes si nada indica que sean productos distintos
+ * @param equivalentes {@code true} solo si la equivalencia está confirmada
  * @param masBaratoId oferta más barata, solo si los productos son equivalentes y están en la misma moneda
  * @param avisos por qué no se deben comparar como iguales
+ * @param equivalencia {@code equivalentes}, {@code diferentes} o {@code no_confirmada}
+ * @param faltantes datos esenciales que faltan
  */
 public record ComparacionDto(List<ProductoDto> productos, List<FilaDto> filas, boolean equivalentes, Long masBaratoId,
-                             List<String> avisos) {
+                             List<String> avisos, String equivalencia, List<String> faltantes) {
 
     /**
      * @param id identificador de la oferta
@@ -51,7 +53,7 @@ public record ComparacionDto(List<ProductoDto> productos, List<FilaDto> filas, b
      * @param difiere si no todos los productos tienen el mismo valor
      */
     public record FilaDto(String clave, String etiqueta, String grupo, String nota, List<CeldaDto> valores,
-                          boolean difiere) {
+                          boolean difiere, boolean esencial) {
     }
 
     /**
@@ -64,9 +66,10 @@ public record ComparacionDto(List<ProductoDto> productos, List<FilaDto> filas, b
                 p.categoria().texto())).toList();
         List<FilaDto> filas = comparacion.filas().stream().map(f -> new FilaDto(f.clave(), f.etiqueta(), f.grupo(),
                 f.nota(), f.celdas().stream().map(c -> new CeldaDto(c.valor(), c.numero(), c.disponible(), c.fuente()))
-                .toList(), f.difiere())).toList();
+                .toList(), f.difiere(), f.esencial())).toList();
         return new ComparacionDto(productos, filas, comparacion.equivalentes(), comparacion.masBaratoId(),
-                comparacion.avisos());
+                comparacion.avisos(), comparacion.equivalencia().name().toLowerCase(Locale.ROOT),
+                comparacion.faltantes());
     }
 
     private static OfertaDto.EnlaceDto enlace(EnlaceCompra enlace) {

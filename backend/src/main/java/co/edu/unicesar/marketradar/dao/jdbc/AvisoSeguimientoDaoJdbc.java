@@ -92,6 +92,18 @@ public class AvisoSeguimientoDaoJdbc extends DaoJdbcBase implements AvisoSeguimi
     }
 
     @Override
+    public void marcarAceptado(long id, co.edu.unicesar.marketradar.correo.ResultadoEnvio resultado) {
+        ejecutarActualizacion("UPDATE aviso_seguimiento SET estado = 'ENVIADO', enviado_en = now(), "
+                        + "intentos = intentos + 1, ultimo_error = NULL, proveedor_correo = ?, id_mensaje_proveedor = ? "
+                        + "WHERE id = ? AND estado = 'PENDIENTE'",
+                sentencia -> {
+                    sentencia.setString(1, resultado.proveedor());
+                    sentencia.setString(2, resultado.idMensaje());
+                    sentencia.setLong(3, id);
+                });
+    }
+
+    @Override
     public void registrarFallo(long id, String error, boolean contarIntento, OffsetDateTime proximoIntento) {
         ejecutarActualizacion("UPDATE aviso_seguimiento SET ultimo_error = ?, "
                         + "intentos = intentos + CASE WHEN ? THEN 1 ELSE 0 END, "

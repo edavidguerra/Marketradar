@@ -2,6 +2,7 @@ package co.edu.unicesar.marketradar.service.seguimiento;
 
 import co.edu.unicesar.marketradar.config.PropiedadesSeguimientos;
 import co.edu.unicesar.marketradar.dao.AvisoSeguimientoDao;
+import co.edu.unicesar.marketradar.dao.EjecucionTareaDao;
 import co.edu.unicesar.marketradar.dao.SeguimientoDao;
 import co.edu.unicesar.marketradar.domain.AvisoSeguimiento;
 import co.edu.unicesar.marketradar.domain.EvaluadorPrecio;
@@ -44,18 +45,34 @@ public class ServicioComprobacionPrecios {
     private final ServicioEnvioAvisos envio;
     private final PropiedadesSeguimientos propiedades;
     private final Clock reloj;
+    private final EjecucionTareaDao ejecuciones;
     private final AtomicBoolean enCurso = new AtomicBoolean();
+
+    /** Nombre de la tarea en {@code ejecucion_tarea} y en el bloqueo. */
+    public static final String TAREA = "seguimientos";
+    /**
+     * Tiempo máximo de consultas a las tiendas en una ronda. Lo que no alcanza se pospone: así una tienda lenta no deja
+     * colgada la llamada del cron (cron-job.org corta a los 30 segundos).
+     */
+    static final Duration PRESUPUESTO_RONDA = Duration.ofSeconds(20);
 
     @Autowired
     public ServicioComprobacionPrecios(SeguimientoDao seguimientoDao, AvisoSeguimientoDao avisoDao,
                                        ComprobadorOfertas comprobador, ServicioEnvioAvisos envio,
-                                       PropiedadesSeguimientos propiedades) {
-        this(seguimientoDao, avisoDao, comprobador, envio, propiedades, Clock.systemUTC());
+                                       PropiedadesSeguimientos propiedades, EjecucionTareaDao ejecuciones) {
+        this(seguimientoDao, avisoDao, comprobador, envio, propiedades, Clock.systemUTC(), ejecuciones);
     }
 
     ServicioComprobacionPrecios(SeguimientoDao seguimientoDao, AvisoSeguimientoDao avisoDao,
                                 ComprobadorOfertas comprobador, ServicioEnvioAvisos envio,
                                 PropiedadesSeguimientos propiedades, Clock reloj) {
+        this(seguimientoDao, avisoDao, comprobador, envio, propiedades, reloj, EjecucionTareaDao.SIN_REGISTRO);
+    }
+
+    ServicioComprobacionPrecios(SeguimientoDao seguimientoDao, AvisoSeguimientoDao avisoDao,
+                                ComprobadorOfertas comprobador, ServicioEnvioAvisos envio,
+                                PropiedadesSeguimientos propiedades, Clock reloj, EjecucionTareaDao ejecuciones) {
+        this.ejecuciones = ejecuciones;
         this.seguimientoDao = seguimientoDao;
         this.avisoDao = avisoDao;
         this.comprobador = comprobador;
@@ -80,15 +97,62 @@ public class ServicioComprobacionPrecios {
     }
 
     /**
-     * Ejecuta una ronda.
+     * Ejecuta una ronda disparada por la tarea interna del servidor.
      *
      * @return resumen
      */
     public Resumen ejecutarRonda() {
+        return ejecutarRonda(EjecucionTareaDao.Origen.INTERNA);
+    }
+
+    /**
+     * Ejecuta una ronda, salvo que ya haya otra en curso (en este servidor o en otra copia). Cada ronda, también la que
+     * se omite, queda registrada en {@code ejecucion_tarea}.
+     *
+     * @param origen quién la disparó
+     * @return resumen
+     */
+    public Resumen ejecutarRonda(EjecucionTareaDao.Origen origen) {
         if (!enCurso.compareAndSet(false, true)) {
+            registrarOmitida(origen);
             return new Resumen(false, 0, 0, 0, 0, 0, envio.envioConfigurado());
         }
         try {
+            Optional<Resumen> hecha = ejecuciones.conBloqueo(TAREA, () -> rondaRegistrada(origen));
+            if (hecha.isEmpty()) {
+                registrarOmitida(origen);
+                return new Resumen(false, 0, 0, 0, 0, 0, envio.envioConfigurado());
+            }
+            return hecha.get();
+        } finally {
+            enCurso.set(false);
+        }
+    }
+
+    private void registrarOmitida(EjecucionTareaDao.Origen origen) {
+        try {
+            ejecuciones.omitida(TAREA, origen, "Ya había otra ronda en curso");
+        } catch (RuntimeException e) {
+            LOG.warn("No se pudo registrar la ronda omitida: {}", e.getMessage());
+        }
+    }
+
+    private Resumen rondaRegistrada(EjecucionTareaDao.Origen origen) {
+        long id = ejecuciones.iniciar(TAREA, origen);
+        try {
+            Resumen resumen = ronda();
+            ejecuciones.terminar(id, EjecucionTareaDao.Estado.TERMINADA, resumen.revisados(), resumen.consultas(),
+                    resumen.pospuestos(), resumen.avisosNuevos(), resumen.correosEnviados(),
+                    resumen.envioConfigurado() ? null : "Sin servicio de correo configurado");
+            return resumen;
+        } catch (RuntimeException e) {
+            ejecuciones.terminar(id, EjecucionTareaDao.Estado.FALLIDA, 0, 0, 0, 0, 0, e.getClass().getSimpleName());
+            throw e;
+        }
+    }
+
+    private Resumen ronda() {
+        {
             List<SeguimientoDao.Pendiente> pendientes = seguimientoDao.tomarPendientes(
                     propiedades.maxSeguimientosPorRonda(), MINUTOS_APARTADO);
             Map<String, List<SeguimientoDao.Pendiente>> porBusqueda = new LinkedHashMap<>();
@@ -101,8 +165,9 @@ public class ServicioComprobacionPrecios {
             int revisados = 0;
             int avisos = 0;
             OffsetDateTime ahora = OffsetDateTime.now(reloj);
+            java.time.Instant limite = reloj.instant().plus(PRESUPUESTO_RONDA);
             for (List<SeguimientoDao.Pendiente> grupo : porBusqueda.values()) {
-                if (consultas >= propiedades.maxConsultasPorRonda()) {
+                if (consultas >= propiedades.maxConsultasPorRonda() || reloj.instant().isAfter(limite)) {
                     for (SeguimientoDao.Pendiente pendiente : grupo) {
                         seguimientoDao.posponer(pendiente.seguimiento().getUsuarioId(),
                                 pendiente.seguimiento().getOfertaId(), ahora.plus(ESPERA_SIN_CUPO));
@@ -132,8 +197,6 @@ public class ServicioComprobacionPrecios {
                         + "enviados", revisados, consultas, pospuestos, avisos, enviados);
             }
             return new Resumen(true, revisados, consultas, pospuestos, avisos, enviados, envio.envioConfigurado());
-        } finally {
-            enCurso.set(false);
         }
     }
 

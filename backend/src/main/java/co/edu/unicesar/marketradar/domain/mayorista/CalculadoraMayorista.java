@@ -123,15 +123,13 @@ public final class CalculadoraMayorista {
                         enUnidadDelProveedor, unidad, ajustes);
             }
             BigDecimal precioVariante = variante.get().precio();
+            // El precio de una variante no dice para qué cantidad vale: solo se acepta si coincide con el precio que ya
+            // corresponde a esta cantidad (su escala o el precio fijo). Si no, no se adivina cuál manda.
             if (precioVariante != null && !casiIgual(precioVariante, precio)) {
-                boolean esDeAlgunaEscala = oferta.escalas().stream().anyMatch(e -> casiIgual(e.precio(), precioVariante));
-                if (!oferta.escalas().isEmpty() && !esDeAlgunaEscala) {
-                    return sinPrecio(Estado.PRECIO_AMBIGUO, "La variante tiene un precio propio que no coincide con las "
-                            + "escalas por cantidad. Confírmelo con el proveedor.", enUnidadDelProveedor, unidad, ajustes);
-                }
-                if (oferta.escalas().isEmpty()) {
-                    precio = precioVariante;
-                }
+                return sinPrecio(Estado.PRECIO_AMBIGUO, "La variante elegida cuesta " + texto(precioVariante, oferta)
+                        + " por " + unidad.singular() + ", pero para " + unidad.con(enUnidadDelProveedor)
+                        + " la publicación indica " + texto(precio, oferta) + ". El proveedor no dice para qué cantidades "
+                        + "vale el precio de la variante: confírmelo con él.", enUnidadDelProveedor, unidad, ajustes);
             }
         }
         BigDecimal subtotal = precio.multiply(BigDecimal.valueOf(enUnidadDelProveedor)).setScale(2, RoundingMode.HALF_UP);
@@ -228,6 +226,112 @@ public final class CalculadoraMayorista {
             }
         }
         return false;
+    }
+
+    /**
+     * Resultado de juntar lo que dijo la búsqueda con lo que dice la ficha del producto.
+     *
+     * @param oferta datos que se usan (la ficha manda; de la búsqueda solo se toma lo que la ficha no trae y no es precio)
+     * @param contradicciones en qué no coinciden; si hay alguna, la oferta no entra al orden por precio
+     */
+    public record Conciliacion(OfertaMayorista oferta, List<String> contradicciones) {
+        /** @return {@code true} si la búsqueda y la ficha no cuadran */
+        public boolean hayContradiccion() {
+            return !contradicciones.isEmpty();
+        }
+    }
+
+    /**
+     * Junta la publicación de la búsqueda con la de la ficha. Reglas:
+     * <ul>
+     *   <li>Los precios, escalas, pedido mínimo, unidad y moneda salen <b>solo</b> de la ficha. Si la ficha no trae
+     *       escalas, no se reutilizan las de la búsqueda como si la ficha las hubiera confirmado.</li>
+     *   <li>Se contrastan moneda, unidad, pedido mínimo y escalas; si no cuadran, se dice en qué.</li>
+     *   <li>Si la ficha no trae escalas y sus variantes cuestan otra cosa que lo que mostraba la búsqueda, es una
+     *       contradicción: no se sabe cuál precio vale.</li>
+     * </ul>
+     *
+     * @param busqueda publicación según la búsqueda, o {@code null}
+     * @param detalle publicación según la ficha
+     * @return datos que se usan y contradicciones
+     */
+    public static Conciliacion conciliar(OfertaMayorista busqueda, OfertaMayorista detalle) {
+        if (busqueda == null) {
+            return new Conciliacion(detalle, contradiccionVariantes(detalle).map(List::of).orElse(List.of()));
+        }
+        List<String> contradicciones = new ArrayList<>();
+        if (busqueda.moneda() != null && detalle.moneda() != null && !busqueda.moneda().equals(detalle.moneda())) {
+            contradicciones.add("la búsqueda muestra precios en " + busqueda.moneda() + " y la ficha en " + detalle.moneda());
+        }
+        if (busqueda.unidad() != UnidadVenta.DESCONOCIDA && detalle.unidad() != UnidadVenta.DESCONOCIDA
+                && busqueda.unidad() != detalle.unidad()) {
+            contradicciones.add("la búsqueda dice que vende por " + busqueda.unidad().plural() + " y la ficha por "
+                    + detalle.unidad().plural());
+        }
+        if (busqueda.pedidoMinimo() != null && detalle.pedidoMinimo() != null
+                && busqueda.unidadPedidoMinimo() == detalle.unidadPedidoMinimo()
+                && !busqueda.pedidoMinimo().equals(detalle.pedidoMinimo())) {
+            contradicciones.add("el pedido mínimo es " + busqueda.unidadPedidoMinimo().con(busqueda.pedidoMinimo())
+                    + " en la búsqueda y " + detalle.unidadPedidoMinimo().con(detalle.pedidoMinimo()) + " en la ficha");
+        }
+        if (seContradicen(busqueda, detalle)) {
+            contradicciones.add("la búsqueda y la ficha muestran escalas de precio distintas");
+        }
+        if (detalle.escalas().isEmpty() && !busqueda.escalas().isEmpty()) {
+            List<BigDecimal> deVariantes = detalle.variantes().stream().map(OfertaMayorista.Variante::precio)
+                    .filter(java.util.Objects::nonNull).toList();
+            List<BigDecimal> deBusqueda = busqueda.escalas().stream().map(EscalaPrecio::precio).toList();
+            boolean algunaCoincide = deVariantes.stream().anyMatch(v -> deBusqueda.stream().anyMatch(b -> casiIgual(v, b)));
+            BigDecimal minBusqueda = deBusqueda.stream().min(BigDecimal::compareTo).orElseThrow();
+            if (!deVariantes.isEmpty() && !algunaCoincide) {
+                BigDecimal minVariante = deVariantes.stream().min(BigDecimal::compareTo).orElseThrow();
+                contradicciones.add("la búsqueda muestra " + texto(minBusqueda, busqueda) + " por "
+                        + busqueda.unidad().singular() + ", pero la ficha no confirma ese precio y sus variantes cuestan "
+                        + "desde " + texto(minVariante, detalle));
+            } else if (detalle.precioMinimo() != null && !casiIgual(detalle.precioMinimo(), minBusqueda)) {
+                contradicciones.add("la búsqueda muestra " + texto(minBusqueda, busqueda) + " y la ficha "
+                        + texto(detalle.precioMinimo(), detalle));
+            }
+        }
+        contradiccionVariantes(detalle).ifPresent(contradicciones::add);
+        OfertaMayorista usada = new OfertaMayorista(busqueda.id(),
+                detalle.titulo() != null ? detalle.titulo() : busqueda.titulo(), busqueda.url(),
+                detalle.imagen() != null ? detalle.imagen() : busqueda.imagen(),
+                detalle.proveedor() != null ? detalle.proveedor() : busqueda.proveedor(),
+                detalle.paisProveedor() != null ? detalle.paisProveedor() : busqueda.paisProveedor(),
+                detalle.aniosProveedor() != null ? detalle.aniosProveedor() : busqueda.aniosProveedor(),
+                busqueda.proveedorVerificado() || detalle.proveedorVerificado(), busqueda.patrocinado(),
+                detalle.pedidoMinimo(), detalle.unidadPedidoMinimo(),
+                detalle.unidad() != UnidadVenta.DESCONOCIDA ? detalle.unidad() : busqueda.unidad(),
+                detalle.presentacion() != null ? detalle.presentacion() : busqueda.presentacion(),
+                detalle.escalas(), detalle.precioMinimo(), detalle.precioMaximo(),
+                detalle.moneda() != null ? detalle.moneda() : busqueda.moneda(), detalle.textoPrecio(),
+                detalle.variantes(), detalle.actualizadoEn() != null ? detalle.actualizadoEn() : busqueda.actualizadoEn(),
+                "detalle");
+        return new Conciliacion(usada, List.copyOf(contradicciones));
+    }
+
+    /** Si la ficha tiene escalas y ninguna variante cuesta lo de alguna escala, no se sabe qué precio vale. */
+    private static Optional<String> contradiccionVariantes(OfertaMayorista detalle) {
+        List<BigDecimal> deVariantes = detalle.variantes().stream().map(OfertaMayorista.Variante::precio)
+                .filter(java.util.Objects::nonNull).toList();
+        if (detalle.escalas().isEmpty() || deVariantes.isEmpty()) {
+            return Optional.empty();
+        }
+        boolean alguna = deVariantes.stream().anyMatch(v -> detalle.escalas().stream().anyMatch(e -> casiIgual(e.precio(), v)));
+        if (alguna) {
+            return Optional.empty();
+        }
+        BigDecimal menor = deVariantes.stream().min(BigDecimal::compareTo).orElseThrow();
+        BigDecimal mayor = deVariantes.stream().max(BigDecimal::compareTo).orElseThrow();
+        return Optional.of("las variantes cuestan " + texto(menor, detalle)
+                + (casiIgual(menor, mayor) ? "" : " a " + texto(mayor, detalle))
+                + " y ninguna coincide con las escalas por cantidad");
+    }
+
+    private static String texto(BigDecimal valor, OfertaMayorista oferta) {
+        String moneda = oferta.moneda() == null ? "" : "USD".equals(oferta.moneda()) ? "US$" : oferta.moneda() + " ";
+        return moneda + valor.setScale(2, RoundingMode.HALF_UP).toPlainString().replace('.', ',');
     }
 
     static boolean casiIgual(BigDecimal a, BigDecimal b) {

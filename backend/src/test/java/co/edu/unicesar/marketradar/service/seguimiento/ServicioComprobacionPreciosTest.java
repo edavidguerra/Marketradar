@@ -150,4 +150,20 @@ class ServicioComprobacionPreciosTest {
         servicio.ejecutarRonda();
         assertTrue(avisos.avisos.isEmpty());
     }
+
+    @Test
+    void siOtraCopiaTieneElBloqueoLaRondaSeOmiteYQuedaRegistrada() {
+        co.edu.unicesar.marketradar.dao.EjecucionTareaDao ocupado = mock(co.edu.unicesar.marketradar.dao.EjecucionTareaDao.class);
+        when(ocupado.conBloqueo(anyString(), any())).thenReturn(java.util.Optional.empty());
+        Clock reloj = Clock.fixed(ServicioEnvioAvisosTest.AHORA, ZoneOffset.UTC);
+        ServicioEnvioAvisos envio = new ServicioEnvioAvisos(avisos, seguimientoDao, transporte,
+                ServicioEnvioAvisosTest.correo(), ServicioEnvioAvisosTest.propiedades(), reloj);
+        ServicioComprobacionPrecios s = new ServicioComprobacionPrecios(seguimientoDao, avisos, comprobador, envio,
+                ServicioEnvioAvisosTest.propiedades(), reloj, ocupado);
+        ServicioComprobacionPrecios.Resumen r = s.ejecutarRonda(co.edu.unicesar.marketradar.dao.EjecucionTareaDao.Origen.CRON);
+        org.junit.jupiter.api.Assertions.assertFalse(r.ejecutada());
+        verify(ocupado).omitida(eq(ServicioComprobacionPrecios.TAREA),
+                eq(co.edu.unicesar.marketradar.dao.EjecucionTareaDao.Origen.CRON), anyString());
+        verify(seguimientoDao, org.mockito.Mockito.never()).tomarPendientes(anyInt(), anyInt());
+    }
 }

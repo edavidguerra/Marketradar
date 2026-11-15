@@ -107,8 +107,11 @@ export const cancelarPorEnlace = (token) =>
 
 /* Al por mayor (Alibaba vía API.SH; la clave queda en el servidor) */
 export const obtenerEstadoMayoristas = () => pedir('/mayoristas/estado');
-export function buscarMayoristas(termino, cantidad, unidad, pagina = 1) {
-    return pedir(`/mayoristas/busqueda?${new URLSearchParams({ q: termino, cantidad, unidad, pagina })}`);
+/** pagina: hasta qué página cargar (el servidor devuelve todas las cargadas, juntas y ordenadas). */
+export function buscarMayoristas(termino, cantidad, unidad, pagina = 1, variantes = '') {
+    const parametros = new URLSearchParams({ q: termino, cantidad, unidad, pagina });
+    if (variantes) parametros.set('variantes', variantes);
+    return pedir(`/mayoristas/busqueda?${parametros}`);
 }
 export function obtenerDetalleMayorista(referencia, cantidad, unidad, variante) {
     const parametros = new URLSearchParams({ ref: referencia, cantidad, unidad });

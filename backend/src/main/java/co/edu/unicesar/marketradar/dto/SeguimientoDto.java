@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Un seguimiento como lo ve la persona en "Mis seguimientos".
+ * Un seguimiento como lo ve la persona en "Seguimientos".
  *
  * @param ofertaId oferta seguida
  * @param titulo producto
@@ -49,7 +49,7 @@ public record SeguimientoDto(long ofertaId, String titulo, String tienda, String
      * @param precioAnterior precio antes, si aplica
      * @param precioActual precio del aviso
      * @param creadoEn cuándo se generó
-     * @param enviadoEn cuándo lo aceptó el servidor de correo, o {@code null}
+     * @param enviadoEn cuándo lo aceptó el servicio de correo (no es la hora de entrega), o {@code null}
      */
     public record AvisoDto(String tipo, String estado, String estadoTexto, BigDecimal precioAnterior,
                            BigDecimal precioActual, OffsetDateTime creadoEn, OffsetDateTime enviadoEn) {
@@ -79,10 +79,10 @@ public record SeguimientoDto(long ofertaId, String titulo, String tienda, String
 
     private static AvisoDto aviso(AvisoSeguimiento aviso) {
         String texto = switch (aviso.getEstado()) {
-            case ENVIADO -> "Enviado";
+            case ENVIADO -> "Aceptado por el servicio de correo";
             case PENDIENTE -> aviso.getUltimoError() == null ? "Por enviar"
                     : "Por enviar: " + aviso.getUltimoError();
-            case FALLIDO -> "No se pudo enviar";
+            case FALLIDO -> "No se pudo enviar" + (aviso.getUltimoError() == null ? "" : ": " + aviso.getUltimoError());
             case DESCARTADO -> "No se envió: " + (aviso.getUltimoError() == null ? "ya no aplicaba" : aviso.getUltimoError());
         };
         return new AvisoDto(aviso.getTipo().name().toLowerCase(Locale.ROOT), aviso.getEstado().name().toLowerCase(Locale.ROOT),

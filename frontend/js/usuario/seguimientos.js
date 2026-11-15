@@ -1,5 +1,5 @@
 /**
- * "Seguir producto" y "Mis seguimientos". Para seguir un producto el correo debe estar verificado: los avisos se
+ * "Seguir producto" y "Seguimientos". Para seguir un producto el correo debe estar verificado: los avisos se
  * mandan a ese correo. Si el servidor no tiene correo configurado, se dice: nunca se finge que se mandó algo.
  */
 
@@ -86,12 +86,23 @@ async function enviarSeguimiento(evento) {
     }
 }
 
-async function pedirVerificacion(zona) {
+let pidiendoVerificacion = false;
+
+async function pedirVerificacion(zona, origen) {
+    // Dos clics seguidos no piden dos enlaces (el servidor también lo impide).
+    if (pidiendoVerificacion) return;
+    pidiendoVerificacion = true;
+    if (origen) origen.disabled = true;
     try {
-        await pedirVerificacionCorreo();
-        avisar(zona, 'Le enviamos un correo con un enlace. Ábralo para verificar su correo; vence en 24 horas.');
+        const respuesta = await pedirVerificacionCorreo();
+        // "Aceptado" por el servicio de correo, no "entregado": así se dice.
+        avisar(zona, respuesta?.mensaje || 'El servicio de correo aceptó el enlace. Puede tardar unos minutos en llegar; '
+            + 'revise también la carpeta de spam.');
     } catch (error) {
         avisar(zona, error.message, 'error');
+    } finally {
+        pidiendoVerificacion = false;
+        if (origen) origen.disabled = false;
     }
 }
 
@@ -179,10 +190,15 @@ function pintarCorreo(estadoCorreo) {
         zona.append(crear('p', null, `Los avisos llegan a ${estadoCorreo.correo}, que ya está verificado.`));
     } else {
         zona.append(crear('p', null, `Para recibir avisos, verifique su correo ${estadoCorreo.correo}.`));
+        if (estadoCorreo.ultimo_envio?.texto) {
+            const cuando = estadoCorreo.ultimo_envio.aceptado_en || estadoCorreo.ultimo_envio.pedido_en;
+            zona.append(crear('p', 'ayuda', `${estadoCorreo.ultimo_envio.texto}${cuando ? ` (${fechaHora(cuando)})` : ''}`));
+        }
         const resultado = crear('p', 'aviso-formulario');
         resultado.setAttribute('role', 'status');
         resultado.hidden = true;
-        zona.append(boton('Enviarme el enlace para verificar', 'boton-principal', () => pedirVerificacion(resultado)), resultado);
+        const pedir = boton('Enviarme el enlace para verificar', 'boton-principal', () => pedirVerificacion(resultado, pedir));
+        zona.append(pedir, resultado);
     }
     const horas = Math.round((estadoCorreo.frecuencia_minutos || 0) / 60);
     zona.append(crear('p', 'ayuda', `Revisamos los precios aproximadamente cada ${horas >= 1 ? `${horas} ${horas === 1 ? 'hora' : 'horas'}`
@@ -190,7 +206,7 @@ function pintarCorreo(estadoCorreo) {
         + 'con el mismo vendedor y el mismo modelo.'));
 }
 
-/** Carga "Mis seguimientos". */
+/** Carga "Seguimientos". */
 export async function cargarSeguimientos(mensaje) {
     const estado = $('estado-seguimientos');
     const lista = $('lista-seguimientos');
@@ -215,5 +231,5 @@ export function iniciarSeguimientos() {
     document.querySelectorAll('input[name="seguir-tipo"]').forEach((opcion) => opcion.addEventListener('change', () => {
         $('campo-objetivo').hidden = !$('seguir-tipo-objetivo').checked;
     }));
-    $('seguir-verificar').addEventListener('click', () => pedirVerificacion($('resultado-seguir')));
+    $('seguir-verificar').addEventListener('click', (evento) => pedirVerificacion($('resultado-seguir'), evento.currentTarget));
 }

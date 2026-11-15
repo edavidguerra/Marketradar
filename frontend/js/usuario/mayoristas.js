@@ -1,5 +1,5 @@
 /**
- * Sección "Al por mayor": busca en Alibaba (a través del servidor, que guarda la clave de API.SH) y calcula el
+ * Sección "Emprender" (compras al por mayor): busca en Alibaba (a través del servidor, que guarda la clave de API.SH) y calcula el
  * subtotal de la mercancía para la cantidad pedida, con el pedido mínimo y las escalas de precio del proveedor.
  * Nunca muestra envío, impuestos ni fechas de entrega: no se conocen. La compra se hace en Alibaba.
  */
@@ -11,15 +11,46 @@ import { dinero, fechaHora, pesos } from '../comun/formato.js';
 const $ = (id) => document.getElementById(id);
 const estado = {
     termino: '', cantidad: 0, unidad: 'PIEZA', pagina: 1, siguiente: null, configurado: null, variante: null,
+    /** Variante elegida por oferta (id → variante): la lista y el detalle calculan con la misma. */
+    variantes: new Map(),
+    /** Número de la última solicitud: las respuestas de solicitudes anteriores se ignoran. */
+    solicitud: 0,
+    cargando: false,
 };
 
-/** Lee la cantidad: un entero entre 1 y 10.000.000, sin puntos ni comas. */
-export function leerCantidad(texto) {
-    const limpio = String(texto ?? '').trim().replace(/[.\s]/g, '');
-    if (!/^\d{1,8}$/.test(limpio)) return NaN;
-    const numero = Number(limpio);
-    return numero >= 1 && numero <= 10_000_000 ? numero : NaN;
+export const CANTIDAD_MAXIMA = 10_000_000;
+
+/**
+ * Lee la cantidad con las mismas reglas que el servidor (ControladorMayoristas.cantidad): un entero entre 1 y
+ * 10.000.000. Se aceptan los miles con punto solo en grupos completos de tres ("10.000"); "1.5", "1,5", "1 5",
+ * negativos y decimales se rechazan en vez de leerse como otra cantidad.
+ *
+ * @returns {{ valor: number|null, error: string|null }}
+ */
+export function interpretarCantidad(texto) {
+    const limpio = String(texto ?? '').trim();
+    if (!limpio) return { valor: null, error: 'Escriba la cantidad que quiere comprar.' };
+    if (/^-\s*[\d.,]+$/.test(limpio)) return { valor: null, error: 'La cantidad debe estar entre 1 y 10.000.000.' };
+    if (!/^(\d{1,8}|\d{1,3}(\.\d{3}){1,2})$/.test(limpio)) {
+        return {
+            valor: null,
+            error: 'Escriba la cantidad con números enteros, sin decimales (por ejemplo 500 o 10.000). Los miles van con punto.',
+        };
+    }
+    const valor = Number(limpio.replace(/\./g, ''));
+    if (valor < 1 || valor > CANTIDAD_MAXIMA) {
+        return { valor: null, error: 'La cantidad debe estar entre 1 y 10.000.000.' };
+    }
+    return { valor, error: null };
 }
+
+/** Lee la cantidad: el número, o NaN si no es válida. */
+export function leerCantidad(texto) {
+    const { valor } = interpretarCantidad(texto);
+    return valor == null ? NaN : valor;
+}
+
+const textoCantidad = (cantidad) => cantidad.toLocaleString('es-CO');
 
 function crearEscalas(oferta, calculo) {
     if (!oferta.escalas.length) return crear('p', 'ayuda', 'Escalas de precio: No disponible');
@@ -89,8 +120,16 @@ function crearOferta(oferta, { conVariantes = false } = {}) {
     }
     const cuerpo = crear('div', 'tarjeta-cuerpo');
     if (oferta.patrocinado) cuerpo.append(crear('p', 'etiqueta-anuncio', 'Anuncio pagado'));
-    if (oferta.posicion === 1) cuerpo.append(crear('p', 'etiqueta-mejor', '★ Subtotal más bajo para su cantidad'));
-    else if (oferta.posicion) cuerpo.append(crear('p', 'ayuda', `Puesto ${oferta.posicion} por subtotal`));
+    if (oferta.posicion === 1 && !oferta.empate) {
+        cuerpo.append(crear('p', 'etiqueta-mejor', '★ Subtotal más bajo entre las ofertas cargadas'));
+    } else if (oferta.posicion === 1) {
+        cuerpo.append(crear('p', 'etiqueta-mejor', '★ Empate en el subtotal más bajo entre las ofertas cargadas'));
+    } else if (oferta.posicion) {
+        cuerpo.append(crear('p', 'ayuda', `Puesto ${oferta.posicion} por subtotal${oferta.empate ? ' (empate)' : ''}`));
+    }
+    if (oferta.relevancia === 'dudosa' && oferta.motivo_relevancia) {
+        cuerpo.append(crear('p', 'ayuda', `Coincidencia dudosa: ${oferta.motivo_relevancia}`));
+    }
     if (oferta.motivo_fuera) cuerpo.append(crear('p', 'ayuda', `Fuera del orden: ${oferta.motivo_fuera}`));
     cuerpo.append(crear('h2', null, oferta.titulo), crearCalculo(oferta));
     const datos = crear('ul', 'datos');
@@ -112,7 +151,8 @@ function crearOferta(oferta, { conVariantes = false } = {}) {
     const acciones = crear('div', 'acciones');
     acciones.append(enlaceTienda('Ver en Alibaba', oferta.url, 'Alibaba', 'boton boton-principal'));
     if (!conVariantes) {
-        acciones.append(boton('Ver variantes y detalle', 'boton-secundario', () => verDetalle(oferta.url)));
+        acciones.append(boton('Ver variantes y detalle', 'boton-secundario',
+            () => verDetalle(oferta.url, estado.variantes.get(oferta.id) ?? null, oferta.id)));
     }
     cuerpo.append(acciones);
     item.append(imagen, cuerpo);
@@ -136,67 +176,110 @@ function crearVariantes(oferta) {
         lista.append(new Option(texto, variante.id));
     });
     lista.value = estado.variante || '';
-    lista.addEventListener('change', () => verDetalle(oferta.url, lista.value || null));
+    lista.addEventListener('change', () => verDetalle(oferta.url, lista.value || null, oferta.id));
     caja.append(etiqueta, lista);
     return caja;
 }
 
-async function verDetalle(url, variante = null) {
+async function verDetalle(url, variante = null, id = null) {
     estado.variante = variante;
+    const clave = claveBusqueda();
     const zona = $('detalle-mayorista');
     zona.hidden = false;
     mostrarEstado($('estado-detalle-mayorista'), 'Consultando la ficha del producto en Alibaba…');
     try {
         const oferta = await obtenerDetalleMayorista(url, estado.cantidad, estado.unidad, variante);
+        if (clave !== claveBusqueda()) return; // La persona cambió la búsqueda mientras tanto.
         $('estado-detalle-mayorista').replaceChildren();
         const lista = $('lista-detalle-mayorista');
         lista.replaceChildren(crearOferta(oferta, { conVariantes: true }));
         if (!variante) $('titulo-detalle-mayorista').focus();
+        const ofertaId = id ?? oferta.id;
+        if (variante) estado.variantes.set(ofertaId, variante);
+        else estado.variantes.delete(ofertaId);
+        // La ficha puede cambiar el precio de la tarjeta y su lugar: se recalcula la lista con lo ya cargado (sale de la
+        // caché del servidor, no gasta consultas).
+        if (estado.termino) cargar(estado.pagina, { silencioso: true });
     } catch (error) {
-        mostrarEstado($('estado-detalle-mayorista'), error.message, () => verDetalle(url, variante));
+        mostrarEstado($('estado-detalle-mayorista'), error.message, () => verDetalle(url, variante, id));
     }
 }
 
-async function cargar() {
+const claveBusqueda = () => `${estado.termino}|${estado.cantidad}|${estado.unidad}`;
+
+/**
+ * Carga las páginas 1 a {@code hasta} en una sola respuesta: el servidor las junta, quita repetidos y ordena todas
+ * las ofertas cargadas. Si llega una respuesta de una solicitud anterior (otra búsqueda, otra cantidad), se ignora.
+ */
+async function cargar(hasta = 1, { silencioso = false } = {}) {
     const zona = $('estado-mayoristas');
-    $('mas-mayoristas').hidden = true;
-    mostrarEstado(zona, 'Buscando en Alibaba, puede tardar hasta un minuto…');
+    const numero = ++estado.solicitud;
+    const clave = claveBusqueda();
+    estado.cargando = true;
+    const mas = $('mas-mayoristas');
+    mas.disabled = true;
+    if (!silencioso) mostrarEstado(zona, 'Buscando en Alibaba, puede tardar hasta un minuto…');
     try {
-        const respuesta = await buscarMayoristas(estado.termino, estado.cantidad, estado.unidad, estado.pagina);
+        const variantes = [...estado.variantes].map(([id, variante]) => `${id}:${variante}`).join(',');
+        const respuesta = await buscarMayoristas(estado.termino, estado.cantidad, estado.unidad, hasta, variantes);
+        if (numero !== estado.solicitud || clave !== claveBusqueda()) return;
+        estado.pagina = respuesta.pagina;
         const avisos = $('avisos-mayoristas');
         avisos.replaceChildren(...respuesta.avisos.map((texto) => crear('li', null, texto)));
         avisos.hidden = respuesta.avisos.length === 0;
-        $('lista-mayoristas').append(...respuesta.ofertas.map((oferta) => crearOferta(oferta)));
-        const enOrden = respuesta.ofertas.filter((oferta) => oferta.posicion).length;
+        const principales = respuesta.ofertas.filter((oferta) => oferta.relevancia !== 'dudosa');
+        const dudosas = respuesta.ofertas.filter((oferta) => oferta.relevancia === 'dudosa');
+        $('lista-mayoristas').replaceChildren(...principales.map((oferta) => crearOferta(oferta)));
+        $('lista-dudosas-mayoristas').replaceChildren(...dudosas.map((oferta) => crearOferta(oferta)));
+        $('lista-dudosas-mayoristas').hidden = dudosas.length === 0;
+        $('titulo-dudosas-mayoristas').hidden = dudosas.length === 0;
+        const unidad = $('unidad-mayorista').selectedOptions[0]?.textContent || estado.unidad.toLowerCase();
+        const paginas = respuesta.pagina === 1 ? 'Se cargó la primera página'
+            : `Se cargaron las primeras ${respuesta.pagina} páginas`;
         mostrarEstado(zona, respuesta.ofertas.length === 0
             ? `No encontramos ofertas al por mayor para "${respuesta.termino}". Pruebe con palabras en inglés.`
-            : `Página ${respuesta.pagina}: ${respuesta.ofertas.length} ofertas para "${respuesta.termino}"; ${enOrden} con `
-              + 'precio claro para su cantidad, ordenadas de menor a mayor subtotal. ' + respuesta.nota + '.');
+            : `Cantidad: ${textoCantidad(respuesta.cantidad)} ${unidad}. ${paginas}: ${respuesta.ofertas.length} `
+              + `ofertas distintas para "${respuesta.termino}"; ${respuesta.comparables} con precio claro para su `
+              + 'cantidad, ordenadas de menor a mayor subtotal. El más bajo es entre las ofertas cargadas, no entre todo '
+              + `Alibaba. ${respuesta.nota}.`);
         estado.siguiente = respuesta.siguiente_pagina;
-        $('mas-mayoristas').hidden = !estado.siguiente;
+        mas.hidden = !estado.siguiente;
     } catch (error) {
-        mostrarEstado(zona, error.message, cargar);
+        if (numero !== estado.solicitud) return;
+        mostrarEstado(zona, error.message, () => cargar(hasta));
+    } finally {
+        if (numero === estado.solicitud) {
+            estado.cargando = false;
+            mas.disabled = false;
+        }
     }
 }
 
 function enviar(evento) {
     evento.preventDefault();
     const termino = $('termino-mayorista').value.trim();
-    const cantidad = leerCantidad($('cantidad-mayorista').value);
+    const lectura = interpretarCantidad($('cantidad-mayorista').value);
+    const cantidad = lectura.valor;
     const error = $('error-mayorista');
     let mensaje = '';
     if (termino.length < 2 || termino.length > 100) mensaje = 'Escriba qué producto busca (entre 2 y 100 letras).';
-    else if (Number.isNaN(cantidad)) mensaje = 'Escriba la cantidad con números enteros, entre 1 y 10.000.000.';
+    else if (lectura.error) mensaje = lectura.error;
     error.textContent = mensaje;
     error.hidden = !mensaje;
     if (mensaje) {
         (termino.length < 2 || termino.length > 100 ? $('termino-mayorista') : $('cantidad-mayorista')).focus();
         return;
     }
-    Object.assign(estado, { termino, cantidad, unidad: $('unidad-mayorista').value, pagina: 1, variante: null });
+    Object.assign(estado, {
+        termino, cantidad, unidad: $('unidad-mayorista').value, pagina: 1, siguiente: null, variante: null,
+    });
+    estado.variantes.clear();
     $('lista-mayoristas').replaceChildren();
+    $('lista-dudosas-mayoristas').replaceChildren();
+    $('lista-dudosas-mayoristas').hidden = true;
+    $('titulo-dudosas-mayoristas').hidden = true;
     $('detalle-mayorista').hidden = true;
-    cargar();
+    cargar(1);
 }
 
 /** Al mostrar la sección: dice si el servidor tiene la clave de API.SH y llena las unidades. */
@@ -218,8 +301,8 @@ export async function cargarMayoristas() {
 export function iniciarMayoristas() {
     $('formulario-mayoristas').addEventListener('submit', enviar);
     $('mas-mayoristas').addEventListener('click', () => {
-        if (!estado.siguiente) return;
-        estado.pagina = estado.siguiente;
-        cargar();
+        // Varias pulsaciones seguidas no piden varias veces la misma página.
+        if (!estado.siguiente || estado.cargando) return;
+        cargar(estado.siguiente);
     });
 }

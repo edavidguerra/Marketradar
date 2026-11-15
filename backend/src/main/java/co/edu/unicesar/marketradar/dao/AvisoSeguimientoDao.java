@@ -58,8 +58,19 @@ public interface AvisoSeguimientoDao {
      */
     Optional<Pendiente> tomar(long id, int minutosApartado);
 
-    /** @param id aviso enviado */
+    /** @param id aviso que el servicio de correo aceptó */
     void marcarEnviado(long id);
+
+    /**
+     * Marca el aviso como aceptado por el servicio de correo (estado {@code ENVIADO}; no confirma la entrega) y guarda
+     * quién lo aceptó.
+     *
+     * @param id aviso
+     * @param resultado proveedor e identificador del mensaje
+     */
+    default void marcarAceptado(long id, co.edu.unicesar.marketradar.correo.ResultadoEnvio resultado) {
+        marcarEnviado(id);
+    }
 
     /**
      * Registra un intento que no se pudo mandar.

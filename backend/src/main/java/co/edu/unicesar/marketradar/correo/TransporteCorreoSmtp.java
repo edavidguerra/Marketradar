@@ -6,7 +6,6 @@ import jakarta.mail.internet.MimeMessage;
 import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
-import org.springframework.stereotype.Component;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
@@ -14,9 +13,10 @@ import java.util.Properties;
 
 /**
  * Manda los correos por SMTP con los datos de {@link PropiedadesCorreo}. Sin servidor configurado no manda nada y lo
- * dice: nunca se da por enviado un correo que no salió.
+ * dice: nunca se da por enviado un correo que no salió. Sirve donde la salida SMTP está permitida (por ejemplo en un
+ * computador o un servidor propio); en el plan gratis de Render no, porque bloquea los puertos 25, 465 y 587: allí se
+ * usa {@link TransporteCorreoHttp}. Lo crea {@link ConfiguracionCorreo}.
  */
-@Component
 public class TransporteCorreoSmtp implements TransporteCorreo {
 
     private final PropiedadesCorreo propiedades;
@@ -24,7 +24,8 @@ public class TransporteCorreoSmtp implements TransporteCorreo {
 
     public TransporteCorreoSmtp(PropiedadesCorreo propiedades) {
         this.propiedades = propiedades;
-        this.remitente = propiedades.configurado() ? crear(propiedades) : null;
+        this.remitente = propiedades.host() != null && !propiedades.host().isBlank() && propiedades.remitente() != null
+                && !propiedades.remitente().isBlank() ? crear(propiedades) : null;
     }
 
     private static JavaMailSenderImpl crear(PropiedadesCorreo propiedades) {
@@ -54,7 +55,12 @@ public class TransporteCorreoSmtp implements TransporteCorreo {
     }
 
     @Override
-    public void enviar(MensajeCorreo mensaje) {
+    public String nombre() {
+        return "smtp";
+    }
+
+    @Override
+    public ResultadoEnvio enviar(MensajeCorreo mensaje) {
         if (remitente == null) {
             throw new CorreoNoEnviadoException("El envío de correos no está configurado (falta SMTP_HOST o CORREO_REMITENTE)");
         }
@@ -67,9 +73,13 @@ public class TransporteCorreoSmtp implements TransporteCorreo {
             ayudante.setSubject(mensaje.asunto());
             ayudante.setText(mensaje.texto(), mensaje.html());
             remitente.send(mime);
+            return new ResultadoEnvio("smtp", mime.getMessageID());
         } catch (MailException | MessagingException | UnsupportedEncodingException e) {
             // Solo el tipo de error: el mensaje de JavaMail puede traer el usuario del servidor.
-            throw new CorreoNoEnviadoException("El servidor de correo no aceptó el mensaje (" + e.getClass().getSimpleName() + ")");
+            boolean conexion = e instanceof org.springframework.mail.MailSendException
+                    && String.valueOf(e.getMessage()).contains("Couldn't connect");
+            throw new CorreoNoEnviadoException("El servidor de correo no aceptó el mensaje (" + e.getClass().getSimpleName()
+                    + (conexion ? ": no se pudo conectar al puerto " + propiedades.puerto() : "") + ")");
         }
     }
 }

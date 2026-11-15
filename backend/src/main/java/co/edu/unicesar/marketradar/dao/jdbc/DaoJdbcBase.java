@@ -25,6 +25,11 @@ public abstract class DaoJdbcBase {
         this.dataSource = dataSource;
     }
 
+    /** @return la fuente de conexiones, para lo que necesita una conexión propia (por ejemplo un bloqueo asesor) */
+    protected DataSource fuenteDatos() {
+        return dataSource;
+    }
+
     /** Asigna los parámetros de una sentencia preparada. */
     @FunctionalInterface
     protected interface Parametros {

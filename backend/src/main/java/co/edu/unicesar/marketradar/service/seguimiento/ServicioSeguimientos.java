@@ -21,7 +21,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
- * "Seguir producto" y "Mis seguimientos": cada seguimiento es de la persona con sesión y de una oferta concreta. Al
+ * "Seguir producto" y "Seguimientos": cada seguimiento es de la persona con sesión y de una oferta concreta. Al
  * activarlo se guarda el precio, el vendedor, la condición y la variante de esa oferta, y se manda la confirmación al
  * correo verificado.
  */
