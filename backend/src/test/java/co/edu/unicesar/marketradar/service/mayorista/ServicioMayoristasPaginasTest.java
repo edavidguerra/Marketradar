@@ -44,11 +44,13 @@ class ServicioMayoristasPaginasTest {
 
     private static final ObjectMapper JSON = new ObjectMapper();
     private ClienteAlibabaApiSh cliente;
+    private FichasSimuladas fichas;
 
     @BeforeEach
     void preparar() {
         cliente = mock(ClienteAlibabaApiSh.class);
         when(cliente.estaConfigurado()).thenReturn(true);
+        fichas = FichasSimuladas.en(cliente);
     }
 
     private ServicioMayoristas servicio(int detalles) {
@@ -67,6 +69,7 @@ class ServicioMayoristasPaginasTest {
     }
 
     private void paginas(List<OfertaMayorista> uno, List<OfertaMayorista> dos) {
+        fichas.iguales(uno).iguales(dos);
         when(cliente.buscar(anyString(), eq(1))).thenReturn(new LectorRespuestasAlibaba.Pagina(uno, 2, 0, null, false));
         when(cliente.buscar(anyString(), eq(2))).thenReturn(new LectorRespuestasAlibaba.Pagina(dos, 3, 0, null, false));
     }
@@ -95,6 +98,9 @@ class ServicioMayoristasPaginasTest {
         assertEquals("1600000000099", primeros.get(0).oferta().id());
         assertEquals(2, ambas.resultados().get(1).posicion(), "El de US$85 baja al puesto 2");
         assertEquals(9, ambas.comparables());
+        assertEquals(0, ambas.verificadas(), "Sin presupuesto de fichas, ninguna se verificó");
+        assertNull(ambas.ganadoraId(), "Ninguna se anuncia como ganadora validada");
+        assertTrue(ambas.resultados().stream().allMatch(ServicioMayoristas.Resultado::preliminar));
         assertTrue(ambas.descartados() >= 7);
         verify(cliente, times(1)).buscar(anyString(), eq(1)); // La página 1 salió de la caché la segunda vez.
     }
@@ -118,15 +124,16 @@ class ServicioMayoristasPaginasTest {
                 UnidadVenta.PAR, UnidadVenta.PAR, null, List.of(new EscalaPrecio(12, null, new BigDecimal("0.49"))),
                 new BigDecimal("0.49"), new BigDecimal("0.60"), "USD", null, List.of(), null, "busqueda");
         paginas(List.of(barata, aretes("1600000000002", "B", "1.20")), List.of());
-        when(cliente.producto(anyString())).thenReturn(JSON.readTree("""
+        fichas.ficha(barata, """
                 {"id":"1600000000049","title":"Stainless Steel Huggie Earrings","url":"https://www.alibaba.com/product-detail/x_1600000000049.html",
                  "price":{"currency":"USD","unit":"pairs","range":"Precio por determinar"},
                  "skus":[{"id":"sku-1","price":5.00,"options":["Dorado"]},{"id":"sku-2","price":5.00,"options":["Plata"]}],
-                 "supplier":{"name":"Yiwu"}}"""));
+                 "supplier":{"name":"Yiwu"}}""");
         ServicioMayoristas.Busqueda b = servicio(4).buscar("stainless steel earrings", 100, UnidadVenta.PAR, 1);
         ServicioMayoristas.Resultado primero = b.resultados().get(0);
         assertEquals("1600000000002", primero.oferta().id(), "La de US$0,49 ya no es la más barata");
         assertEquals(1, primero.posicion());
+        assertEquals("1600000000002", b.ganadoraId());
         ServicioMayoristas.Resultado dudosa = b.resultados().stream()
                 .filter(r -> r.oferta().id().equals("1600000000049")).findFirst().orElseThrow();
         assertNull(dudosa.posicion());
@@ -142,17 +149,20 @@ class ServicioMayoristasPaginasTest {
 
     @Test
     void elDetalleYaConsultadoActualizaLaListaSinGastarConsultas() throws Exception {
-        paginas(List.of(aretes("1600000000001", "A", "2.00"), aretes("1600000000002", "B", "3.00")), List.of());
-        when(cliente.producto(anyString())).thenReturn(JSON.readTree("""
+        OfertaMayorista a = aretes("1600000000001", "A", "2.00");
+        paginas(List.of(a, aretes("1600000000002", "B", "3.00")), List.of());
+        fichas.ficha(a, """
                 {"id":"1600000000001","title":"Stainless Steel Earrings model 1600000000001","url":"https://www.alibaba.com/product-detail/x_1600000000001.html",
                  "price":{"currency":"USD","unit":"pairs","tiers":[{"min_quantity":1,"max_quantity":null,"price":4.00}]},
-                 "min_order":{"quantity":1,"unit":"pairs"}}"""));
+                 "min_order":{"quantity":1,"unit":"pairs"}}""");
         ServicioMayoristas s = servicio(4);
         s.detalle("1600000000001", 10, UnidadVenta.PAR, null);
         ServicioMayoristas.Busqueda b = s.buscar("stainless steel earrings", 10, UnidadVenta.PAR, 1);
         // La ficha dice 4,00 y la búsqueda 2,00: se contradicen y queda fuera; la otra pasa a ser la primera.
         assertEquals("1600000000002", b.resultados().get(0).oferta().id());
-        verify(cliente, times(1)).producto(anyString());
+        assertEquals("1600000000002", b.ganadoraId(), "La siguiente se verificó y pasa a ser la ganadora");
+        verify(cliente, times(1)).producto("1600000000001");
+        verify(cliente, never()).producto(a.url()); // En la búsqueda, la ficha de A salió de la caché.
     }
 
     @Test
@@ -166,8 +176,8 @@ class ServicioMayoristasPaginasTest {
                     "busqueda"));
         }
         paginas(dudosas, List.of());
-        when(cliente.producto(anyString())).thenThrow(new ApiShException(ApiShException.Tipo.NO_DISPONIBLE,
-                "timeout", null));
+        org.mockito.Mockito.doThrow(new ApiShException(ApiShException.Tipo.NO_DISPONIBLE, "timeout", null))
+                .when(cliente).producto(anyString());
         ServicioMayoristas s = servicio(4);
         ServicioMayoristas.Busqueda b = s.buscar("stainless steel earrings", 10, UnidadVenta.PAR, 1);
         verify(cliente, times(2)).producto(anyString());
@@ -214,12 +224,13 @@ class ServicioMayoristasPaginasTest {
 
     @Test
     void laVarianteElegidaSeUsaEnLaListaYSiNoCuadraSaleDelOrden() throws Exception {
-        paginas(List.of(aretes("1600000000001", "A", "2.00"), aretes("1600000000002", "B", "3.00")), List.of());
-        when(cliente.producto(anyString())).thenReturn(JSON.readTree("""
+        OfertaMayorista a = aretes("1600000000001", "A", "2.00");
+        paginas(List.of(a, aretes("1600000000002", "B", "3.00")), List.of());
+        fichas.ficha(a, """
                 {"id":"1600000000001","title":"Stainless Steel Earrings model 1600000000001","url":"https://www.alibaba.com/product-detail/x_1600000000001.html",
                  "price":{"currency":"USD","unit":"pairs","tiers":[{"min_quantity":1,"max_quantity":null,"price":2.00}]},
                  "min_order":{"quantity":1,"unit":"pairs"},
-                 "skus":[{"id":"sku-1","price":2.00,"options":["Dorado"]},{"id":"sku-2","price":6.00,"options":["Rosa"]}]}"""));
+                 "skus":[{"id":"sku-1","price":2.00,"options":["Dorado"]},{"id":"sku-2","price":6.00,"options":["Rosa"]}]}""");
         ServicioMayoristas s = servicio(4);
         ServicioMayoristas.Busqueda conDorado = s.buscar("stainless steel earrings", 10, UnidadVenta.PAR, 1,
                 Map.of("1600000000001", "sku-1"));
@@ -229,7 +240,7 @@ class ServicioMayoristasPaginasTest {
                 Map.of("1600000000001", "sku-2"));
         assertEquals("1600000000002", conRosa.resultados().get(0).oferta().id(),
                 "Con la variante de otro precio sin escala, la oferta sale del orden");
-        verify(cliente, times(1)).producto(anyString());
+        verify(cliente, times(1)).producto(a.url());
     }
 
     @Test
@@ -247,9 +258,18 @@ class ServicioMayoristasPaginasTest {
     }
 
     @Test
-    void sinNecesidadNoPideFichas() {
-        paginas(List.of(aretes("1600000000001", "A", "2.00")), List.of());
-        servicio(4).buscar("stainless steel earrings", 10, UnidadVenta.PAR, 1);
-        verify(cliente, never()).producto(anyString());
+    void soloPideLasFichasDeLasMasBaratasYNoTodas() {
+        List<OfertaMayorista> varias = new ArrayList<>();
+        for (int i = 0; i < 6; i++) {
+            varias.add(aretes("16000000001" + (10 + i), "P" + i, String.valueOf(2 + i)));
+        }
+        paginas(varias, List.of());
+        ServicioMayoristas.Busqueda b = servicio(4).buscar("stainless steel earrings", 10, UnidadVenta.PAR, 1);
+        // Se verifican la ganadora y la siguiente; las demás quedan con precio preliminar.
+        verify(cliente, times(2)).producto(anyString());
+        verify(cliente, never()).producto(varias.get(5).url());
+        assertEquals(2, b.verificadas());
+        assertEquals(varias.get(0).id(), b.ganadoraId());
+        assertEquals(4, b.resultados().stream().filter(ServicioMayoristas.Resultado::preliminar).count());
     }
 }

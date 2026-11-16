@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.Normalizer;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -49,6 +50,10 @@ public final class NormalizadorEspecificaciones {
             Pattern.compile("\\b(\\d{1,2})\\s?(?:gb)?\\s?[+/]\\s?(\\d{2,4})\\s?(gb|tb)\\b");
     private static final Pattern RAM_ANTES = Pattern.compile("\\b(\\d{1,2})\\s?gb\\s?(?:de\\s)?(?:memoria\\s)?ram\\b");
     private static final Pattern RAM_DESPUES = Pattern.compile("\\bram\\s?(?:de\\s)?(\\d{1,2})\\s?gb\\b");
+    private static final Pattern ALMACENAMIENTO_DESPUES = Pattern.compile(
+            "\\b(\\d{1,4})\\s?(gb|tb)\\s?(?:de\\s)?(?:almacenamiento|rom|internos?|internas?|ssd|hdd)\\b");
+    private static final Pattern ALMACENAMIENTO_ANTES = Pattern.compile(
+            "\\b(?:almacenamiento|rom|ssd|hdd)\\s?(?:interno\\s|interna\\s)?(?:de\\s)?(\\d{1,4})\\s?(gb|tb)\\b");
     private static final Pattern CAPACIDAD_DIGITAL = Pattern.compile("\\b(\\d{1,4})\\s?(gb|tb|gigas?|teras?)\\b");
     private static final Pattern PANTALLA = Pattern.compile(
             "(?<![\\d.,])" + NUM + "\\s?(\"|pulgadas|pulgada|pulg\\b\\.?|inch(?:es)?\\b)");
@@ -233,37 +238,23 @@ public final class NormalizadorEspecificaciones {
         if (texto.isEmpty()) {
             return;
         }
-        Set<String> usados = new LinkedHashSet<>();
-        Matcher combo = RAM_Y_ALMACENAMIENTO.matcher(texto);
-        if (combo.find() && Integer.parseInt(combo.group(1)) <= 32) {
-            poner(encontradas, nueva("ram", combo.group(1) + " GB", new BigDecimal(combo.group(1)), fuente));
-            poner(encontradas, capacidadDigital("almacenamiento", combo.group(2), combo.group(3), fuente));
-            usados.add(combo.group());
+        Capacidades capacidades = leerCapacidades(texto);
+        if (!capacidades.ram().isEmpty()) {
+            int gb = capacidades.ram().iterator().next();
+            poner(encontradas, nueva("ram", gb + " GB", BigDecimal.valueOf(gb), fuente));
         }
-        for (Pattern patron : List.of(RAM_ANTES, RAM_DESPUES)) {
-            Matcher ram = patron.matcher(texto);
-            if (ram.find()) {
-                poner(encontradas, nueva("ram", ram.group(1) + " GB", new BigDecimal(ram.group(1)), fuente));
-                usados.add(ram.group());
-            }
-        }
-        String sinRam = texto;
-        for (String usado : usados) {
-            sinRam = sinRam.replace(usado, " ");
-        }
-        // Una capacidad suelta solo es el almacenamiento si es de 32 GB o más (las menores suelen ser la RAM) y si es
-        // la única: con dos distintas no se sabe cuál es cuál.
-        Set<Integer> candidatas = new TreeSet<>();
-        Matcher capacidad = CAPACIDAD_DIGITAL.matcher(sinRam);
-        while (capacidad.find()) {
-            int gb = gigas(capacidad.group(1), capacidad.group(2));
-            if (gb >= 32) {
-                candidatas.add(gb);
-            }
-        }
-        if (candidatas.size() == 1) {
-            int gb = candidatas.iterator().next();
+        if (!capacidades.almacenamiento().isEmpty()) {
+            int gb = capacidades.almacenamiento().iterator().next();
             poner(encontradas, nueva("almacenamiento", textoGigas(gb), BigDecimal.valueOf(gb), fuente));
+        } else {
+            // Una capacidad suelta solo es el almacenamiento si es de 32 GB o más (las menores suelen ser la RAM) y si
+            // es la única: con dos distintas no se sabe cuál es cuál.
+            Set<Integer> candidatas = new TreeSet<>();
+            capacidades.sueltas().stream().filter(gb -> gb >= 32).forEach(candidatas::add);
+            if (candidatas.size() == 1) {
+                int gb = candidatas.iterator().next();
+                poner(encontradas, nueva("almacenamiento", textoGigas(gb), BigDecimal.valueOf(gb), fuente));
+            }
         }
         Matcher pantalla = PANTALLA.matcher(texto);
         if (pantalla.find()) {
@@ -423,6 +414,69 @@ public final class NormalizadorEspecificaciones {
 
     private static Especificacion nueva(String clave, String valor, BigDecimal numero, String fuente) {
         return new Especificacion(clave, etiqueta(clave), valor, numero, fuente);
+    }
+
+    /**
+     * Capacidades de un texto separadas por lo que dicen ser. La búsqueda ({@link RequisitosBusqueda}) y la tabla de
+     * comparación leen el mismo título con esta misma regla.
+     *
+     * @param ram capacidades unidas a la palabra RAM ("4 GB RAM", "RAM de 6 GB") o primeras de "4+128 GB", en GB
+     * @param almacenamiento capacidades que el texto dice que son almacenamiento ("128 GB de almacenamiento",
+     *                       "256 GB ROM", segunda de "4+128 GB"), en GB
+     * @param sueltas las demás ("128 GB" sola): no se sabe si son RAM o almacenamiento
+     */
+    public record Capacidades(Set<Integer> ram, Set<Integer> almacenamiento, Set<Integer> sueltas) {
+    }
+
+    /**
+     * Lee las capacidades de un título o de una búsqueda.
+     *
+     * @param texto texto tal como llega
+     * @return capacidades separadas en RAM, almacenamiento y sueltas (1 TB = 1024 GB)
+     */
+    public static Capacidades capacidades(String texto) {
+        return leerCapacidades(preparar(texto));
+    }
+
+    private static Capacidades leerCapacidades(String texto) {
+        Set<Integer> ram = new LinkedHashSet<>();
+        Set<Integer> almacenamiento = new LinkedHashSet<>();
+        Set<Integer> sueltas = new LinkedHashSet<>();
+        String resto = texto;
+        Matcher combo = RAM_Y_ALMACENAMIENTO.matcher(resto);
+        if (combo.find() && Integer.parseInt(combo.group(1)) <= 32) {
+            ram.add(Integer.parseInt(combo.group(1)));
+            almacenamiento.add(gigas(combo.group(2), combo.group(3)));
+            resto = resto.replace(combo.group(), " ");
+        }
+        for (Pattern patron : List.of(RAM_ANTES, RAM_DESPUES)) {
+            Matcher leida = patron.matcher(resto);
+            List<String> usados = new ArrayList<>();
+            while (leida.find()) {
+                ram.add(Integer.parseInt(leida.group(1)));
+                usados.add(leida.group());
+            }
+            for (String usado : usados) {
+                resto = resto.replace(usado, " ");
+            }
+        }
+        for (Pattern patron : List.of(ALMACENAMIENTO_DESPUES, ALMACENAMIENTO_ANTES)) {
+            Matcher leida = patron.matcher(resto);
+            List<String> usados = new ArrayList<>();
+            while (leida.find()) {
+                almacenamiento.add(gigas(leida.group(1), leida.group(2)));
+                usados.add(leida.group());
+            }
+            for (String usado : usados) {
+                resto = resto.replace(usado, " ");
+            }
+        }
+        Matcher suelta = CAPACIDAD_DIGITAL.matcher(resto);
+        while (suelta.find()) {
+            sueltas.add(gigas(suelta.group(1), suelta.group(2)));
+        }
+        return new Capacidades(Collections.unmodifiableSet(ram), Collections.unmodifiableSet(almacenamiento),
+                Collections.unmodifiableSet(sueltas));
     }
 
     /** Minúsculas y sin tildes, pero conserva comillas, puntos, comas, "+" y "/" para leer medidas. */

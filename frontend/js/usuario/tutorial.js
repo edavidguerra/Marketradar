@@ -29,6 +29,34 @@ function ejemploBotones(...textos) {
     return ejemplo;
 }
 
+/**
+ * Qué hace el botón de una oferta según su destino real (el tipo de enlace que manda el servidor). Sin una oferta
+ * cargada se explican los dos casos.
+ *
+ * @param destino 'directo', 'redireccion', 'pagina_google', 'busqueda_google' o nada
+ */
+export function textoIrALaTienda(destino) {
+    const cierre = ' La compra se hace allá, no en Marketradar. Revise que el precio sea el mismo.';
+    switch (destino) {
+        case 'directo':
+        case 'redireccion':
+            return `Este botón abre la publicación de esta oferta en la tienda.${cierre}`;
+        case 'pagina_google':
+            return 'Este botón abre la ficha del producto en Google Shopping, donde aparecen las tiendas que lo venden. '
+                + `Elija allí la tienda.${cierre}`;
+        case 'busqueda_google':
+            return 'Este botón no abre la tienda directamente: busca la oferta en Google, porque la tienda no nos dio '
+                + `un enlace directo. Busque en los resultados la misma tienda y el mismo producto.${cierre}`;
+        default:
+            return 'Algunos botones abren directamente la publicación en la tienda («Ver la oferta en…») y otros buscan '
+                + `la oferta en Google («Buscar esta oferta en Google»). El texto del botón le dice a dónde lleva.${cierre}`;
+    }
+}
+
+/** El texto del paso; si depende de lo que se señala, se calcula con ese elemento (o null si no hay). */
+const textoDelPaso = (paso, objetivo = visible(paso.objetivo)) => (typeof paso.texto === 'function'
+    ? paso.texto(objetivo) : paso.texto);
+
 function escribirEjemplo() {
     const campo = document.getElementById('campo-busqueda');
     campo.value = 'tensiómetro';
@@ -119,9 +147,9 @@ export const TEMAS = [
             {
                 objetivo: '#lista-resultados .tarjeta .acciones a',
                 titulo: 'Ir a la tienda',
-                texto: 'Este botón abre la página de la tienda. La compra se hace allá, no en Marketradar. Revise que '
-                    + 'el precio sea el mismo.',
-                ejemplo: () => ejemploBotones('Ver la oferta en la tienda'),
+                // El texto depende de a dónde lleva el botón de la oferta que se señala (sus datos de enlace).
+                texto: (boton) => textoIrALaTienda(boton?.dataset?.destino),
+                ejemplo: () => ejemploBotones('Ver la oferta en la tienda', 'Buscar esta oferta en Google'),
             },
             {
                 objetivo: '#filtro-precio',
@@ -389,6 +417,10 @@ class Recorrido {
         // Espera a que la sección se pinte antes de buscar lo que hay que señalar.
         requestAnimationFrame(() => requestAnimationFrame(() => {
             this.objetivo = visible(paso.objetivo);
+            if (typeof paso.texto === 'function') {
+                const texto = this.globo.querySelector('#recorrido-texto');
+                if (texto) texto.textContent = textoDelPaso(paso, this.objetivo);
+            }
             this.globo.querySelector('.recorrido-ejemplo')?.toggleAttribute('hidden', Boolean(this.objetivo));
             if (this.objetivo) this.mostrarObjetivo();
             this.ubicar();
@@ -430,7 +462,7 @@ class Recorrido {
         const titulo = crear('h2', null, paso.titulo);
         titulo.id = 'recorrido-titulo';
         titulo.tabIndex = -1;
-        const texto = crear('p', 'recorrido-texto', paso.texto);
+        const texto = crear('p', 'recorrido-texto', textoDelPaso(paso));
         texto.id = 'recorrido-texto';
         const contenido = [cabecera, barra, titulo, texto];
         if (paso.ejemplo) contenido.push(paso.ejemplo());

@@ -111,6 +111,8 @@ export function enlaceTienda(texto, url, nombreTienda, clase = 'boton boton-prin
     elemento.href = url;
     elemento.target = '_blank';
     elemento.rel = 'noopener noreferrer';
+    // A dónde lleva de verdad (tienda, Google Shopping o búsqueda en Google): lo usa el tutorial.
+    if (enlace?.tipo) elemento.dataset.destino = enlace.tipo;
     elemento.addEventListener('click', (evento) => {
         if (!window.confirm(avisoAntesDeAbrir(dominio, nombreTienda, enlace, url))) evento.preventDefault();
     });

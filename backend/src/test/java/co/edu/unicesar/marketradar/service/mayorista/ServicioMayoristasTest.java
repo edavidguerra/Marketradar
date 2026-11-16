@@ -43,11 +43,13 @@ class ServicioMayoristasTest {
 
     private ClienteAlibabaApiSh cliente;
     private ConversorMoneda conversor;
+    private FichasSimuladas fichas;
 
     @BeforeEach
     void preparar() {
         cliente = mock(ClienteAlibabaApiSh.class);
         when(cliente.estaConfigurado()).thenReturn(true);
+        fichas = FichasSimuladas.en(cliente);
         conversor = mock(ConversorMoneda.class);
         when(conversor.getMonedaDestino()).thenReturn("COP");
         when(conversor.tasaPara("USD")).thenReturn(Optional.of(
@@ -74,6 +76,7 @@ class ServicioMayoristasTest {
     }
 
     private void responder(List<OfertaMayorista> ofertas) {
+        fichas.iguales(ofertas);
         when(cliente.buscar(anyString(), anyInt()))
                 .thenReturn(new LectorRespuestasAlibaba.Pagina(ofertas, 2, 0, null, false));
     }
@@ -93,6 +96,8 @@ class ServicioMayoristasTest {
         assertEquals(new BigDecimal("300.00"), b.resultados().get(0).calculo().subtotal());
         assertEquals(new BigDecimal("1200000"), b.resultados().get(0).aproximadoPesos());
         assertTrue(b.resultados().get(0).oferta().patrocinado());
+        assertEquals("2", b.ganadoraId(), "La más barata se verificó con su ficha");
+        assertTrue(b.resultados().get(0).verificada());
         assertTrue(b.avisos().stream().anyMatch(a -> a.contains("anuncio")));
         assertEquals(2, b.descartados());
     }
@@ -120,7 +125,7 @@ class ServicioMayoristasTest {
                 {"id":"1600000000001","title":"Cotton socks men","url":"https://www.alibaba.com/product-detail/x_1600000000001.html",
                  "price":{"currency":"USD","unit":"pairs","tiers":[{"min_quantity":100,"max_quantity":999,"price":0.95},
                  {"min_quantity":1000,"max_quantity":null,"price":0.50}]},"min_order":{"quantity":100,"unit":"pairs"}}""";
-        when(cliente.producto(anyString())).thenReturn(JSON.readTree(detalle));
+        fichas.ficha(dudosa, detalle);
 
         ServicioMayoristas.Busqueda b = servicio(200, 4).buscar("cotton socks", 500, UnidadVenta.PAR, 1);
         ServicioMayoristas.Resultado r = b.resultados().get(0);
@@ -133,10 +138,10 @@ class ServicioMayoristasTest {
     void elDetalleAclaraUnaOfertaQueNoSeContradice() throws Exception {
         OfertaMayorista sinEscalas = oferta("1600000000009", "Cotton socks men", "Zhejiang", false, null, List.of());
         responder(List.of(sinEscalas));
-        when(cliente.producto(anyString())).thenReturn(JSON.readTree("""
+        fichas.ficha(sinEscalas, """
                 {"id":"1600000000009","title":"Cotton socks men","url":"https://www.alibaba.com/product-detail/x_1600000000009.html",
                  "price":{"currency":"USD","unit":"pairs","tiers":[{"min_quantity":50,"max_quantity":null,"price":0.70}]},
-                 "min_order":{"quantity":50,"unit":"pairs"}}"""));
+                 "min_order":{"quantity":50,"unit":"pairs"}}""");
         ServicioMayoristas.Resultado r = servicio(200, 4).buscar("cotton socks", 60, UnidadVenta.PAR, 1).resultados().get(0);
         assertEquals(1, r.posicion());
         assertEquals(new BigDecimal("42.00"), r.calculo().subtotal());

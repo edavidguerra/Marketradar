@@ -135,6 +135,10 @@
             <resource>
                 <directory>../frontend</directory>
                 <targetPath>static</targetPath>
+                <!-- Las pruebas del frontend no se publican. -->
+                <excludes>
+                    <exclude>pruebas/**</exclude>
+                </excludes>
             </resource>
             <!-- Las migraciones viven en ../base-de-datos (asignatura Bases de Datos); Flyway las lee del classpath -->
             <resource>

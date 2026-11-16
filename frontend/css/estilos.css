@@ -1201,7 +1201,7 @@ main > section:not([hidden]) { animation: entrar-seccion .5s var(--curva) both; 
     animation: llenar 1.1s .2s var(--curva) both;
 }
 
-.mvp > a.boton { margin-top: .5rem; }
+.mvp > a.boton, .mvp > .acciones { margin-top: .5rem; }
 .mvp .mvp-imagen { width: min(100%, 320px); justify-self: start; animation: aparecer .5s .2s var(--curva) backwards; }
 
 :root.alto-contraste .mvp { border-color: var(--color-borde); background: #000000; }
@@ -2207,7 +2207,17 @@ table.comparacion th.mas-barato { box-shadow: inset 0 4px 0 var(--color-principa
     font-weight: 700;
     font-size: .9rem;
 }
+.etiqueta-preliminar {
+    width: fit-content;
+    display: inline-block;
+    padding: .1rem .6rem;
+    border: 2px dashed var(--color-borde-campo);
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: .95rem;
+}
 .tarjeta.fuera-orden { border-style: dashed; }
+.estado-desconocido { color: var(--color-suave); }
 table.escalas { border-collapse: collapse; margin: .5rem 0; font-size: .95rem; }
 table.escalas caption { text-align: left; font-weight: 700; }
 table.escalas th, table.escalas td { padding: .3rem .6rem; border-bottom: 1px solid var(--color-borde); text-align: left; }

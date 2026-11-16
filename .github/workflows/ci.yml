@@ -17,3 +17,5 @@ jobs:
           cache: maven
       - name: Compilar y ejecutar pruebas (incluye PostgreSQL con Testcontainers)
         run: mvn -B -f backend/pom.xml verify
+      - name: Pruebas del frontend (Node, sin navegador)
+        run: node --test "frontend/pruebas/*.test.mjs"
