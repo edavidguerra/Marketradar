@@ -9,6 +9,7 @@ import {
 import { avisar, boton, crear, crearIcono, enlaceTienda, mostrarEstado } from '../comun/dom.js';
 import { dinero, fechaHora, pesos, tiendaDeOferta } from '../comun/formato.js';
 import { leerPrecio } from './busqueda.js';
+import { alternarEstado, leerSeguimiento } from './estado-seguimiento.js';
 
 const $ = (id) => document.getElementById(id);
 let ofertaActual = null;
@@ -106,17 +107,9 @@ async function pedirVerificacion(zona, origen) {
     }
 }
 
-function textoAviso(seguimiento) {
-    if (seguimiento.tipo_aviso === 'PRECIO_OBJETIVO') {
-        return `Le avisamos cuando cueste ${dinero(seguimiento.precio_objetivo, seguimiento.moneda)} o menos.`;
-    }
-    return 'Le avisamos cuando baje de precio.';
-}
-
-const ESTADOS = { ACTIVO: 'Activo', PAUSADO: 'En pausa' };
-
 function crearSeguimiento(seguimiento) {
-    const item = crear('li', `tarjeta seguimiento${seguimiento.estado === 'PAUSADO' ? ' pausado' : ''}`);
+    const leido = leerSeguimiento(seguimiento);
+    const item = crear('li', `tarjeta seguimiento${leido.estado === 'PAUSADO' ? ' pausado' : ''}`);
     const imagen = crear('div', 'tarjeta-imagen');
     if (seguimiento.url_imagen) {
         const foto = document.createElement('img');
@@ -131,12 +124,12 @@ function crearSeguimiento(seguimiento) {
     const tienda = tiendaDeOferta(seguimiento);
     cuerpo.append(
         crear('h2', null, seguimiento.titulo),
-        crear('p', `estado-seguimiento estado-${seguimiento.estado.toLowerCase()}`, ESTADOS[seguimiento.estado] || seguimiento.estado),
+        crear('p', `estado-seguimiento ${leido.clase}`, leido.etiqueta),
         crear('p', null, `Tienda: ${tienda}`),
         crear('p', null, seguimiento.precio_guardado != null
             ? `Precio de referencia: ${dinero(seguimiento.precio_guardado, seguimiento.moneda)}`
             : 'Precio de referencia: todavía no se ha tomado'),
-        crear('p', null, textoAviso(seguimiento)),
+        crear('p', null, leido.textoAviso),
         crear('p', 'ayuda', seguimiento.ultima_comprobacion
             ? `Última revisión: ${fechaHora(seguimiento.ultima_comprobacion)}. ${seguimiento.resultado_texto || ''}`
             : 'Todavía no se ha revisado el precio.'),
@@ -156,15 +149,27 @@ function crearSeguimiento(seguimiento) {
     const acciones = crear('div', 'acciones');
     const texto = seguimiento.enlace?.texto ?? `Ver en ${tienda}`;
     acciones.append(enlaceTienda(texto, seguimiento.url_destino, tienda, 'boton boton-secundario', seguimiento.enlace));
-    const pausar = seguimiento.estado === 'ACTIVO';
-    acciones.append(boton(pausar ? 'Pausar avisos' : 'Reanudar avisos', 'boton-secundario', async () => {
-        try {
-            await cambiarSeguimiento(seguimiento.oferta_id, { estado: pausar ? 'PAUSADO' : 'ACTIVO' });
-            await cargarSeguimientos(pausar ? 'Pausó los avisos de este producto.' : 'Reanudó los avisos de este producto.');
-        } catch (error) {
-            avisar(zona, error.message, 'error');
-        }
-    }));
+    if (leido.accion) {
+        const pausar = leido.estado === 'ACTIVO';
+        const cambiar = boton(leido.accion, 'boton-secundario', async () => {
+            avisar(zona, '');
+            const resultado = await alternarEstado(seguimiento, cambiarSeguimiento, cambiar);
+            if (!resultado.ok) {
+                // El estado que se ve no cambia: la persona puede volver a intentarlo.
+                avisar(zona, `${resultado.error.message} Puede intentarlo de nuevo.`, 'error');
+                return;
+            }
+            const nuevo = crearSeguimiento(resultado.seguimiento);
+            item.replaceWith(nuevo);
+            avisar($('resultado-seguimientos'), pausar ? 'Pausó los avisos de este producto.'
+                : 'Reanudó los avisos de este producto.');
+            nuevo.querySelector('.acciones button')?.focus();
+        });
+        acciones.append(cambiar);
+    } else {
+        acciones.append(crear('p', 'ayuda', 'No pudimos saber si este seguimiento está activo o en pausa. Recargue la '
+            + 'página más tarde.'));
+    }
     acciones.append(boton('Dejar de seguir', 'boton-secundario boton-peligro', async () => {
         if (!window.confirm(`¿Dejar de seguir "${seguimiento.titulo}"? No le llegarán más avisos de este producto.`)) return;
         try {

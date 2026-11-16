@@ -58,7 +58,7 @@ public final class MayoristaDto {
                             String textoPrecio, List<VarianteDto> variantes, OffsetDateTime actualizadoEn,
                             String fuente, CalculoDto calculo, Integer posicion, String motivoFuera,
                             boolean consultoDetalle, PesosDto aproximadoPesos, String relevancia,
-                            String motivoRelevancia, boolean empate) {
+                            String motivoRelevancia, boolean empate, boolean preliminar) {
 
         /**
          * @param r resultado del servicio
@@ -79,14 +79,16 @@ public final class MayoristaDto {
                     r.motivoFuera(), r.consultoDetalle(), r.aproximadoPesos() == null ? null
                     : new PesosDto(r.aproximadoPesos(), monedaPesos, r.tasa().valor(), r.tasa().vigenteDesde(),
                     r.tasa().fuente()), r.relevancia() == null ? null
-                    : r.relevancia().name().toLowerCase(java.util.Locale.ROOT), r.motivoRelevancia(), r.empate());
+                    : r.relevancia().name().toLowerCase(java.util.Locale.ROOT), r.motivoRelevancia(), r.empate(),
+                    r.preliminar());
         }
     }
 
     /** Respuesta de la búsqueda. */
     public record BusquedaDto(String termino, int pagina, Integer siguientePagina, long cantidad, String unidad,
                               List<OfertaDto> ofertas, int descartados, List<String> avisos, Instant consultadoEn,
-                              String nota, String fuente, int comparables, boolean parcial) {
+                              String nota, String fuente, int comparables, boolean parcial, int verificadas,
+                              String ganadoraId) {
 
         /**
          * @param b búsqueda
@@ -97,7 +99,7 @@ public final class MayoristaDto {
             return new BusquedaDto(b.termino(), b.pagina(), b.siguientePagina(), b.cantidad(), b.unidad().name(),
                     b.resultados().stream().map(r -> OfertaDto.desde(r, monedaPesos)).toList(), b.descartados(),
                     b.avisos(), b.consultadoEn(), ServicioMayoristas.NOTA_SUBTOTAL, "Alibaba (vía API.SH)",
-                    b.comparables(), b.parcial());
+                    b.comparables(), b.parcial(), b.verificadas(), b.ganadoraId());
         }
     }
 

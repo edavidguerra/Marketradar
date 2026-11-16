@@ -105,6 +105,169 @@ abstract class CasosSeguimientoDao {
         assertTrue(otraVez.getVersion() > activo.getVersion(), "Reactivar sube la versión");
     }
 
+    // --- Ciclo completo en un entorno controlado: seguimiento activo → revisión → bajada u objetivo → aviso →
+    // entrega al servicio de correo (un Brevo simulado en 127.0.0.1). No toca precios ni correos reales.
+
+    /** Brevo simulado: guarda a quién se mandó cada correo y responde con el estado que se le diga. */
+    private static final class BrevoSimulado implements AutoCloseable {
+        final com.sun.net.httpserver.HttpServer servidor;
+        final List<String> cuerpos = new java.util.concurrent.CopyOnWriteArrayList<>();
+        volatile int estado = 201;
+
+        BrevoSimulado() throws java.io.IOException {
+            servidor = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+            servidor.createContext("/", intercambio -> {
+                cuerpos.add(new String(intercambio.getRequestBody().readAllBytes(),
+                        java.nio.charset.StandardCharsets.UTF_8));
+                byte[] respuesta = (estado == 201 ? "{\"messageId\":\"<prueba@smtp-relay.brevo.com>\"}"
+                        : "{\"code\":\"unauthorized\"}").getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                intercambio.sendResponseHeaders(estado, respuesta.length);
+                intercambio.getResponseBody().write(respuesta);
+                intercambio.close();
+            });
+            servidor.start();
+        }
+
+        long paraCorreo(String correo) {
+            return cuerpos.stream().filter(c -> c.contains(correo)).count();
+        }
+
+        @Override
+        public void close() {
+            servidor.stop(0);
+        }
+    }
+
+    private co.edu.unicesar.marketradar.service.seguimiento.ServicioComprobacionPrecios ronda(BrevoSimulado brevo,
+            co.edu.unicesar.marketradar.service.seguimiento.ComprobadorOfertas comprobador) {
+        var correo = new co.edu.unicesar.marketradar.correo.PropiedadesCorreo(null, 0, null, null,
+                "avisos@marketradar.test", "Marketradar", false, false, 5, "https://marketradar.example.com",
+                "brevo", "clave-de-prueba", "http://127.0.0.1:" + brevo.servidor.getAddress().getPort());
+        var seguimientos = new co.edu.unicesar.marketradar.config.PropiedadesSeguimientos(true, 720, 15, 25, 5,
+                BigDecimal.ONE, 3, 48, 20, "");
+        var transporte = new co.edu.unicesar.marketradar.correo.TransporteCorreoHttp(correo,
+                java.net.http.HttpClient.newHttpClient());
+        var avisos = new AvisoSeguimientoDaoJdbc(fuente);
+        var seguimientoDao = new SeguimientoDaoJdbc(fuente);
+        var envio = new co.edu.unicesar.marketradar.service.seguimiento.ServicioEnvioAvisos(avisos, seguimientoDao,
+                transporte, correo, seguimientos);
+        return new co.edu.unicesar.marketradar.service.seguimiento.ServicioComprobacionPrecios(seguimientoDao, avisos,
+                comprobador, envio, seguimientos, new EjecucionTareaDaoJdbc(fuente));
+    }
+
+    /** Persona con el correo ya verificado y un seguimiento activo que toca revisar primero. */
+    private Seguimiento seguimientoListo(Usuario persona, Oferta oferta, Seguimiento.TipoAviso tipo, String objetivo) {
+        VerificacionCorreoDao verificacion = new VerificacionCorreoDaoJdbc(fuente);
+        String hash = hash();
+        verificacion.guardarToken(hash, persona.getId(), persona.getCorreo(), OffsetDateTime.now().plusHours(1));
+        verificacion.usarToken(hash);
+        Seguimiento s = nuevo(persona.getId(), oferta.getId(), token());
+        s.setTipoAviso(tipo);
+        s.setPrecioObjetivo(objetivo == null ? null : new BigDecimal(objetivo));
+        s.setCondicionReferencia("nuevo");
+        s.setVarianteReferencia(co.edu.unicesar.marketradar.domain.NormalizadorEspecificaciones
+                .claveVariante("Apple iPhone 13 128GB", List.of()));
+        Seguimiento activo = new SeguimientoDaoJdbc(fuente).activar(s);
+        hacerQueToque(persona.getId(), oferta.getId());
+        return activo;
+    }
+
+    private static void hacerQueToque(long usuarioId, long ofertaId) {
+        try (var conexion = fuente.getConnection(); var sentencia = conexion.prepareStatement(
+                "UPDATE seguimiento_oferta SET proxima_comprobacion = now() - interval '30 days' "
+                        + "WHERE usuario_id = ? AND oferta_id = ?")) {
+            sentencia.setLong(1, usuarioId);
+            sentencia.setLong(2, ofertaId);
+            sentencia.executeUpdate();
+        } catch (java.sql.SQLException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static co.edu.unicesar.marketradar.service.seguimiento.ComprobadorOfertas tiendaQueMuestra(Oferta oferta,
+                                                                                                      String precio) {
+        var comprobador = org.mockito.Mockito.mock(co.edu.unicesar.marketradar.service.seguimiento.ComprobadorOfertas.class);
+        org.mockito.Mockito.when(comprobador.consultar(org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString())).thenReturn(List.of(
+                co.edu.unicesar.marketradar.domain.OfertaNormalizada.builder().codigoMarketplace("googleshopping")
+                        .idExterno(oferta.getIdExterno()).titulo("Apple iPhone 13 128GB").precio(new BigDecimal(precio))
+                        .moneda("COP").vendedor("Éxito").condicion("nuevo").urlDestino("https://www.exito.com/iphone")
+                        .consultadoEn(OffsetDateTime.now()).build()));
+        return comprobador;
+    }
+
+    private List<AvisoSeguimiento> avisosDePrecio(Usuario persona, Oferta oferta) {
+        return new AvisoSeguimientoDaoJdbc(fuente).recientes(persona.getId(), oferta.getId(), 20).stream()
+                .filter(a -> a.getTipo() != AvisoSeguimiento.Tipo.CONFIRMACION).toList();
+    }
+
+    @Test
+    void cicloCompletoUnaBajadaRealLlegaUnaSolaVezAlServicioDeCorreo() throws Exception {
+        Usuario ana = usuario("ana-" + UUID.randomUUID() + "@example.com");
+        Oferta oferta = oferta();
+        seguimientoListo(ana, oferta, Seguimiento.TipoAviso.BAJA_PRECIO, null);
+        try (BrevoSimulado brevo = new BrevoSimulado()) {
+            ronda(brevo, tiendaQueMuestra(oferta, "2500000")).ejecutarRonda(EjecucionTareaDao.Origen.CRON);
+
+            List<AvisoSeguimiento> avisos = avisosDePrecio(ana, oferta);
+            assertEquals(1, avisos.size(), "Una bajada de 3.000.000 a 2.500.000 crea un aviso");
+            assertEquals(AvisoSeguimiento.Tipo.BAJA_PRECIO, avisos.get(0).getTipo());
+            assertEquals(AvisoSeguimiento.Estado.ENVIADO, avisos.get(0).getEstado(),
+                    "ENVIADO = aceptado por el servicio de correo (no quiere decir que la persona ya lo leyó)");
+            assertNotNull(avisos.get(0).getEnviadoEn());
+            assertEquals(1, brevo.paraCorreo(ana.getCorreo()), "El servicio de correo recibió un solo pedido");
+
+            // Otra ronda con el mismo precio: no hay bajada nueva y no se repite el correo.
+            hacerQueToque(ana.getId(), oferta.getId());
+            ronda(brevo, tiendaQueMuestra(oferta, "2500000")).ejecutarRonda(EjecucionTareaDao.Origen.CRON);
+            assertEquals(1, avisosDePrecio(ana, oferta).size(), "Sin avisos duplicados");
+            assertEquals(1, brevo.paraCorreo(ana.getCorreo()));
+        }
+    }
+
+    @Test
+    void cicloCompletoObjetivoAlcanzadoConElProveedorRechazandoNoSeDaPorEnviado() throws Exception {
+        Usuario beto = usuario("beto-" + UUID.randomUUID() + "@example.com");
+        Oferta oferta = oferta();
+        seguimientoListo(beto, oferta, Seguimiento.TipoAviso.PRECIO_OBJETIVO, "2600000");
+        try (BrevoSimulado brevo = new BrevoSimulado()) {
+            brevo.estado = 401;
+            ronda(brevo, tiendaQueMuestra(oferta, "2550000")).ejecutarRonda(EjecucionTareaDao.Origen.CRON);
+
+            List<AvisoSeguimiento> avisos = avisosDePrecio(beto, oferta);
+            assertEquals(1, avisos.size(), "Llegó al objetivo: se crea el aviso");
+            assertEquals(AvisoSeguimiento.Tipo.PRECIO_OBJETIVO, avisos.get(0).getTipo());
+            assertNotEquals(AvisoSeguimiento.Estado.ENVIADO, avisos.get(0).getEstado(),
+                    "Si el proveedor rechaza el correo, no se presenta como enviado");
+            assertNull(avisos.get(0).getEnviadoEn());
+            assertNotNull(avisos.get(0).getUltimoError());
+            assertEquals(1, brevo.paraCorreo(beto.getCorreo()), "Se intentó una vez");
+        }
+    }
+
+    @Test
+    void unSeguimientoPausadoNoEntraEnLaRondaNiGuardaComprobacion() {
+        SeguimientoDao dao = new SeguimientoDaoJdbc(fuente);
+        Usuario ana = usuario("ana-" + UUID.randomUUID() + "@example.com");
+        Oferta oferta = oferta();
+        dao.activar(nuevo(ana.getId(), oferta.getId(), token()));
+        assertTrue(dao.actualizarPreferencias(ana.getId(), oferta.getId(), Seguimiento.TipoAviso.BAJA_PRECIO, null,
+                Seguimiento.Estado.PAUSADO));
+
+        assertTrue(dao.tomarPendientes(100, 10).stream().noneMatch(p -> p.seguimiento().getOfertaId() == oferta.getId()),
+                "Pausado, la ronda no lo revisa y por eso no genera avisos");
+        Seguimiento viejo = dao.buscar(ana.getId(), oferta.getId()).orElseThrow();
+        viejo.setResultado(Seguimiento.Resultado.BAJO);
+        viejo.setUltimaComprobacion(OffsetDateTime.now());
+        viejo.setProximaComprobacion(OffsetDateTime.now().plusHours(12));
+        assertFalse(dao.guardarComprobacion(viejo), "Una ronda que lo tomó antes de pausarlo no guarda su resultado");
+
+        assertTrue(dao.actualizarPreferencias(ana.getId(), oferta.getId(), Seguimiento.TipoAviso.BAJA_PRECIO, null,
+                Seguimiento.Estado.ACTIVO));
+        assertEquals(Seguimiento.Estado.ACTIVO, dao.buscar(ana.getId(), oferta.getId()).orElseThrow().getEstado(),
+                "Al volver a leerlo sigue activo");
+    }
+
     @Test
     void tomarPendientesApartaYGuardarComprobacionUsaLaVersion() {
         SeguimientoDao dao = new SeguimientoDaoJdbc(fuente);

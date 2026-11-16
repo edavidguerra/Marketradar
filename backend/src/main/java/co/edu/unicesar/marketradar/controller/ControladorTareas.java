@@ -13,7 +13,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Clock;
 import java.time.Duration;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,12 +38,14 @@ public class ControladorTareas {
     private final ServicioComprobacionPrecios comprobacion;
     private final PropiedadesSeguimientos propiedades;
     private final EjecucionTareaDao ejecuciones;
+    private final Clock reloj;
 
     public ControladorTareas(ServicioComprobacionPrecios comprobacion, PropiedadesSeguimientos propiedades,
-                             EjecucionTareaDao ejecuciones) {
+                             EjecucionTareaDao ejecuciones, Clock reloj) {
         this.comprobacion = comprobacion;
         this.propiedades = propiedades;
         this.ejecuciones = ejecuciones;
+        this.reloj = reloj;
     }
 
     @PostMapping("/seguimientos")
@@ -70,13 +74,26 @@ public class ControladorTareas {
             return rechazo.get();
         }
         List<EjecucionTareaDao.Ejecucion> recientes = ejecuciones.recientes(ServicioComprobacionPrecios.TAREA, 50);
-        return ResponseEntity.ok(resumen(recientes, propiedades.revisarCadaMinutos()));
+        return ResponseEntity.ok(resumen(recientes, propiedades.revisarCadaMinutos(), OffsetDateTime.now(reloj)));
     }
 
-    /** Resume las rondas: cuántas hubo, la espera más larga entre dos seguidas y si se cumple la frecuencia. */
-    static Map<String, Object> resumen(List<EjecucionTareaDao.Ejecucion> recientes, int esperadaMinutos) {
+    /** Margen para el arranque del servidor dormido de Render. */
+    static final long MARGEN_MINUTOS = 5;
+
+    /**
+     * Resume las rondas. Separa dos preguntas: si el cron llega con la frecuencia esperada (contando también el tiempo
+     * que lleva sin llegar ninguna) y si las rondas de verdad comprobaron precios sin fallar. Cuando no hay datos
+     * suficientes para responder, el valor es {@code null}: no se afirma nada.
+     *
+     * @param recientes rondas de la más reciente a la más antigua
+     * @param esperadaMinutos cada cuánto deberían correr
+     * @param ahora hora actual (reloj controlable en las pruebas)
+     */
+    static Map<String, Object> resumen(List<EjecucionTareaDao.Ejecucion> recientes, int esperadaMinutos,
+                                       OffsetDateTime ahora) {
         List<EjecucionTareaDao.Ejecucion> corridas = recientes.stream()
                 .filter(e -> e.estado() != EjecucionTareaDao.Estado.OMITIDA).toList();
+        long limite = esperadaMinutos + MARGEN_MINUTOS;
         long mayorHueco = 0;
         List<Long> huecos = new ArrayList<>();
         for (int i = 1; i < corridas.size(); i++) {
@@ -84,26 +101,91 @@ public class ControladorTareas {
             huecos.add(minutos);
             mayorHueco = Math.max(mayorHueco, minutos);
         }
+        EjecucionTareaDao.Ejecucion ultima = corridas.isEmpty() ? null : corridas.get(0);
+        EjecucionTareaDao.Ejecucion ultimaExitosa = corridas.stream()
+                .filter(e -> e.estado() == EjecucionTareaDao.Estado.TERMINADA).findFirst().orElse(null);
+        Long minutosDesdeUltima = ultima == null ? null
+                : Math.max(0, Duration.between(ultima.iniciadaEn(), ahora).toMinutes());
+        Long minutosDesdeExitosa = ultimaExitosa == null ? null
+                : Math.max(0, Duration.between(ultimaExitosa.iniciadaEn(), ahora).toMinutes());
+        int fallidasSeguidas = 0;
+        for (EjecucionTareaDao.Ejecucion e : corridas) {
+            if (e.estado() == EjecucionTareaDao.Estado.EN_CURSO) {
+                continue;
+            }
+            if (e.estado() != EjecucionTareaDao.Estado.FALLIDA) {
+                break;
+            }
+            fallidasSeguidas++;
+        }
+
+        // Frecuencia: si la última ronda ya es vieja, no se cumple aunque las de antes fueran puntuales.
+        Boolean frecuencia;
+        if (minutosDesdeUltima != null && minutosDesdeUltima > limite) {
+            frecuencia = false;
+        } else if (huecos.size() < 2) {
+            frecuencia = null;
+        } else {
+            frecuencia = mayorHueco <= limite;
+        }
+        // Resultado: correr a tiempo con errores no es comprobar precios.
+        Boolean comprobacion;
+        if (ultima == null) {
+            comprobacion = null;
+        } else if (fallidasSeguidas > 0) {
+            comprobacion = false;
+        } else if (minutosDesdeExitosa == null) {
+            comprobacion = null;
+        } else {
+            comprobacion = minutosDesdeExitosa <= limite;
+        }
+
         Map<String, Object> datos = new LinkedHashMap<>();
         datos.put("frecuencia_esperada_minutos", esperadaMinutos);
+        datos.put("consultado_en", ahora);
         datos.put("rondas_registradas", corridas.size());
         datos.put("mayor_espera_minutos", huecos.isEmpty() ? null : mayorHueco);
-        // Se da margen de 5 minutos por el arranque del servidor dormido. Con menos de 3 rondas no se puede afirmar.
-        datos.put("frecuencia_cumplida", huecos.size() < 2 ? null : mayorHueco <= esperadaMinutos + 5L);
-        datos.put("rondas", recientes.stream().limit(20).map(e -> {
-            Map<String, Object> fila = new LinkedHashMap<>();
-            fila.put("origen", e.origen().name().toLowerCase(java.util.Locale.ROOT));
-            fila.put("estado", e.estado().name().toLowerCase(java.util.Locale.ROOT));
-            fila.put("iniciada_en", e.iniciadaEn());
-            fila.put("terminada_en", e.terminadaEn());
-            fila.put("revisados", e.revisados());
-            fila.put("consultas", e.consultas());
-            fila.put("avisos_nuevos", e.avisosNuevos());
-            fila.put("correos_aceptados", e.correosAceptados());
-            fila.put("detalle", e.detalle());
-            return fila;
-        }).toList());
+        datos.put("minutos_desde_ultima", minutosDesdeUltima);
+        datos.put("frecuencia_cumplida", frecuencia);
+        datos.put("ultima_ejecucion", ultima == null ? null : fila(ultima));
+        datos.put("ultima_ejecucion_exitosa", ultimaExitosa == null ? null : fila(ultimaExitosa));
+        datos.put("minutos_desde_ultima_exitosa", minutosDesdeExitosa);
+        datos.put("fallidas_seguidas", fallidasSeguidas);
+        datos.put("comprobacion_correcta", comprobacion);
+        datos.put("estado_general", estadoGeneral(frecuencia, comprobacion, ultima, fallidasSeguidas));
+        datos.put("rondas", recientes.stream().limit(20).map(ControladorTareas::fila).toList());
         return datos;
+    }
+
+    private static String estadoGeneral(Boolean frecuencia, Boolean comprobacion, EjecucionTareaDao.Ejecucion ultima,
+                                        int fallidasSeguidas) {
+        if (ultima == null) {
+            return "sin_datos";
+        }
+        if (fallidasSeguidas > 0) {
+            return "con_errores";
+        }
+        if (Boolean.FALSE.equals(frecuencia)) {
+            return "atrasado";
+        }
+        if (Boolean.TRUE.equals(frecuencia) && Boolean.TRUE.equals(comprobacion)) {
+            return "al_dia";
+        }
+        return "sin_datos_suficientes";
+    }
+
+    private static Map<String, Object> fila(EjecucionTareaDao.Ejecucion e) {
+        Map<String, Object> fila = new LinkedHashMap<>();
+        fila.put("origen", e.origen().name().toLowerCase(java.util.Locale.ROOT));
+        fila.put("estado", e.estado().name().toLowerCase(java.util.Locale.ROOT));
+        fila.put("iniciada_en", e.iniciadaEn());
+        fila.put("terminada_en", e.terminadaEn());
+        fila.put("revisados", e.revisados());
+        fila.put("consultas", e.consultas());
+        fila.put("avisos_nuevos", e.avisosNuevos());
+        fila.put("correos_aceptados", e.correosAceptados());
+        fila.put("detalle", e.detalle());
+        return fila;
     }
 
     private Optional<ResponseEntity<Object>> rechazo(String token) {

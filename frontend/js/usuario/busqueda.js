@@ -180,6 +180,19 @@ function enlaceOferta(oferta, clase) {
     return enlaceTienda(texto, oferta.url_destino, tiendaDeOferta(oferta), clase, oferta.enlace);
 }
 
+/**
+ * Botones de una oferta: ir a la tienda, reseñas, comparar y seguir. Los usan las tarjetas y la mejor opción de compra
+ * (producto MVP), para que la recomendada se pueda comparar y seguir igual que las demás.
+ */
+function crearAcciones(oferta, claseEnlace) {
+    const acciones = crear('div', 'acciones');
+    acciones.append(enlaceOferta(oferta, claseEnlace));
+    if (oferta.resenas_disponibles) acciones.append(botonResenas(oferta));
+    // Comparar y seguir necesitan que la oferta haya quedado guardada (con id).
+    acciones.append(...[botonComparar(oferta), botonSeguir(oferta, estado.original || estado.termino)].filter(Boolean));
+    return acciones;
+}
+
 function crearTarjeta(oferta, alternativa = null) {
     const tienda = tiendaDeOferta(oferta);
     const mejor = oferta.mejor_precio && !alternativa;
@@ -216,14 +229,7 @@ function crearTarjeta(oferta, alternativa = null) {
         ...[crearConversion(oferta)].filter(Boolean),
         crear('p', 'ayuda', `Precio consultado ${haceCuanto(oferta.consultado_en)}. Puede cambiar en la tienda.`),
     );
-    const acciones = crear('div', 'acciones');
-    acciones.append(enlaceOferta(oferta, alternativa ? 'boton boton-secundario' : 'boton boton-principal'));
-    if (oferta.resenas_disponibles) {
-        acciones.append(botonResenas(oferta));
-    }
-    // Comparar y seguir necesitan que la oferta haya quedado guardada (con id).
-    acciones.append(...[botonComparar(oferta), botonSeguir(oferta, estado.original || estado.termino)].filter(Boolean));
-    cuerpo.append(acciones);
+    cuerpo.append(crearAcciones(oferta, alternativa ? 'boton boton-secundario' : 'boton boton-principal'));
     tarjeta.append(imagen, cuerpo);
     return tarjeta;
 }
@@ -335,9 +341,8 @@ function mostrarMvp(mvp, mostradas = 0) {
         barra,
         crearConfianza(mvp),
         crearComoSeCalcula(),
-        enlaceOferta(oferta, 'boton boton-principal'),
+        crearAcciones(oferta, 'boton boton-principal'),
     );
-    if (oferta.resenas_disponibles) contenedor.append(botonResenas(oferta));
     contenedor.hidden = false;
 }
 

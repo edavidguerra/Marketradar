@@ -24,13 +24,14 @@ import java.util.regex.Pattern;
  *
  * @param texto lo que escribió la persona
  * @param condicion condición pedida, o vacío si no dijo
- * @param capacidadesGb capacidades pedidas, en GB (1 TB = 1024 GB)
+ * @param capacidadesGb almacenamiento (capacidad) pedido, en GB (1 TB = 1024 GB)
  * @param modelos números de modelo pedidos, por ejemplo {@code 13} o {@code s23}
  * @param versiones versiones pedidas junto al modelo, por ejemplo {@code pro} y {@code max}
  * @param pideCombo si la persona buscó un combo, kit o paquete
+ * @param ramGb memoria RAM pedida, en GB ("4 GB RAM"); se revisa aparte del almacenamiento
  */
 public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condicion, Set<Integer> capacidadesGb,
-                                 List<Modelo> modelos, Set<String> versiones, boolean pideCombo) {
+                                 List<Modelo> modelos, Set<String> versiones, boolean pideCombo, Set<Integer> ramGb) {
 
     /** Qué tan bien cumple una oferta lo que pidió la persona. */
     public enum Nivel { CUMPLE, SIN_CONFIRMAR, INCUMPLE }
@@ -86,8 +87,15 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
 
     public RequisitosBusqueda {
         capacidadesGb = Set.copyOf(capacidadesGb);
+        ramGb = ramGb == null ? Set.of() : Set.copyOf(ramGb);
         modelos = List.copyOf(modelos);
         versiones = Set.copyOf(versiones);
+    }
+
+    /** Requisitos sin RAM pedida. */
+    public RequisitosBusqueda(String texto, Optional<CondicionProducto> condicion, Set<Integer> capacidadesGb,
+                              List<Modelo> modelos, Set<String> versiones, boolean pideCombo) {
+        this(texto, condicion, capacidadesGb, modelos, versiones, pideCombo, Set.of());
     }
 
     /** @return requisitos vacíos: toda oferta cumple */
@@ -107,7 +115,17 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
         }
         String limpio = CondicionProducto.normalizar(texto);
         Optional<CondicionProducto> condicion = CondicionProducto.detectar(limpio);
-        Set<Integer> capacidades = capacidades(limpio);
+        NormalizadorEspecificaciones.Capacidades leidas = NormalizadorEspecificaciones.capacidades(texto);
+        Set<Integer> ram = new TreeSet<>(leidas.ram());
+        Set<Integer> capacidades = new TreeSet<>(leidas.almacenamiento());
+        capacidades.addAll(leidas.sueltas());
+        // "a16 4gb 128gb" sin decir RAM: la pequeña es la RAM si hay otra de 32 GB o más.
+        if (ram.isEmpty() && leidas.sueltas().stream().anyMatch(gb -> gb >= 32)) {
+            leidas.sueltas().stream().filter(gb -> gb < 32).forEach(gb -> {
+                ram.add(gb);
+                capacidades.remove(gb);
+            });
+        }
         String sinCapacidad = CAPACIDAD.matcher(limpio).replaceAll(" ");
         List<String> palabras = List.of(sinCapacidad.split(" "));
         List<Modelo> modelos = new ArrayList<>();
@@ -122,7 +140,7 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
             }
         }
         return new RequisitosBusqueda(texto.strip(), condicion, capacidades, modelos, versiones,
-                COMBO.matcher(limpio).find());
+                COMBO.matcher(limpio).find(), ram);
     }
 
     /**
@@ -147,15 +165,18 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
         escritos.modelos.stream().filter(m -> !numerosBuscados.contains(m.numero())).forEach(modelos::add);
         Set<Integer> capacidades = new TreeSet<>(escritos.capacidadesGb);
         capacidades.addAll(buscados.capacidadesGb);
+        Set<Integer> ram = new TreeSet<>(escritos.ramGb);
+        ram.addAll(buscados.ramGb);
         Set<String> versiones = new LinkedHashSet<>(escritos.versiones);
         versiones.addAll(buscados.versiones);
         return new RequisitosBusqueda(escritos.texto, escritos.condicion.or(buscados::condicion), capacidades, modelos,
-                versiones, escritos.pideCombo || buscados.pideCombo);
+                versiones, escritos.pideCombo || buscados.pideCombo, ram);
     }
 
     /** @return {@code true} si la persona no pidió nada en particular */
     public boolean estaVacio() {
-        return condicion.isEmpty() && capacidadesGb.isEmpty() && modelos.isEmpty() && versiones.isEmpty();
+        return condicion.isEmpty() && capacidadesGb.isEmpty() && ramGb.isEmpty() && modelos.isEmpty()
+                && versiones.isEmpty();
     }
 
     /**
@@ -170,6 +191,7 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
             etiquetas.add("versión " + String.join(" ", versiones));
         }
         capacidadesGb.stream().sorted().forEach(gb -> etiquetas.add(textoCapacidad(gb)));
+        ramGb.stream().sorted().forEach(gb -> etiquetas.add(textoCapacidad(gb) + " de RAM"));
         condicion.ifPresent(c -> etiquetas.add(c.texto().toLowerCase(java.util.Locale.ROOT)));
         return etiquetas;
     }
@@ -189,7 +211,7 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
             incumple.add("Es un combo o paquete con otros productos: su precio no se puede comparar");
         }
         revisarModelos(limpio, incumple, sinConfirmar);
-        revisarCapacidad(limpio, incumple, sinConfirmar);
+        revisarCapacidad(titulo == null ? "" : titulo, incumple, sinConfirmar);
         condicion.ifPresent(pedida -> {
             if (condicionOferta.isEmpty()) {
                 sinConfirmar.add("La tienda no dice si es " + pedida.texto().toLowerCase(java.util.Locale.ROOT));
@@ -255,20 +277,39 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
         }
     }
 
+    /**
+     * Almacenamiento y RAM por separado, con la misma lectura que la tabla de comparación. Una capacidad unida a la
+     * palabra RAM nunca se toma como almacenamiento. Una capacidad suelta de menos de 32 GB tampoco, cuando se pidió
+     * 32 GB o más (suele ser la RAM): queda "sin confirmar". Solo se dice que no cumple si el título trae un dato de
+     * almacenamiento que contradice lo pedido.
+     */
     private void revisarCapacidad(String titulo, List<String> incumple, List<String> sinConfirmar) {
-        if (capacidadesGb.isEmpty()) {
+        if (capacidadesGb.isEmpty() && ramGb.isEmpty()) {
             return;
         }
-        Set<Integer> delTitulo = capacidades(titulo);
+        NormalizadorEspecificaciones.Capacidades delTitulo = NormalizadorEspecificaciones.capacidades(titulo);
         for (Integer pedida : capacidadesGb) {
-            if (delTitulo.contains(pedida)) {
+            Set<Integer> almacenamiento = new TreeSet<>(delTitulo.almacenamiento());
+            delTitulo.sueltas().stream().filter(gb -> gb >= 32 || pedida < 32).forEach(almacenamiento::add);
+            if (almacenamiento.contains(pedida)) {
                 continue;
             }
-            if (delTitulo.isEmpty()) {
+            if (almacenamiento.isEmpty()) {
                 sinConfirmar.add("El título no dice la capacidad (" + textoCapacidad(pedida) + ")");
             } else {
-                incumple.add("Es de " + String.join(" o ", delTitulo.stream().sorted()
+                incumple.add("Es de " + String.join(" o ", almacenamiento.stream()
                         .map(RequisitosBusqueda::textoCapacidad).toList()) + ", no de " + textoCapacidad(pedida));
+            }
+        }
+        for (Integer pedida : ramGb) {
+            if (delTitulo.ram().contains(pedida)) {
+                continue;
+            }
+            if (delTitulo.ram().isEmpty()) {
+                sinConfirmar.add("El título no dice la memoria RAM (" + textoCapacidad(pedida) + ")");
+            } else {
+                incumple.add("Tiene " + String.join(" o ", new TreeSet<>(delTitulo.ram()).stream()
+                        .map(RequisitosBusqueda::textoCapacidad).toList()) + " de RAM, no " + textoCapacidad(pedida));
             }
         }
     }
@@ -306,16 +347,6 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
         }
         return Optional.of(new Modelo(partes.group(1), partes.group(2).replaceFirst("^0+(?=\\d)", ""),
                 partes.group(3)));
-    }
-
-    private static Set<Integer> capacidades(String texto) {
-        Set<Integer> capacidades = new TreeSet<>();
-        Matcher capacidad = CAPACIDAD.matcher(texto);
-        while (capacidad.find()) {
-            int valor = Integer.parseInt(capacidad.group(1));
-            capacidades.add(capacidad.group(2).startsWith("t") ? valor * 1024 : valor);
-        }
-        return capacidades;
     }
 
     private static String textoCapacidad(int gb) {

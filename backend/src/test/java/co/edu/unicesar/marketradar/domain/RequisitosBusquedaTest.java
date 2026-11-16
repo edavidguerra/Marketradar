@@ -119,4 +119,75 @@ class RequisitosBusquedaTest {
         assertEquals(Nivel.CUMPLE,
                 requisitos.evaluar("Licuadora Oster 6640 de 10 velocidades 1.25 litros", SIN_DECIR).nivel());
     }
+
+    // --- RAM y almacenamiento por separado (auditoría, caso "Es de 4 GB, no de 128 GB") ---
+
+    @Test
+    void unTituloQueSoloDiceLaRamDejaElAlmacenamientoSinConfirmar() {
+        RequisitosBusqueda.Evaluacion e = RequisitosBusqueda.de("a16 128 gb").evaluar("Samsung A16 4 GB RAM", SIN_DECIR);
+        assertEquals(Nivel.SIN_CONFIRMAR, e.nivel());
+        assertEquals(List.of("El título no dice la capacidad (128 GB)"), e.motivos());
+    }
+
+    @Test
+    void almacenamientoYRamEnElMismoTituloSeLeenSeparados() {
+        RequisitosBusqueda requisitos = RequisitosBusqueda.de("a16 128 gb");
+        assertEquals(Nivel.CUMPLE, requisitos.evaluar("Samsung A16 128 GB 4 GB RAM", SIN_DECIR).nivel());
+        assertEquals(Nivel.CUMPLE, requisitos.evaluar("Samsung A16 4+128GB", SIN_DECIR).nivel());
+        NormalizadorEspecificaciones.Capacidades c = NormalizadorEspecificaciones.capacidades("Samsung A16 128 GB 4 GB RAM");
+        assertEquals(java.util.Set.of(4), c.ram());
+        assertEquals(java.util.Set.of(128), c.sueltas());
+    }
+
+    @Test
+    void unAlmacenamientoExplicitoDistintoNoCumple() {
+        RequisitosBusqueda.Evaluacion e = RequisitosBusqueda.de("a16 128 gb")
+                .evaluar("Samsung A16 64 GB de almacenamiento", SIN_DECIR);
+        assertEquals(Nivel.INCUMPLE, e.nivel());
+        assertEquals(List.of("Es de 64 GB, no de 128 GB"), e.motivos());
+    }
+
+    @Test
+    void siPideAlmacenamientoYRamRevisaAmbosPorSeparado() {
+        RequisitosBusqueda requisitos = RequisitosBusqueda.de("a16 128gb 4gb ram");
+        assertEquals(java.util.Set.of(128), requisitos.capacidadesGb());
+        assertEquals(java.util.Set.of(4), requisitos.ramGb());
+        assertEquals(List.of("modelo a16", "128 GB", "4 GB de RAM"), requisitos.etiquetas());
+        assertEquals(Nivel.CUMPLE, requisitos.evaluar("Samsung Galaxy A16 128 GB 4 GB RAM", SIN_DECIR).nivel());
+        assertEquals(List.of("Tiene 6 GB de RAM, no 4 GB"),
+                requisitos.evaluar("Samsung Galaxy A16 128 GB 6 GB RAM", SIN_DECIR).motivos());
+        assertEquals(List.of("El título no dice la memoria RAM (4 GB)"),
+                requisitos.evaluar("Samsung Galaxy A16 128 GB", SIN_DECIR).motivos());
+        assertEquals(List.of("El título no dice la capacidad (128 GB)"),
+                requisitos.evaluar("Samsung Galaxy A16 4 GB RAM", SIN_DECIR).motivos());
+        assertEquals(Nivel.INCUMPLE, requisitos.evaluar("Samsung Galaxy A16 256 GB 4 GB RAM", SIN_DECIR).nivel());
+    }
+
+    @Test
+    void laBusquedaYLaTablaComparativaLeenIgualElMismoTitulo() {
+        for (String titulo : List.of("Samsung A16 4 GB RAM", "Samsung A16 128 GB 4 GB RAM",
+                "Samsung A16 64 GB de almacenamiento", "Samsung A16 4+128GB")) {
+            java.util.Map<String, String> tabla = NormalizadorEspecificaciones.extraer(titulo, List.of()).stream()
+                    .collect(java.util.stream.Collectors.toMap(Especificacion::clave, Especificacion::valor));
+            NormalizadorEspecificaciones.Capacidades c = NormalizadorEspecificaciones.capacidades(titulo);
+            assertEquals(c.ram().isEmpty() ? null : c.ram().iterator().next() + " GB", tabla.get("ram"), titulo);
+            boolean conAlmacenamiento = tabla.containsKey("almacenamiento");
+            Nivel nivel = RequisitosBusqueda.de("a16 128 gb").evaluar(titulo, SIN_DECIR).nivel();
+            // Si la tabla no muestra almacenamiento, la búsqueda tampoco puede decir que no cumple por capacidad.
+            if (!conAlmacenamiento) {
+                assertEquals(Nivel.SIN_CONFIRMAR, nivel, titulo);
+            } else {
+                assertEquals("128 GB".equals(tabla.get("almacenamiento")) ? Nivel.CUMPLE : Nivel.INCUMPLE, nivel, titulo);
+            }
+        }
+    }
+
+    @Test
+    void otrasCategoriasConservanSuCapacidad() {
+        assertEquals(Nivel.INCUMPLE, RequisitosBusqueda.de("memoria usb 16 gb").evaluar("Memoria USB Kingston 8 GB",
+                SIN_DECIR).nivel());
+        assertEquals(Nivel.CUMPLE, RequisitosBusqueda.de("memoria usb 16 gb").evaluar("Memoria USB Kingston 16GB",
+                SIN_DECIR).nivel());
+        assertEquals(Nivel.INCUMPLE, RequisitosBusqueda.de("disco 1 tb").evaluar("Disco externo 2 TB", SIN_DECIR).nivel());
+    }
 }

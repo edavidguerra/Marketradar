@@ -27,6 +27,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -55,6 +56,11 @@ public class ServicioMayoristas {
     static final Duration PRESUPUESTO_BUSQUEDA = Duration.ofSeconds(45);
     /** Fallos seguidos al pedir fichas tras los que se deja de pedir más en esa búsqueda. */
     static final int MAX_FALLOS_SEGUIDOS = 2;
+    /**
+     * Cuántas ofertas baratas se buscan verificar con su ficha (la ganadora y la siguiente). Se consultan de menor a
+     * mayor subtotal hasta tener estas verificadas o agotar el presupuesto de fichas de la búsqueda.
+     */
+    static final int VERIFICADAS_BUSCADAS = 2;
     private static final ZoneId COLOMBIA = ZoneId.of("America/Bogota");
     private static final Pattern ID_ALIBABA = Pattern.compile("\\d{6,20}");
     private static final Pattern URL_ALIBABA = Pattern.compile(
@@ -110,30 +116,47 @@ public class ServicioMayoristas {
      * @param relevancia si es lo que se buscó, si es dudosa, o {@code null} si no se evaluó (detalle directo)
      * @param motivoRelevancia por qué es dudosa, o {@code null}
      * @param empate si comparte el mismo subtotal con otra oferta del orden
+     * @param preliminar si está en el orden solo con el precio de la búsqueda, sin contrastarlo todavía con la ficha
+     *                   del producto ("Precio preliminar, pendiente de verificar")
      */
     public record Resultado(OfertaMayorista oferta, CalculadoraMayorista.Calculo calculo, Integer posicion,
                             String motivoFuera, boolean consultoDetalle, BigDecimal aproximadoPesos, TasaCambio tasa,
-                            RelevanciaMayorista.Nivel relevancia, String motivoRelevancia, boolean empate) {
+                            RelevanciaMayorista.Nivel relevancia, String motivoRelevancia, boolean empate,
+                            boolean preliminar) {
 
         /** Sin datos de relevancia ni empate. */
         public Resultado(OfertaMayorista oferta, CalculadoraMayorista.Calculo calculo, Integer posicion,
                          String motivoFuera, boolean consultoDetalle, BigDecimal aproximadoPesos, TasaCambio tasa) {
-            this(oferta, calculo, posicion, motivoFuera, consultoDetalle, aproximadoPesos, tasa, null, null, false);
+            this(oferta, calculo, posicion, motivoFuera, consultoDetalle, aproximadoPesos, tasa, null, null, false, false);
+        }
+
+        /** Sin marca de preliminar. */
+        public Resultado(OfertaMayorista oferta, CalculadoraMayorista.Calculo calculo, Integer posicion,
+                         String motivoFuera, boolean consultoDetalle, BigDecimal aproximadoPesos, TasaCambio tasa,
+                         RelevanciaMayorista.Nivel relevancia, String motivoRelevancia, boolean empate) {
+            this(oferta, calculo, posicion, motivoFuera, consultoDetalle, aproximadoPesos, tasa, relevancia,
+                    motivoRelevancia, empate, false);
         }
 
         Resultado conPosicion(Integer nuevaPosicion, boolean nuevoEmpate) {
+            // En el orden, sin ficha consultada el precio es preliminar.
             return new Resultado(oferta, calculo, nuevaPosicion, motivoFuera, consultoDetalle, aproximadoPesos, tasa,
-                    relevancia, motivoRelevancia, nuevoEmpate);
+                    relevancia, motivoRelevancia, nuevoEmpate, nuevaPosicion != null && !consultoDetalle);
         }
 
         Resultado conMotivo(String motivo) {
             return new Resultado(oferta, calculo, null, motivo, consultoDetalle, aproximadoPesos, tasa, relevancia,
-                    motivoRelevancia, false);
+                    motivoRelevancia, false, false);
         }
 
         Resultado conPesos(BigDecimal valor, TasaCambio nuevaTasa) {
             return new Resultado(oferta, calculo, posicion, motivoFuera, consultoDetalle, valor, nuevaTasa, relevancia,
-                    motivoRelevancia, empate);
+                    motivoRelevancia, empate, preliminar);
+        }
+
+        /** @return {@code true} si está en el orden con el precio contrastado con la ficha */
+        public boolean verificada() {
+            return posicion != null && !preliminar;
         }
     }
 
@@ -150,12 +173,14 @@ public class ServicioMayoristas {
      * @param descartados cuántos resultados se quitaron por repetidos o por ser de otro tipo o material
      * @param avisos avisos para la persona
      * @param consultadoEn cuándo se consultó Alibaba
-     * @param comparables cuántas ofertas entraron al orden por precio
+     * @param comparables cuántas ofertas entraron al orden por precio (verificadas y preliminares)
      * @param parcial si faltó algo por errores, límites o tiempo
+     * @param verificadas cuántas del orden tienen el precio contrastado con la ficha
+     * @param ganadoraId la de menor subtotal entre las verificadas, o {@code null} si ninguna se pudo verificar
      */
     public record Busqueda(String termino, int pagina, Integer siguientePagina, long cantidad, UnidadVenta unidad,
                            List<Resultado> resultados, int descartados, List<String> avisos, Instant consultadoEn,
-                           int comparables, boolean parcial) {
+                           int comparables, boolean parcial, int verificadas, String ganadoraId) {
     }
 
     /** @return {@code true} si hay clave de API.SH */
@@ -264,44 +289,80 @@ public class ServicioMayoristas {
                     + " resultados repetidos.");
         }
 
-        int detallesDisponibles = propiedades.detallesPorBusqueda();
-        int fallosSeguidos = 0;
-        boolean detallesCortados = false;
+        // Fichas ya guardadas (no gastan consultas).
+        Map<String, OfertaMayorista> fichas = new HashMap<>();
+        evaluadas.forEach(o -> fichas.put(o.id(), detalles.getIfPresent(o.id())));
+        Map<String, Resultado> provisionales = new LinkedHashMap<>();
+        for (OfertaMayorista oferta : evaluadas) {
+            provisionales.put(oferta.id(), resultadoPara(oferta, fichas.get(oferta.id()), cantidad, unidad,
+                    variantes.get(oferta.id()), relevancias.get(oferta.id())));
+        }
+
+        // Orden en que se piden fichas: primero la variante que eligió la persona; después las candidatas de menor
+        // subtotal (para no presentar como ganadora una oferta que la ficha contradice) y al final las que la búsqueda
+        // deja sin aclarar.
+        List<OfertaMayorista> conVariante = evaluadas.stream()
+                .filter(o -> variantes.containsKey(o.id()) && fichas.get(o.id()) == null).toList();
+        List<Resultado> candidatas = candidatasPorSubtotal(provisionales.values());
+        List<OfertaMayorista> porAclarar = evaluadas.stream()
+                .filter(o -> fichas.get(o.id()) == null && !variantes.containsKey(o.id())
+                        && !CalculadoraMayorista.discrepancias(o).isEmpty())
+                .toList();
+
+        int[] disponibles = {propiedades.detallesPorBusqueda()};
+        int[] fallos = {0};
+        boolean[] cortados = {false};
+        boolean[] fallidas = {false};
+        java.util.function.Predicate<OfertaMayorista> pedirFicha = oferta -> {
+            if (fichas.get(oferta.id()) != null) {
+                return true;
+            }
+            if (disponibles[0] <= 0 || fallos[0] >= MAX_FALLOS_SEGUIDOS || reloj.instant().isAfter(limite)) {
+                cortados[0] = true;
+                return false;
+            }
+            // Cada intento externo cuenta, salga bien o mal; leer de la caché no cuenta.
+            disponibles[0]--;
+            try {
+                OfertaMayorista ficha = consultar(() -> LectorRespuestasAlibaba.leerProducto(cliente.producto(oferta.url())));
+                detalles.put(oferta.id(), ficha);
+                fichas.put(oferta.id(), ficha);
+                fallos[0] = 0;
+                return true;
+            } catch (ApiShException | ServicioNoDisponibleException e) {
+                fallos[0]++;
+                fallidas[0] = true;
+                return false;
+            }
+        };
+        conVariante.forEach(pedirFicha::test);
+        int verificadasBaratas = 0;
+        for (Resultado candidata : candidatas) {
+            if (verificadasBaratas >= VERIFICADAS_BUSCADAS) {
+                break;
+            }
+            OfertaMayorista oferta = candidata.oferta();
+            if (!pedirFicha.test(oferta)) {
+                continue;
+            }
+            Resultado verificada = resultadoPara(oferta, fichas.get(oferta.id()), cantidad, unidad,
+                    variantes.get(oferta.id()), relevancias.get(oferta.id()));
+            // Si la ficha la contradice, queda fuera y se pasa a la siguiente más barata.
+            if (verificada.motivoFuera() == null) {
+                verificadasBaratas++;
+            }
+        }
+        porAclarar.forEach(pedirFicha::test);
+        if (fallidas[0]) {
+            parcial = true;
+        }
+        int fallosSeguidos = fallos[0];
+        boolean detallesCortados = cortados[0];
+
         List<Resultado> resultados = new ArrayList<>();
         for (OfertaMayorista oferta : evaluadas) {
-            OfertaMayorista detalle = detalles.getIfPresent(oferta.id());
-            boolean necesita = !CalculadoraMayorista.discrepancias(oferta).isEmpty()
-                    || variantes.containsKey(oferta.id());
-            if (detalle == null && necesita) {
-                if (detallesDisponibles <= 0 || fallosSeguidos >= MAX_FALLOS_SEGUIDOS
-                        || reloj.instant().isAfter(limite)) {
-                    detallesCortados = true;
-                } else {
-                    // Cada intento externo cuenta, salga bien o mal; leer de la caché no cuenta.
-                    detallesDisponibles--;
-                    try {
-                        detalle = consultar(() -> LectorRespuestasAlibaba.leerProducto(cliente.producto(oferta.url())));
-                        detalles.put(oferta.id(), detalle);
-                        fallosSeguidos = 0;
-                    } catch (ApiShException | ServicioNoDisponibleException e) {
-                        fallosSeguidos++;
-                        parcial = true;
-                    }
-                }
-            }
-            Resultado resultado = evaluar(oferta, detalle, cantidad, unidad, variantes.get(oferta.id()),
-                    relevancias.get(oferta.id()));
-            List<String> sinAclarar = detalle == null ? contradiccionesPropias(oferta) : List.of();
-            if (!sinAclarar.isEmpty() && resultado.motivoFuera() == null) {
-                // La búsqueda se contradice sola y no hubo ficha que lo aclarara: no se adivina cuál precio vale.
-                String motivo = "No pudimos confirmar el precio con la ficha del producto: " + String.join("; ", sinAclarar)
-                        + ".";
-                resultado = new Resultado(resultado.oferta(), new CalculadoraMayorista.Calculo(
-                        CalculadoraMayorista.Estado.PRECIO_AMBIGUO, motivo, resultado.calculo().cantidadCalculada(),
-                        resultado.calculo().unidad(), null, null, null, resultado.calculo().ajustes()), null, motivo,
-                        false, null, null, resultado.relevancia(), resultado.motivoRelevancia(), false);
-            }
-            resultados.add(resultado);
+            resultados.add(resultadoPara(oferta, fichas.get(oferta.id()), cantidad, unidad, variantes.get(oferta.id()),
+                    relevancias.get(oferta.id())));
         }
         if (fallosSeguidos >= MAX_FALLOS_SEGUIDOS) {
             avisos.add("Alibaba falló varias veces seguidas al pedir fichas de producto: se dejaron de pedir para no "
@@ -317,11 +378,62 @@ public class ServicioMayoristas {
         }
         List<Resultado> ordenados = ordenar(resultados, avisos);
         int comparables = (int) ordenados.stream().filter(r -> r.posicion() != null).count();
+        int verificadas = (int) ordenados.stream().filter(Resultado::verificada).count();
+        String ganadora = ordenados.stream().filter(Resultado::verificada).findFirst()
+                .map(r -> r.oferta().id()).orElse(null);
+        long preliminares = ordenados.stream().filter(Resultado::preliminar).count();
+        if (preliminares > 0) {
+            avisos.add((preliminares == 1 ? "1 oferta tiene precio preliminar, pendiente de verificar"
+                    : preliminares + " ofertas tienen precio preliminar, pendiente de verificar")
+                    + " con la ficha del producto: no se presentan como recomendación validada. Ábralas para "
+                    + "verificarlas.");
+        }
         // Una ficha que falló no impide cargar más páginas; una página que falló se puede pedir otra vez.
         Integer siguienteValida = siguiente != null && siguiente <= propiedades.paginasMaximas() ? siguiente : null;
         return new Busqueda(limpio, Math.max(cargada, 1), siguienteValida, cantidad, unidad, ordenados,
                 repetidos + incompatibles, avisos, consultado != null ? consultado : reloj.instant(), comparables,
-                parcial);
+                parcial, verificadas, ganadora);
+    }
+
+    /**
+     * Resultado de una oferta con lo que se sabe: la búsqueda y, si la hay, la ficha conciliada. Si la búsqueda se
+     * contradice sola y no hay ficha, queda fuera del orden (no se adivina cuál precio vale).
+     */
+    private static Resultado resultadoPara(OfertaMayorista oferta, OfertaMayorista detalle, long cantidad,
+                                           UnidadVenta unidad, String variante,
+                                           RelevanciaMayorista.Evaluacion relevancia) {
+        Resultado resultado = evaluar(oferta, detalle, cantidad, unidad, variante, relevancia);
+        List<String> sinAclarar = detalle == null ? contradiccionesPropias(oferta) : List.of();
+        if (!sinAclarar.isEmpty() && resultado.motivoFuera() == null) {
+            String motivo = "No pudimos confirmar el precio con la ficha del producto: " + String.join("; ", sinAclarar)
+                    + ".";
+            resultado = new Resultado(resultado.oferta(), new CalculadoraMayorista.Calculo(
+                    CalculadoraMayorista.Estado.PRECIO_AMBIGUO, motivo, resultado.calculo().cantidadCalculada(),
+                    resultado.calculo().unidad(), null, null, null, resultado.calculo().ajustes()), null, motivo,
+                    false, null, null, resultado.relevancia(), resultado.motivoRelevancia(), false);
+        }
+        return resultado;
+    }
+
+    /**
+     * Las que pueden entrar al orden y todavía no tienen ficha, de menor a mayor subtotal, en la moneda más común
+     * (subtotales de monedas distintas no se comparan).
+     */
+    static List<Resultado> candidatasPorSubtotal(java.util.Collection<Resultado> provisionales) {
+        Map<String, Long> porMoneda = new LinkedHashMap<>();
+        provisionales.stream().filter(ServicioMayoristas::elegible)
+                .forEach(r -> porMoneda.merge(r.oferta().moneda(), 1L, Long::sum));
+        String moneda = porMoneda.entrySet().stream().max(Map.Entry.comparingByValue()).map(Map.Entry::getKey)
+                .orElse(null);
+        return provisionales.stream().filter(ServicioMayoristas::elegible)
+                .filter(r -> r.oferta().moneda().equals(moneda))
+                .sorted(Comparator.comparing((Resultado r) -> r.calculo().subtotal()).thenComparing(r -> r.oferta().id()))
+                .toList();
+    }
+
+    private static boolean elegible(Resultado r) {
+        return r.motivoFuera() == null && r.relevancia() != RelevanciaMayorista.Nivel.DUDOSA
+                && r.oferta().moneda() != null && r.calculo().subtotal() != null;
     }
 
     /** Discrepancias de la búsqueda que son contradicciones (no solo datos que faltan). */

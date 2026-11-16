@@ -15,6 +15,10 @@ const estado = {
     variantes: new Map(),
     /** Número de la última solicitud: las respuestas de solicitudes anteriores se ignoran. */
     solicitud: 0,
+    /** Número de la última solicitud de detalle (ficha o variante): una respuesta anterior no reemplaza a la nueva. */
+    solicitudDetalle: 0,
+    /** Id de la oferta de menor subtotal entre las verificadas con su ficha, o null. */
+    ganadora: null,
     cargando: false,
 };
 
@@ -106,8 +110,31 @@ function crearProveedor(proveedor) {
     return partes.join(' · ');
 }
 
-function crearOferta(oferta, { conVariantes = false } = {}) {
-    const item = crear('li', `tarjeta mayorista${oferta.posicion === 1 ? ' mejor' : ''}${oferta.motivo_fuera ? ' fuera-orden' : ''}`);
+/**
+ * Etiqueta del lugar de una oferta. Solo la de menor subtotal entre las verificadas con su ficha se presenta como la
+ * más baja; una oferta con precio preliminar (sin contrastar con la ficha) nunca se anuncia como ganadora.
+ *
+ * @param oferta oferta de la respuesta
+ * @param ganadora id de la ganadora verificada, o null
+ * @returns {{ clase: string, texto: string }|null}
+ */
+export function etiquetaPuesto(oferta, ganadora) {
+    if (oferta.posicion == null) return null;
+    if (oferta.preliminar) return { clase: 'etiqueta-preliminar', texto: 'Precio preliminar, pendiente de verificar' };
+    if (ganadora != null && oferta.id === ganadora) {
+        return {
+            clase: 'etiqueta-mejor',
+            texto: oferta.empate ? '★ Empate en el subtotal verificado más bajo entre las ofertas cargadas'
+                : '★ Subtotal verificado más bajo entre las ofertas cargadas',
+        };
+    }
+    return { clase: 'ayuda', texto: `Puesto ${oferta.posicion} por subtotal, precio verificado${oferta.empate ? ' (empate)' : ''}` };
+}
+
+function crearOferta(oferta, { conVariantes = false, ganadora = estado.ganadora } = {}) {
+    const esGanadora = ganadora != null && oferta.id === ganadora && !oferta.preliminar;
+    const item = crear('li', `tarjeta mayorista${esGanadora ? ' mejor' : ''}${oferta.motivo_fuera ? ' fuera-orden' : ''}`
+        + `${oferta.preliminar ? ' preliminar' : ''}`);
     const imagen = crear('div', 'tarjeta-imagen');
     if (oferta.imagen) {
         const foto = document.createElement('img');
@@ -120,13 +147,8 @@ function crearOferta(oferta, { conVariantes = false } = {}) {
     }
     const cuerpo = crear('div', 'tarjeta-cuerpo');
     if (oferta.patrocinado) cuerpo.append(crear('p', 'etiqueta-anuncio', 'Anuncio pagado'));
-    if (oferta.posicion === 1 && !oferta.empate) {
-        cuerpo.append(crear('p', 'etiqueta-mejor', '★ Subtotal más bajo entre las ofertas cargadas'));
-    } else if (oferta.posicion === 1) {
-        cuerpo.append(crear('p', 'etiqueta-mejor', '★ Empate en el subtotal más bajo entre las ofertas cargadas'));
-    } else if (oferta.posicion) {
-        cuerpo.append(crear('p', 'ayuda', `Puesto ${oferta.posicion} por subtotal${oferta.empate ? ' (empate)' : ''}`));
-    }
+    const puesto = etiquetaPuesto(oferta, ganadora);
+    if (puesto) cuerpo.append(crear('p', puesto.clase, puesto.texto));
     if (oferta.relevancia === 'dudosa' && oferta.motivo_relevancia) {
         cuerpo.append(crear('p', 'ayuda', `Coincidencia dudosa: ${oferta.motivo_relevancia}`));
     }
@@ -181,31 +203,63 @@ function crearVariantes(oferta) {
     return caja;
 }
 
+/**
+ * Pide la ficha de una oferta (o una variante). Cada solicitud lleva un número y guarda lo que se pidió (producto,
+ * variante, cantidad, unidad y búsqueda): el resultado o el error solo se aplican si siguen siendo la última solicitud y
+ * la misma búsqueda. Así una respuesta lenta de una variante anterior no reemplaza a la más reciente.
+ */
 async function verDetalle(url, variante = null, id = null) {
+    const pedida = {
+        numero: ++estado.solicitudDetalle, url, variante, id, cantidad: estado.cantidad, unidad: estado.unidad,
+        busqueda: claveBusqueda(),
+    };
     estado.variante = variante;
-    const clave = claveBusqueda();
     const zona = $('detalle-mayorista');
     zona.hidden = false;
     mostrarEstado($('estado-detalle-mayorista'), 'Consultando la ficha del producto en Alibaba…');
     try {
-        const oferta = await obtenerDetalleMayorista(url, estado.cantidad, estado.unidad, variante);
-        if (clave !== claveBusqueda()) return; // La persona cambió la búsqueda mientras tanto.
-        $('estado-detalle-mayorista').replaceChildren();
-        const lista = $('lista-detalle-mayorista');
-        lista.replaceChildren(crearOferta(oferta, { conVariantes: true }));
-        if (!variante) $('titulo-detalle-mayorista').focus();
-        const ofertaId = id ?? oferta.id;
-        if (variante) estado.variantes.set(ofertaId, variante);
-        else estado.variantes.delete(ofertaId);
-        // La ficha puede cambiar el precio de la tarjeta y su lugar: se recalcula la lista con lo ya cargado (sale de la
-        // caché del servidor, no gasta consultas).
-        if (estado.termino) cargar(estado.pagina, { silencioso: true });
+        const oferta = await obtenerDetalleMayorista(url, pedida.cantidad, pedida.unidad, pedida.variante);
+        if (!sigueVigente(pedida)) return;
+        aplicarDetalle(oferta, pedida);
     } catch (error) {
+        if (!sigueVigente(pedida)) return;
         mostrarEstado($('estado-detalle-mayorista'), error.message, () => verDetalle(url, variante, id));
     }
 }
 
+/** Una respuesta de detalle solo vale si es la última pedida y la búsqueda no cambió. */
+export function detalleVigente(pedida, actual) {
+    return pedida.numero === actual.numero && pedida.busqueda === actual.busqueda;
+}
+
+const sigueVigente = (pedida) => detalleVigente(pedida, { numero: estado.solicitudDetalle, busqueda: claveBusqueda() });
+
+function aplicarDetalle(oferta, pedida) {
+    $('estado-detalle-mayorista').replaceChildren();
+    // Se pinta con la variante de esta solicitud, no con el estado global, que pudo cambiar mientras tanto.
+    estado.variante = pedida.variante;
+    const lista = $('lista-detalle-mayorista');
+    lista.replaceChildren(crearOferta(oferta, { conVariantes: true, ganadora: null }));
+    if (!pedida.variante) $('titulo-detalle-mayorista').focus();
+    const ofertaId = pedida.id ?? oferta.id;
+    if (pedida.variante) estado.variantes.set(ofertaId, pedida.variante);
+    else estado.variantes.delete(ofertaId);
+    // La ficha puede cambiar el precio de la tarjeta, su lugar, la ganadora y los contadores: se recalcula toda la lista
+    // con lo ya cargado (sale de la caché del servidor, no gasta consultas).
+    if (estado.termino) cargar(estado.pagina, { silencioso: true });
+}
+
 const claveBusqueda = () => `${estado.termino}|${estado.cantidad}|${estado.unidad}`;
+
+/** Cuántas tienen el precio verificado con la ficha y cuántas solo el precio preliminar de la búsqueda. */
+export function textoContadores(respuesta) {
+    const verificadas = respuesta.verificadas ?? 0;
+    const preliminares = Math.max(0, (respuesta.comparables ?? 0) - verificadas);
+    const partes = [`${verificadas} con precio verificado para su cantidad`];
+    if (preliminares > 0) partes.push(`${preliminares} con precio preliminar, pendiente de verificar`);
+    return `${partes.join(' y ')}, ordenadas de menor a mayor subtotal.`
+        + (respuesta.ganadora_id ? '' : ' Todavía no hay una oferta verificada para recomendar.');
+}
 
 /**
  * Carga las páginas 1 a {@code hasta} en una sola respuesta: el servidor las junta, quita repetidos y ordena todas
@@ -224,6 +278,7 @@ async function cargar(hasta = 1, { silencioso = false } = {}) {
         const respuesta = await buscarMayoristas(estado.termino, estado.cantidad, estado.unidad, hasta, variantes);
         if (numero !== estado.solicitud || clave !== claveBusqueda()) return;
         estado.pagina = respuesta.pagina;
+        estado.ganadora = respuesta.ganadora_id ?? null;
         const avisos = $('avisos-mayoristas');
         avisos.replaceChildren(...respuesta.avisos.map((texto) => crear('li', null, texto)));
         avisos.hidden = respuesta.avisos.length === 0;
@@ -239,9 +294,8 @@ async function cargar(hasta = 1, { silencioso = false } = {}) {
         mostrarEstado(zona, respuesta.ofertas.length === 0
             ? `No encontramos ofertas al por mayor para "${respuesta.termino}". Pruebe con palabras en inglés.`
             : `Cantidad: ${textoCantidad(respuesta.cantidad)} ${unidad}. ${paginas}: ${respuesta.ofertas.length} `
-              + `ofertas distintas para "${respuesta.termino}"; ${respuesta.comparables} con precio claro para su `
-              + 'cantidad, ordenadas de menor a mayor subtotal. El más bajo es entre las ofertas cargadas, no entre todo '
-              + `Alibaba. ${respuesta.nota}.`);
+              + `ofertas distintas para "${respuesta.termino}". ${textoContadores(respuesta)} El más bajo es entre las `
+              + `ofertas cargadas, no entre todo Alibaba. ${respuesta.nota}.`);
         estado.siguiente = respuesta.siguiente_pagina;
         mas.hidden = !estado.siguiente;
     } catch (error) {
@@ -274,6 +328,9 @@ function enviar(evento) {
         termino, cantidad, unidad: $('unidad-mayorista').value, pagina: 1, siguiente: null, variante: null,
     });
     estado.variantes.clear();
+    // Una ficha pedida para la búsqueda anterior ya no se aplica.
+    estado.solicitudDetalle += 1;
+    estado.ganadora = null;
     $('lista-mayoristas').replaceChildren();
     $('lista-dudosas-mayoristas').replaceChildren();
     $('lista-dudosas-mayoristas').hidden = true;
