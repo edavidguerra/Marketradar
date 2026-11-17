@@ -82,40 +82,72 @@ public class ServicioEnvioAvisos {
      * @return cuántos se mandaron
      */
     public int enviarPendientes(int limite) {
+        return enviarLote(limite).aceptados();
+    }
+
+    /**
+     * Lo que pasó con los correos de una tanda.
+     *
+     * @param aceptados correos que el proveedor aceptó (no confirma que lleguen a la bandeja)
+     * @param rechazados intentos que el proveedor rechazó (pasajeros o definitivos)
+     */
+    public record Lote(int aceptados, int rechazados) {
+    }
+
+    /**
+     * Manda los avisos pendientes cuyo intento ya toca y cuenta aceptados y rechazados por separado.
+     *
+     * @param limite cuántos como máximo
+     * @return aceptados y rechazados
+     */
+    public Lote enviarLote(int limite) {
         List<AvisoSeguimientoDao.Pendiente> pendientes = avisoDao.tomarPendientes(limite, MINUTOS_APARTADO);
-        int enviados = 0;
+        int aceptados = 0;
+        int rechazados = 0;
         for (AvisoSeguimientoDao.Pendiente pendiente : pendientes) {
-            if (procesar(pendiente) == AvisoSeguimiento.Estado.ENVIADO) {
-                enviados++;
+            Intento intento = intentar(pendiente);
+            if (intento.estado() == AvisoSeguimiento.Estado.ENVIADO) {
+                aceptados++;
+            }
+            if (intento.rechazado()) {
+                rechazados++;
             }
         }
-        return enviados;
+        return new Lote(aceptados, rechazados);
+    }
+
+    /** En qué quedó un aviso y si el proveedor de correo rechazó el envío. */
+    private record Intento(AvisoSeguimiento.Estado estado, boolean rechazado) {
     }
 
     AvisoSeguimiento.Estado procesar(AvisoSeguimientoDao.Pendiente pendiente) {
+        return intentar(pendiente).estado();
+    }
+
+    private Intento intentar(AvisoSeguimientoDao.Pendiente pendiente) {
         AvisoSeguimiento aviso = pendiente.aviso();
         OffsetDateTime ahora = OffsetDateTime.now(reloj);
         if (aviso.getCreadoEn() != null
                 && aviso.getCreadoEn().isBefore(ahora.minusHours(propiedades.horasVigenciaAviso()))) {
             avisoDao.descartar(aviso.getId(), "Venció sin poder mandarse; el precio pudo haber cambiado");
-            return AvisoSeguimiento.Estado.DESCARTADO;
+            return new Intento(AvisoSeguimiento.Estado.DESCARTADO, false);
         }
         boolean confirmacion = aviso.getTipo() == AvisoSeguimiento.Tipo.CONFIRMACION;
         if (confirmacion ? "CANCELADO".equals(pendiente.estadoSeguimiento())
                 : !"ACTIVO".equals(pendiente.estadoSeguimiento())) {
             avisoDao.descartar(aviso.getId(), "El seguimiento está pausado o cancelado");
-            return AvisoSeguimiento.Estado.DESCARTADO;
+            return new Intento(AvisoSeguimiento.Estado.DESCARTADO, false);
         }
         if (!pendiente.correoVerificado() || pendiente.correoActual() == null
                 || !pendiente.correoActual().equalsIgnoreCase(aviso.getCorreoDestino())) {
             avisoDao.descartar(aviso.getId(), "El correo de la cuenta no está verificado");
-            return AvisoSeguimiento.Estado.DESCARTADO;
+            return new Intento(AvisoSeguimiento.Estado.DESCARTADO, false);
         }
         if (!transporte.estaConfigurado()) {
             // No cuenta como intento: cuando se configure el correo, se manda (si no venció).
             avisoDao.registrarFallo(aviso.getId(), "El servidor no tiene configurado el envío de correos", false,
                     ahora.plusHours(1));
-            return AvisoSeguimiento.Estado.PENDIENTE;
+            return new Intento(AvisoSeguimiento.Estado.PENDIENTE, false);
         }
         // Justo antes de mandar se mira otra vez el estado: si la persona pausó o canceló mientras esta ronda ya tenía
         // el aviso apartado, no se manda.
@@ -124,7 +156,7 @@ public class ServicioEnvioAvisos {
         if (estadoAhora.isPresent() && (estadoAhora.get() == Seguimiento.Estado.CANCELADO
                 || !confirmacion && estadoAhora.get() != Seguimiento.Estado.ACTIVO)) {
             avisoDao.descartar(aviso.getId(), "El seguimiento está pausado o cancelado");
-            return AvisoSeguimiento.Estado.DESCARTADO;
+            return new Intento(AvisoSeguimiento.Estado.DESCARTADO, false);
         }
         String token = seguimientoDao.asegurarToken(aviso.getUsuarioId(), aviso.getOfertaId(), Tokens.nuevo());
         MensajeCorreo mensaje = mensaje(pendiente, token).conClave("aviso-" + aviso.getClaveEvento().hashCode() + "-"
@@ -134,7 +166,7 @@ public class ServicioEnvioAvisos {
             avisoDao.marcarAceptado(aviso.getId(), resultado);
             LOG.info("Aviso {} ({}) aceptado por {} para {} (id {})", aviso.getId(), aviso.getTipo(),
                     resultado.proveedor(), mensaje.paraEnRegistro(), resultado.idMensaje());
-            return AvisoSeguimiento.Estado.ENVIADO;
+            return new Intento(AvisoSeguimiento.Estado.ENVIADO, false);
         } catch (CorreoNoEnviadoException e) {
             int intentos = aviso.getIntentos() + 1;
             // Un rechazo definitivo (clave inválida, remitente sin verificar, dirección inválida) no mejora reintentando.
@@ -144,7 +176,7 @@ public class ServicioEnvioAvisos {
                     e.esTransitorio() ? "pasajero" : "definitivo", e.getMessage());
             avisoDao.registrarFallo(aviso.getId(), e.getMessage(), true,
                     ultimo ? null : ahora.plus(Duration.ofMinutes(5L << Math.min(intentos, 6))));
-            return ultimo ? AvisoSeguimiento.Estado.FALLIDO : AvisoSeguimiento.Estado.PENDIENTE;
+            return new Intento(ultimo ? AvisoSeguimiento.Estado.FALLIDO : AvisoSeguimiento.Estado.PENDIENTE, true);
         }
     }
 

@@ -48,12 +48,16 @@ public final class NormalizadorEspecificaciones {
 
     private static final Pattern RAM_Y_ALMACENAMIENTO =
             Pattern.compile("\\b(\\d{1,2})\\s?(?:gb)?\\s?[+/]\\s?(\\d{2,4})\\s?(gb|tb)\\b");
-    private static final Pattern RAM_ANTES = Pattern.compile("\\b(\\d{1,2})\\s?gb\\s?(?:de\\s)?(?:memoria\\s)?ram\\b");
-    private static final Pattern RAM_DESPUES = Pattern.compile("\\bram\\s?(?:de\\s)?(\\d{1,2})\\s?gb\\b");
+    /** "4 GB RAM", "128 GB de memoria RAM" (también de tres cifras: hay equipos con 128 GB de RAM). */
+    private static final Pattern RAM_ANTES = Pattern.compile("\\b(\\d{1,3})\\s?gb\\s?(?:de\\s)?(?:memoria\\s)?ram\\b");
+    private static final Pattern RAM_DESPUES = Pattern.compile(
+            "\\b(?:memoria\\s)?ram\\s?(?:de\\s)?(\\d{1,3})\\s?gb\\b");
     private static final Pattern ALMACENAMIENTO_DESPUES = Pattern.compile(
-            "\\b(\\d{1,4})\\s?(gb|tb)\\s?(?:de\\s)?(?:almacenamiento|rom|internos?|internas?|ssd|hdd)\\b");
+            "\\b(\\d{1,4})\\s?(gb|tb)\\s?(?:de\\s)?(?:memoria\\s)?"
+                    + "(?:almacenamiento|rom|internos?|internas?|ssd|hdd|emmc|ufs|nvme)\\b");
     private static final Pattern ALMACENAMIENTO_ANTES = Pattern.compile(
-            "\\b(?:almacenamiento|rom|ssd|hdd)\\s?(?:interno\\s|interna\\s)?(?:de\\s)?(\\d{1,4})\\s?(gb|tb)\\b");
+            "\\b(?:almacenamiento|rom|ssd|hdd|emmc|ufs|nvme|memoria interna)\\s?(?:interno\\s|interna\\s)?(?:de\\s)?"
+                    + "(\\d{1,4})\\s?(gb|tb)\\b");
     private static final Pattern CAPACIDAD_DIGITAL = Pattern.compile("\\b(\\d{1,4})\\s?(gb|tb|gigas?|teras?)\\b");
     private static final Pattern PANTALLA = Pattern.compile(
             "(?<![\\d.,])" + NUM + "\\s?(\"|pulgadas|pulgada|pulg\\b\\.?|inch(?:es)?\\b)");
@@ -130,13 +134,15 @@ public final class NormalizadorEspecificaciones {
      */
     public static List<Especificacion> extraer(String titulo, List<String> detalles) {
         Map<String, Especificacion> encontradas = new LinkedHashMap<>();
+        // Las características sueltas de la tienda ("256 GB") se leen con el tipo de producto del título.
+        CategoriaProducto contexto = contexto(titulo, detalles);
         if (detalles != null) {
             for (String detalle : detalles) {
-                leer(preparar(detalle), Especificacion.FUENTE_TIENDA, encontradas);
+                leer(preparar(detalle), contexto, Especificacion.FUENTE_TIENDA, encontradas);
             }
         }
         String texto = preparar(titulo);
-        leer(texto, Especificacion.FUENTE_TITULO, encontradas);
+        leer(texto, contexto, Especificacion.FUENTE_TITULO, encontradas);
         marca(texto).ifPresent(m -> encontradas.putIfAbsent("marca", nueva("marca", m, null, Especificacion.FUENTE_TITULO)));
         version(texto).ifPresent(v -> encontradas.putIfAbsent("version",
                 nueva("version", v, null, Especificacion.FUENTE_TITULO)));
@@ -234,27 +240,30 @@ public final class NormalizadorEspecificaciones {
         return valores;
     }
 
-    private static void leer(String texto, String fuente, Map<String, Especificacion> encontradas) {
+    /** Tipo de producto para leer las capacidades: el del título y, si no lo dice, el de las características. */
+    private static CategoriaProducto contexto(String titulo, List<String> detalles) {
+        CategoriaProducto categoria = CategoriaProducto.detectar(titulo);
+        if (categoria == CategoriaProducto.DESCONOCIDA && detalles != null && !detalles.isEmpty()) {
+            categoria = CategoriaProducto.detectar(String.join(" ", detalles));
+        }
+        return categoria;
+    }
+
+    private static void leer(String texto, CategoriaProducto contexto, String fuente,
+                             Map<String, Especificacion> encontradas) {
         if (texto.isEmpty()) {
             return;
         }
-        Capacidades capacidades = leerCapacidades(texto);
-        if (!capacidades.ram().isEmpty()) {
+        // Misma interpretación que la búsqueda (RequisitosBusqueda). Solo se muestra un valor si es uno solo: con dos
+        // capacidades distintas del mismo tipo no se inventa cuál es.
+        Capacidades capacidades = interpretar(texto, contexto);
+        if (capacidades.ram().size() == 1) {
             int gb = capacidades.ram().iterator().next();
             poner(encontradas, nueva("ram", gb + " GB", BigDecimal.valueOf(gb), fuente));
         }
-        if (!capacidades.almacenamiento().isEmpty()) {
+        if (capacidades.almacenamiento().size() == 1) {
             int gb = capacidades.almacenamiento().iterator().next();
             poner(encontradas, nueva("almacenamiento", textoGigas(gb), BigDecimal.valueOf(gb), fuente));
-        } else {
-            // Una capacidad suelta solo es el almacenamiento si es de 32 GB o más (las menores suelen ser la RAM) y si
-            // es la única: con dos distintas no se sabe cuál es cuál.
-            Set<Integer> candidatas = new TreeSet<>();
-            capacidades.sueltas().stream().filter(gb -> gb >= 32).forEach(candidatas::add);
-            if (candidatas.size() == 1) {
-                int gb = candidatas.iterator().next();
-                poner(encontradas, nueva("almacenamiento", textoGigas(gb), BigDecimal.valueOf(gb), fuente));
-            }
         }
         Matcher pantalla = PANTALLA.matcher(texto);
         if (pantalla.find()) {
@@ -417,34 +426,109 @@ public final class NormalizadorEspecificaciones {
     }
 
     /**
-     * Capacidades de un texto separadas por lo que dicen ser. La búsqueda ({@link RequisitosBusqueda}) y la tabla de
-     * comparación leen el mismo título con esta misma regla.
+     * Capacidades de un texto separadas por lo que son. La búsqueda ({@link RequisitosBusqueda}) y la tabla de
+     * comparación usan esta misma interpretación, no solo los mismos números.
      *
-     * @param ram capacidades unidas a la palabra RAM ("4 GB RAM", "RAM de 6 GB") o primeras de "4+128 GB", en GB
-     * @param almacenamiento capacidades que el texto dice que son almacenamiento ("128 GB de almacenamiento",
-     *                       "256 GB ROM", segunda de "4+128 GB"), en GB
-     * @param sueltas las demás ("128 GB" sola): no se sabe si son RAM o almacenamiento
+     * @param ram memoria RAM, en GB: las unidas a la palabra RAM ("4 GB RAM", "128 GB RAM", "RAM de 6 GB"), la primera
+     *            de "4+128 GB" o la que el tipo de producto deja clara
+     * @param almacenamiento almacenamiento, en GB: lo que el texto dice que lo es ("128 GB de almacenamiento",
+     *                       "256 GB ROM", "SSD 1 TB", segunda de "4+128 GB"), toda capacidad de una memoria USB, una
+     *                       tarjeta o un disco, o la que el tipo de producto y los demás datos dejan clara
+     * @param sueltas capacidades que no se pueden asignar sin adivinar (por ejemplo "16 GB" sola en un portátil): no
+     *                confirman ni contradicen nada
      */
     public record Capacidades(Set<Integer> ram, Set<Integer> almacenamiento, Set<Integer> sueltas) {
     }
 
     /**
-     * Lee las capacidades de un título o de una búsqueda.
+     * Lee las capacidades de un título o de una búsqueda, con el tipo de producto que dice el mismo texto.
      *
      * @param texto texto tal como llega
      * @return capacidades separadas en RAM, almacenamiento y sueltas (1 TB = 1024 GB)
      */
     public static Capacidades capacidades(String texto) {
-        return leerCapacidades(preparar(texto));
+        return capacidades(texto, CategoriaProducto.detectar(texto));
     }
 
+    /**
+     * Lee las capacidades de un texto con un tipo de producto conocido.
+     *
+     * @param texto texto tal como llega
+     * @param contexto tipo de producto
+     * @return capacidades separadas en RAM, almacenamiento y sueltas (1 TB = 1024 GB)
+     */
+    public static Capacidades capacidades(String texto, CategoriaProducto contexto) {
+        return interpretar(preparar(texto), contexto);
+    }
+
+    /**
+     * Mayor RAM que se vende en cada tipo de equipo, en GB. Solo sirve para leer una capacidad sin rótulo dentro de ese
+     * tipo de equipo (no es un umbral general): en un celular "256 GB" no puede ser la RAM; en un portátil "16 GB" sí.
+     */
+    private static int ramMaxima(CategoriaProducto contexto) {
+        return contexto == CategoriaProducto.PORTATIL ? 128 : 24;
+    }
+
+    /**
+     * Interpreta las capacidades con el tipo de producto. Primero lo explícito (RAM, ROM, SSD, "4+128"), luego el
+     * contexto:
+     * <ul>
+     *   <li>Memoria USB, tarjeta, disco o consola: toda capacidad es almacenamiento.</li>
+     *   <li>Si el texto dice la RAM y queda una sola capacidad mayor, esa es el almacenamiento.</li>
+     *   <li>En celulares, tabletas y portátiles, si dice el almacenamiento y queda una sola capacidad menor que quepa
+     *       como RAM de ese equipo, esa es la RAM.</li>
+     *   <li>Sin rótulos y con dos capacidades, la menor es la RAM si cabe como RAM de ese equipo.</li>
+     *   <li>Sin rótulos y con una sola: es el almacenamiento solo en celulares, tabletas y portátiles, y solo si no
+     *       cabe como RAM de ese equipo.</li>
+     * </ul>
+     * Lo demás queda en {@link Capacidades#sueltas()}: es una ambigüedad real y no se adivina.
+     */
+    private static Capacidades interpretar(String texto, CategoriaProducto contexto) {
+        Capacidades leidas = leerCapacidades(texto);
+        Set<Integer> ram = new LinkedHashSet<>(leidas.ram());
+        Set<Integer> almacenamiento = new LinkedHashSet<>(leidas.almacenamiento());
+        Set<Integer> sueltas = new TreeSet<>(leidas.sueltas());
+        sueltas.removeAll(ram);
+        sueltas.removeAll(almacenamiento);
+        boolean equipo = contexto == CategoriaProducto.CELULAR || contexto == CategoriaProducto.TABLETA
+                || contexto == CategoriaProducto.PORTATIL;
+        int maxima = ramMaxima(contexto);
+        if (contexto == CategoriaProducto.ALMACENAMIENTO || contexto == CategoriaProducto.CONSOLA) {
+            almacenamiento.addAll(sueltas);
+            sueltas.clear();
+        } else if (sueltas.size() == 1) {
+            int gb = sueltas.iterator().next();
+            if (!ram.isEmpty() && almacenamiento.isEmpty() && gb > java.util.Collections.max(ram)) {
+                almacenamiento.add(gb);
+                sueltas.clear();
+            } else if (equipo && !almacenamiento.isEmpty() && ram.isEmpty() && gb <= maxima
+                    && gb < java.util.Collections.min(almacenamiento)) {
+                ram.add(gb);
+                sueltas.clear();
+            } else if (equipo && ram.isEmpty() && almacenamiento.isEmpty() && gb > maxima) {
+                almacenamiento.add(gb);
+                sueltas.clear();
+            }
+        } else if (sueltas.size() == 2 && ram.isEmpty() && almacenamiento.isEmpty()) {
+            List<Integer> dos = new ArrayList<>(sueltas);
+            if (dos.get(0) <= maxima) {
+                ram.add(dos.get(0));
+                almacenamiento.add(dos.get(1));
+                sueltas.clear();
+            }
+        }
+        return new Capacidades(Collections.unmodifiableSet(ram), Collections.unmodifiableSet(almacenamiento),
+                Collections.unmodifiableSet(new LinkedHashSet<>(sueltas)));
+    }
+
+    /** Lo que el texto rotula (RAM, almacenamiento) y las capacidades sin rótulo, sin interpretar todavía. */
     private static Capacidades leerCapacidades(String texto) {
         Set<Integer> ram = new LinkedHashSet<>();
         Set<Integer> almacenamiento = new LinkedHashSet<>();
         Set<Integer> sueltas = new LinkedHashSet<>();
         String resto = texto;
         Matcher combo = RAM_Y_ALMACENAMIENTO.matcher(resto);
-        if (combo.find() && Integer.parseInt(combo.group(1)) <= 32) {
+        if (combo.find() && Integer.parseInt(combo.group(1)) < gigas(combo.group(2), combo.group(3))) {
             ram.add(Integer.parseInt(combo.group(1)));
             almacenamiento.add(gigas(combo.group(2), combo.group(3)));
             resto = resto.replace(combo.group(), " ");

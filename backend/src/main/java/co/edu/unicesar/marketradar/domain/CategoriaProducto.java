@@ -26,6 +26,7 @@ public enum CategoriaProducto {
     LICUADORA("Licuadora"),
     FREIDORA("Freidora de aire"),
     TENSIOMETRO("Tensiómetro"),
+    ALMACENAMIENTO("Memoria o disco de almacenamiento"),
     DESCONOCIDA("Sin identificar");
 
     private final String texto;
@@ -69,6 +70,14 @@ public enum CategoriaProducto {
             new Regla(TENSIOMETRO, Pattern.compile("\\b(tensiometro|monitor de presion|baumanometro)\\b")));
 
     /**
+     * Memorias y discos: el producto mismo es almacenamiento ("Memoria USB", "Tarjeta microSD", "Disco externo",
+     * "SSD"). La palabra "USB" sola no cuenta: también aparece en los puertos de un celular o un portátil.
+     */
+    private static final Pattern ALMACENAMIENTO_PRODUCTO = Pattern.compile("\\b(memorias? usb|usb flash|flash drive|"
+            + "pendrive|pen drive|memorias? flash|micro ?sd(hc|xc)?|tarjetas? (de memoria|sd|micro ?sd)|sd card|"
+            + "memory card|discos?( duros?| externos?| solidos?| ssd| hdd)?|ssd|hdd|nvme)\\b");
+
+    /**
      * Deduce el tipo de producto del título.
      *
      * @param titulo título de la publicación
@@ -83,12 +92,17 @@ public enum CategoriaProducto {
         if (PRIMERA_PALABRA_ACCESORIO.contains(primera) || PARA_OTRO.matcher(texto).find()) {
             return ACCESORIO;
         }
+        // Una memoria o un disco solo es el producto si se nombra antes que cualquier otro tipo: "Memoria microSD para
+        // celular" es una memoria; "Celular 128 GB con ranura microSD" y "Portátil 512 GB SSD" no.
+        java.util.regex.Matcher almacenamiento = ALMACENAMIENTO_PRODUCTO.matcher(texto);
+        int posicionAlmacenamiento = almacenamiento.find() ? almacenamiento.start() : Integer.MAX_VALUE;
         for (Regla regla : REGLAS) {
-            if (regla.patron().matcher(texto).find()) {
-                return regla.categoria();
+            java.util.regex.Matcher otra = regla.patron().matcher(texto);
+            if (otra.find()) {
+                return otra.start() < posicionAlmacenamiento ? regla.categoria() : ALMACENAMIENTO;
             }
         }
-        return DESCONOCIDA;
+        return posicionAlmacenamiento < Integer.MAX_VALUE ? ALMACENAMIENTO : DESCONOCIDA;
     }
 
     /**

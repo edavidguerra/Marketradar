@@ -192,6 +192,7 @@ public class ServicioComparacion {
             case PORTATIL -> claves.addAll(List.of("ram", "almacenamiento"));
             case TELEVISOR -> claves.add("pantalla");
             case CONSOLA -> claves.addAll(List.of("version", "almacenamiento"));
+            case ALMACENAMIENTO -> claves.add("almacenamiento");
             case RELOJ -> claves.add("conectividad");
             case NEVERA, LAVADORA, LICUADORA, FREIDORA -> claves.add("capacidad");
             default -> {

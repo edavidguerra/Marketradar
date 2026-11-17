@@ -152,3 +152,15 @@ Devuelve las últimas rondas (origen `cron` o `interna`, estado, horas y conteos
 `mayor_espera_minutos` y `frecuencia_cumplida`: `true` si ninguna espera entre rondas pasó de la frecuencia más 5
 minutos, `false` si alguna sí, y `null` si todavía hay menos de 3 rondas. Mientras no se mire esa respuesta después de
 un día de funcionamiento, no se puede afirmar que corre cada 15 minutos.
+
+Que una ronda quede `terminada` solo dice que acabó sin excepción. Desde V15 cada ronda guarda aparte el resultado de
+sus consultas (`resultado_consultas`: `sin_trabajo`, `solo_pospuestos`, `correctas`, `parciales` o `fallidas`), cuántas
+consultas respondieron y cuántas fallaron, cuántos seguimientos no aparecieron en una consulta que sí respondió
+(`ofertas_no_encontradas`, que no es un error de la tienda) y cuántos correos aceptó o rechazó el proveedor.
+`comprobacion_correcta` es `true` solo si la última ronda que consultó tiendas tuvo todas sus consultas bien y es
+reciente; `false` si fallaron todas o algunas, si hay rondas fallidas seguidas o si dejaron de llegar rondas; y `null`
+si las rondas recientes no tenían nada que consultar (eso no es un fallo, pero tampoco prueba que se revisaron precios)
+o si son anteriores a V15. `ultima_ejecucion_exitosa` es la última ronda en que al menos una consulta respondió.
+`envio_correo_ultima_ronda` dice si hubo correos aceptados, rechazados, ninguno o si falta configurar el servicio;
+"aceptado" no confirma la entrega en la bandeja, y recibir el correo de confirmación de un seguimiento tampoco prueba
+que las alertas periódicas funcionen.

@@ -42,18 +42,24 @@ public class EjecucionTareaDaoJdbc extends DaoJdbcBase implements EjecucionTarea
     }
 
     @Override
-    public void terminar(long id, Estado estado, int revisados, int consultas, int pospuestos, int avisos, int correos,
-                         String detalle) {
+    public void terminar(long id, Estado estado, Conteo conteo, String detalle) {
         ejecutarActualizacion("UPDATE ejecucion_tarea SET estado = ?, terminada_en = now(), revisados = ?, consultas = ?, "
-                + "pospuestos = ?, avisos_nuevos = ?, correos_aceptados = ?, detalle = ? WHERE id = ?", sentencia -> {
+                + "pospuestos = ?, avisos_nuevos = ?, correos_aceptados = ?, detalle = ?, consultas_exitosas = ?, "
+                + "consultas_fallidas = ?, ofertas_no_encontradas = ?, correos_rechazados = ?, resultado_consultas = ? "
+                + "WHERE id = ?", sentencia -> {
                     sentencia.setString(1, estado.name());
-                    sentencia.setInt(2, revisados);
-                    sentencia.setInt(3, consultas);
-                    sentencia.setInt(4, pospuestos);
-                    sentencia.setInt(5, avisos);
-                    sentencia.setInt(6, correos);
+                    sentencia.setInt(2, conteo.revisados());
+                    sentencia.setInt(3, conteo.consultas());
+                    sentencia.setInt(4, conteo.pospuestos());
+                    sentencia.setInt(5, conteo.avisosNuevos());
+                    sentencia.setInt(6, conteo.correosAceptados());
                     sentencia.setString(7, recortar(detalle));
-                    sentencia.setLong(8, id);
+                    sentencia.setInt(8, conteo.consultasExitosas());
+                    sentencia.setInt(9, conteo.consultasFallidas());
+                    sentencia.setInt(10, conteo.noEncontradas());
+                    sentencia.setInt(11, conteo.correosRechazados());
+                    sentencia.setString(12, conteo.resultado() == null ? null : conteo.resultado().name());
+                    sentencia.setLong(13, id);
                 });
     }
 
@@ -118,6 +124,9 @@ public class EjecucionTareaDaoJdbc extends DaoJdbcBase implements EjecucionTarea
                 Estado.valueOf(fila.getString("estado")), fila.getObject("iniciada_en", OffsetDateTime.class),
                 fila.getObject("terminada_en", OffsetDateTime.class), fila.getInt("revisados"), fila.getInt("consultas"),
                 fila.getInt("pospuestos"), fila.getInt("avisos_nuevos"), fila.getInt("correos_aceptados"),
-                fila.getString("detalle"));
+                fila.getString("detalle"), fila.getInt("consultas_exitosas"), fila.getInt("consultas_fallidas"),
+                fila.getInt("ofertas_no_encontradas"), fila.getInt("correos_rechazados"),
+                fila.getString("resultado_consultas") == null ? null
+                        : ResultadoConsultas.valueOf(fila.getString("resultado_consultas")));
     }
 }

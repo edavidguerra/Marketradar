@@ -198,4 +198,68 @@ class ServicioMayoristasVerificacionTest {
         assertEquals(List.of(1, 2, 3), ambas.resultados().stream().map(ServicioMayoristas.Resultado::posicion).toList());
         assertEquals(nueva.id(), ambas.ganadoraId(), "La de la página 2 se verificó y pasa a ser la ganadora");
     }
+
+    // --- Preliminar de US$40 y verificada de US$60 (100 pares) ---
+
+    @Test
+    void unaPreliminarMasBarataNoLeQuitaLaRecomendacionALaVerificadaNiSeVuelveGanadora() {
+        OfertaMayorista preliminar = medias("1600000000040", "0.40", 100);
+        OfertaMayorista verificada = medias("1600000000060", "0.60", 100);
+        when(cliente.buscar(anyString(), eq(1))).thenReturn(new LectorRespuestasAlibaba.Pagina(
+                List.of(verificada, preliminar), null, 0, null, false));
+        fichas.iguales(List.of(verificada)); // La de US$40 no tiene ficha: queda preliminar.
+
+        ServicioMayoristas.Busqueda r = servicio(4).buscar("cotton socks", 100, UnidadVenta.PAR, 1);
+
+        ServicioMayoristas.Resultado p = de(r, preliminar.id());
+        ServicioMayoristas.Resultado v = de(r, verificada.id());
+        assertEquals(0, new BigDecimal("40.00").compareTo(p.calculo().subtotal()));
+        assertEquals(0, new BigDecimal("60.00").compareTo(v.calculo().subtotal()));
+        assertEquals(1, p.posicion(), "El orden global sigue siendo por subtotal");
+        assertTrue(p.preliminar());
+        assertFalse(p.verificada());
+        assertEquals(2, v.posicion());
+        assertTrue(v.verificada());
+        assertEquals(verificada.id(), r.ganadoraId(), "La menor entre las verificadas, no la menor de todas");
+        assertEquals(2, r.comparables());
+        assertEquals(1, r.verificadas());
+        assertTrue(r.avisos().stream().anyMatch(a -> a.contains("1 oferta tiene precio preliminar")), r.avisos().toString());
+        assertTrue(r.avisos().stream().noneMatch(a -> a.contains("más bajo") || a.contains("más barata")),
+                "Ningún aviso dice que US$60 sea el precio más bajo de todas: " + r.avisos());
+    }
+
+    @Test
+    void sinVerificadasNoHayGanadora() {
+        OfertaMayorista a = medias("1600000000040", "0.40", 100);
+        OfertaMayorista b = medias("1600000000060", "0.60", 100);
+        when(cliente.buscar(anyString(), eq(1))).thenReturn(new LectorRespuestasAlibaba.Pagina(List.of(a, b), null, 0,
+                null, false));
+        fichas.iguales(List.of()); // Ninguna ficha responde.
+
+        ServicioMayoristas.Busqueda r = servicio(4).buscar("cotton socks", 100, UnidadVenta.PAR, 1);
+
+        assertNull(r.ganadoraId());
+        assertEquals(0, r.verificadas());
+        assertTrue(r.resultados().stream().allMatch(ServicioMayoristas.Resultado::preliminar));
+    }
+
+    @Test
+    void siLaFichaContradiceElPrecioCambianJuntosElegibilidadOrdenGanadoraYContadores() {
+        OfertaMayorista barata = medias("1600000000040", "0.40", 100);
+        OfertaMayorista verificada = medias("1600000000060", "0.60", 100);
+        pagina(List.of(verificada, barata));
+        fichas.ficha(barata, fichaDeOchoDolares(barata));
+
+        ServicioMayoristas.Busqueda r = servicio(4).buscar("cotton socks", 100, UnidadVenta.PAR, 1);
+
+        ServicioMayoristas.Resultado contradicha = de(r, barata.id());
+        assertNull(contradicha.posicion(), "Sale del orden");
+        assertFalse(contradicha.preliminar(), "Ya no es preliminar: la ficha la contradijo");
+        assertFalse(contradicha.verificada());
+        assertNull(contradicha.calculo().subtotal(), "No se muestra el subtotal de US$40 contradicho");
+        assertEquals(1, de(r, verificada.id()).posicion(), "La verificada sube al primer lugar");
+        assertEquals(verificada.id(), r.ganadoraId());
+        assertEquals(1, r.comparables(), "Los contadores ya no cuentan la contradicha");
+        assertEquals(1, r.verificadas());
+    }
 }
