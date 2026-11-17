@@ -14,11 +14,19 @@ el servidor.
 |---|---|---|
 | Modelo | "iphone 13", "ps5", "galaxy s24" | El mismo número con las mismas letras. Si el título trae otro número de la misma forma ("iPhone 14"), no cumple. "PlayStation 5" cuando se escribió "ps5" queda por confirmar. |
 | Versión | "pro", "mini", "pro max", "ultra", "plus" | Las palabras de versión que van justo después del modelo deben ser las mismas: un "iPhone 13 Pro" no es un "iPhone 13" y un "Pro Max" no es un "Pro". |
-| Capacidad | "128 GB", "1 TB" | Otra capacidad no cumple; si el título no la dice, queda por confirmar. |
+| Capacidad | "128 GB", "1 TB", "4 GB RAM" | Almacenamiento y RAM se revisan por separado. Otra capacidad identificada no cumple; si el título no la dice, o la deja ambigua, queda por confirmar. |
 | Condición | "nuevo", "usado", "reacondicionado", "de exhibición" | Se lee de lo que informa la tienda (`second_hand_condition`, etiquetas y título). Reacondicionado y de exhibición nunca son nuevos. Si la tienda no dice nada, queda por confirmar: no se da por nuevo. |
 | Combos | "combo", "kit", "paquete" | Un combo con otros productos no cumple, salvo que la persona lo haya pedido. |
 
 Las palabras de versión son de uso general en electrónica, no de una marca ni de los ejemplos de la auditoría.
+
+Las capacidades se interpretan igual en la búsqueda y en la tabla de comparación
+(`NormalizadorEspecificaciones.capacidades`), según el tipo de producto (`CategoriaProducto`) y no con un umbral
+general: primero lo rotulado (RAM, ROM, almacenamiento, SSD, HDD, "4+128"); en una memoria USB, tarjeta SD/microSD,
+disco o consola, toda capacidad es almacenamiento (la palabra "USB" sola no basta, porque también nombra puertos); en
+celulares, tabletas y portátiles, la RAM y el almacenamiento se separan con los demás datos del título y con la RAM
+máxima de ese tipo de equipo. Lo que sigue siendo ambiguo ("16 GB" sola en un portátil) no confirma ni contradice, y
+dos capacidades posibles no se convierten en una sola.
 
 Cada oferta queda en uno de tres grupos:
 

@@ -10,7 +10,15 @@ import { dinero, fechaHora, pesos } from '../comun/formato.js';
 
 const $ = (id) => document.getElementById(id);
 const estado = {
-    termino: '', cantidad: 0, unidad: 'PIEZA', pagina: 1, siguiente: null, configurado: null, variante: null,
+    /**
+     * Búsqueda enviada con "Buscar" (término, cantidad y unidad), congelada. Los campos del formulario se pueden editar
+     * después sin pulsar Buscar: los resultados, el detalle y las páginas siguientes se piden y se describen siempre con
+     * esta búsqueda, nunca con lo que esté escrito en ese momento en el formulario.
+     */
+    enviada: null,
+    pagina: 1, siguiente: null, configurado: null, variante: null,
+    /** Catálogo de unidades del servidor (código → { singular, plural }). */
+    unidades: new Map(),
     /** Variante elegida por oferta (id → variante): la lista y el detalle calculan con la misma. */
     variantes: new Map(),
     /** Número de la última solicitud: las respuestas de solicitudes anteriores se ignoran. */
@@ -55,6 +63,24 @@ export function leerCantidad(texto) {
 }
 
 const textoCantidad = (cantidad) => cantidad.toLocaleString('es-CO');
+
+/**
+ * Nombre de una unidad para una cantidad, a partir de su código (el que confirmó el servidor) y del catálogo de
+ * unidades. No se lee del formulario: el formulario puede tener otra unidad elegida que todavía no se buscó.
+ *
+ * @param {string} codigo código de la unidad, por ejemplo "PAR"
+ * @param {number} cantidad cantidad (1 va en singular)
+ * @param {Map<string, {singular: string, plural: string}>} catalogo unidades conocidas
+ */
+export function textoUnidad(codigo, cantidad, catalogo = estado.unidades) {
+    const unidad = catalogo.get(codigo);
+    if (!unidad) return String(codigo ?? '').toLowerCase();
+    return cantidad === 1 ? unidad.singular : unidad.plural;
+}
+
+/** "100 pares", con miles con punto y la unidad del catálogo. */
+export const textoPedido = (cantidad, codigo, catalogo = estado.unidades) =>
+    `${textoCantidad(cantidad)} ${textoUnidad(codigo, cantidad, catalogo)}`;
 
 function crearEscalas(oferta, calculo) {
     if (!oferta.escalas.length) return crear('p', 'ayuda', 'Escalas de precio: No disponible');
@@ -124,8 +150,8 @@ export function etiquetaPuesto(oferta, ganadora) {
     if (ganadora != null && oferta.id === ganadora) {
         return {
             clase: 'etiqueta-mejor',
-            texto: oferta.empate ? '★ Empate en el subtotal verificado más bajo entre las ofertas cargadas'
-                : '★ Subtotal verificado más bajo entre las ofertas cargadas',
+            texto: oferta.empate ? '★ Empate en el subtotal más bajo entre las ofertas verificadas'
+                : '★ Subtotal más bajo entre las ofertas verificadas',
         };
     }
     return { clase: 'ayuda', texto: `Puesto ${oferta.posicion} por subtotal, precio verificado${oferta.empate ? ' (empate)' : ''}` };
@@ -210,8 +236,8 @@ function crearVariantes(oferta) {
  */
 async function verDetalle(url, variante = null, id = null) {
     const pedida = {
-        numero: ++estado.solicitudDetalle, url, variante, id, cantidad: estado.cantidad, unidad: estado.unidad,
-        busqueda: claveBusqueda(),
+        numero: ++estado.solicitudDetalle, url, variante, id, cantidad: estado.enviada.cantidad,
+        unidad: estado.enviada.unidad, busqueda: claveBusqueda(),
     };
     estado.variante = variante;
     const zona = $('detalle-mayorista');
@@ -246,10 +272,11 @@ function aplicarDetalle(oferta, pedida) {
     else estado.variantes.delete(ofertaId);
     // La ficha puede cambiar el precio de la tarjeta, su lugar, la ganadora y los contadores: se recalcula toda la lista
     // con lo ya cargado (sale de la caché del servidor, no gasta consultas).
-    if (estado.termino) cargar(estado.pagina, { silencioso: true });
+    if (estado.enviada) cargar(estado.pagina, { silencioso: true });
 }
 
-const claveBusqueda = () => `${estado.termino}|${estado.cantidad}|${estado.unidad}`;
+const claveBusqueda = () => (estado.enviada
+    ? `${estado.enviada.numero}|${estado.enviada.termino}|${estado.enviada.cantidad}|${estado.enviada.unidad}` : '');
 
 /** Cuántas tienen el precio verificado con la ficha y cuántas solo el precio preliminar de la búsqueda. */
 export function textoContadores(respuesta) {
@@ -262,21 +289,64 @@ export function textoContadores(respuesta) {
 }
 
 /**
+ * Qué significa la estrella. Solo compite entre las verificadas: una preliminar más barata no se esconde, pero tampoco se
+ * dice que la recomendada sea el precio más bajo de todas las ofertas.
+ */
+export function textoRecomendacion(respuesta) {
+    if (!respuesta.ganadora_id) return '';
+    const preliminares = Math.max(0, (respuesta.comparables ?? 0) - (respuesta.verificadas ?? 0));
+    return ' La estrella es la de menor subtotal entre las verificadas de las ofertas cargadas, no entre todo Alibaba.'
+        + (preliminares > 0 ? ' Mientras no se verifique su ficha, una oferta con precio preliminar puede verse más barata.' : '');
+}
+
+/**
+ * Lee lo que hay en el formulario sin enviarlo.
+ *
+ * @returns {{ termino: string, cantidad: number|null, unidad: string }}
+ */
+function leerFormulario() {
+    return {
+        termino: $('termino-mayorista').value.trim(),
+        cantidad: interpretarCantidad($('cantidad-mayorista').value).valor,
+        unidad: $('unidad-mayorista').value,
+    };
+}
+
+/** Si lo escrito en el formulario es distinto de la búsqueda que se ve: avisa que hay cambios sin aplicar. */
+function revisarCambios() {
+    const aviso = $('cambios-mayoristas');
+    if (!aviso) return;
+    const enviada = estado.enviada;
+    const formulario = leerFormulario();
+    const distinto = enviada != null && (formulario.termino !== enviada.termino
+        || formulario.cantidad !== enviada.cantidad || formulario.unidad !== enviada.unidad);
+    aviso.hidden = !distinto;
+    aviso.textContent = distinto
+        ? `Tiene cambios sin aplicar. Los resultados siguen siendo para "${enviada.termino}", `
+          + `${textoPedido(enviada.cantidad, enviada.unidad)}. Pulse "Buscar al por mayor" para aplicarlos.`
+        : '';
+}
+
+/**
  * Carga las páginas 1 a {@code hasta} en una sola respuesta: el servidor las junta, quita repetidos y ordena todas
  * las ofertas cargadas. Si llega una respuesta de una solicitud anterior (otra búsqueda, otra cantidad), se ignora.
  */
 async function cargar(hasta = 1, { silencioso = false } = {}) {
     const zona = $('estado-mayoristas');
-    const numero = ++estado.solicitud;
-    const clave = claveBusqueda();
+    // Instantánea de lo que se pide: la búsqueda enviada y las variantes elegidas en este momento.
+    const solicitud = Object.freeze({
+        numero: ++estado.solicitud,
+        busqueda: estado.enviada,
+        variantes: [...estado.variantes].map(([id, variante]) => `${id}:${variante}`).join(','),
+    });
     estado.cargando = true;
     const mas = $('mas-mayoristas');
     mas.disabled = true;
     if (!silencioso) mostrarEstado(zona, 'Buscando en Alibaba, puede tardar hasta un minuto…');
     try {
-        const variantes = [...estado.variantes].map(([id, variante]) => `${id}:${variante}`).join(',');
-        const respuesta = await buscarMayoristas(estado.termino, estado.cantidad, estado.unidad, hasta, variantes);
-        if (numero !== estado.solicitud || clave !== claveBusqueda()) return;
+        const { termino, cantidad, unidad } = solicitud.busqueda;
+        const respuesta = await buscarMayoristas(termino, cantidad, unidad, hasta, solicitud.variantes);
+        if (solicitud.numero !== estado.solicitud || solicitud.busqueda !== estado.enviada) return;
         estado.pagina = respuesta.pagina;
         estado.ganadora = respuesta.ganadora_id ?? null;
         const avisos = $('avisos-mayoristas');
@@ -288,21 +358,22 @@ async function cargar(hasta = 1, { silencioso = false } = {}) {
         $('lista-dudosas-mayoristas').replaceChildren(...dudosas.map((oferta) => crearOferta(oferta)));
         $('lista-dudosas-mayoristas').hidden = dudosas.length === 0;
         $('titulo-dudosas-mayoristas').hidden = dudosas.length === 0;
-        const unidad = $('unidad-mayorista').selectedOptions[0]?.textContent || estado.unidad.toLowerCase();
+        // La unidad y la cantidad salen de la respuesta (lo que confirmó el servidor) y, si faltan, de la misma solicitud.
+        const pedido = textoPedido(respuesta.cantidad ?? cantidad, respuesta.unidad ?? unidad);
         const paginas = respuesta.pagina === 1 ? 'Se cargó la primera página'
             : `Se cargaron las primeras ${respuesta.pagina} páginas`;
         mostrarEstado(zona, respuesta.ofertas.length === 0
             ? `No encontramos ofertas al por mayor para "${respuesta.termino}". Pruebe con palabras en inglés.`
-            : `Cantidad: ${textoCantidad(respuesta.cantidad)} ${unidad}. ${paginas}: ${respuesta.ofertas.length} `
-              + `ofertas distintas para "${respuesta.termino}". ${textoContadores(respuesta)} El más bajo es entre las `
-              + `ofertas cargadas, no entre todo Alibaba. ${respuesta.nota}.`);
+            : `Cantidad: ${pedido}. ${paginas}: ${respuesta.ofertas.length} `
+              + `ofertas distintas para "${respuesta.termino}". ${textoContadores(respuesta)}${textoRecomendacion(respuesta)} `
+              + `${respuesta.nota}.`);
         estado.siguiente = respuesta.siguiente_pagina;
         mas.hidden = !estado.siguiente;
     } catch (error) {
-        if (numero !== estado.solicitud) return;
+        if (solicitud.numero !== estado.solicitud) return;
         mostrarEstado(zona, error.message, () => cargar(hasta));
     } finally {
-        if (numero === estado.solicitud) {
+        if (solicitud.numero === estado.solicitud) {
             estado.cargando = false;
             mas.disabled = false;
         }
@@ -324,9 +395,11 @@ function enviar(evento) {
         (termino.length < 2 || termino.length > 100 ? $('termino-mayorista') : $('cantidad-mayorista')).focus();
         return;
     }
-    Object.assign(estado, {
-        termino, cantidad, unidad: $('unidad-mayorista').value, pagina: 1, siguiente: null, variante: null,
+    estado.enviada = Object.freeze({
+        numero: (estado.enviada?.numero ?? 0) + 1, termino, cantidad, unidad: $('unidad-mayorista').value,
     });
+    Object.assign(estado, { pagina: 1, siguiente: null, variante: null });
+    revisarCambios();
     estado.variantes.clear();
     // Una ficha pedida para la búsqueda anterior ya no se aplica.
     estado.solicitudDetalle += 1;
@@ -346,6 +419,7 @@ export async function cargarMayoristas() {
         const info = await obtenerEstadoMayoristas();
         estado.configurado = info.configurado;
         const lista = $('unidad-mayorista');
+        estado.unidades = new Map(info.unidades.map((unidad) => [unidad.codigo, unidad]));
         lista.replaceChildren(...info.unidades.map((unidad) => new Option(unidad.plural, unidad.codigo)));
         lista.value = 'PIEZA';
         $('sin-configurar-mayoristas').hidden = info.configurado;
@@ -357,6 +431,11 @@ export async function cargarMayoristas() {
 
 export function iniciarMayoristas() {
     $('formulario-mayoristas').addEventListener('submit', enviar);
+    // Editar sin pulsar Buscar no cambia los resultados: solo avisa que hay cambios sin aplicar.
+    ['termino-mayorista', 'cantidad-mayorista', 'unidad-mayorista'].forEach((id) => {
+        $(id).addEventListener('input', revisarCambios);
+        $(id).addEventListener('change', revisarCambios);
+    });
     $('mas-mayoristas').addEventListener('click', () => {
         // Varias pulsaciones seguidas no piden varias veces la misma página.
         if (!estado.siguiente || estado.cargando) return;

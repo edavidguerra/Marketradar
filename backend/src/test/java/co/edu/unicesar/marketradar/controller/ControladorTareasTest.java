@@ -33,9 +33,17 @@ class ControladorTareasTest {
         return new PropiedadesSeguimientos(true, 15, 15, 20, 10, new BigDecimal("1"), 3, 48, 20, token);
     }
 
+    /** Ronda en que la única consulta respondió (o, si no terminó, sin resultado). */
     private static EjecucionTareaDao.Ejecucion ronda(int minutoInicio, EjecucionTareaDao.Estado estado) {
+        boolean terminada = estado == EjecucionTareaDao.Estado.TERMINADA;
+        return ronda(minutoInicio, estado, terminada ? 1 : 0, 0, terminada ? EjecucionTareaDao.ResultadoConsultas.CORRECTAS : null);
+    }
+
+    private static EjecucionTareaDao.Ejecucion ronda(int minutoInicio, EjecucionTareaDao.Estado estado, int exitosas,
+                                                     int fallidas, EjecucionTareaDao.ResultadoConsultas resultado) {
         return new EjecucionTareaDao.Ejecucion(minutoInicio, "seguimientos", EjecucionTareaDao.Origen.CRON, estado,
-                T0.plusMinutes(minutoInicio), T0.plusMinutes(minutoInicio).plusSeconds(5), 1, 1, 0, 0, 0, null);
+                T0.plusMinutes(minutoInicio), T0.plusMinutes(minutoInicio).plusSeconds(5), exitosas + fallidas,
+                exitosas + fallidas, 0, 0, 0, null, exitosas, fallidas, 0, 0, resultado);
     }
 
     /** De la más reciente a la más antigua, como las devuelve el DAO. */
@@ -186,5 +194,76 @@ class ControladorTareasTest {
         ResponseEntity<Object> r = new ControladorTareas(servicio, propiedades("secreto-de-prueba"),
                 mock(EjecucionTareaDao.class), RELOJ).seguimientos("secreto-de-prueba");
         assertTrue(String.valueOf(r.getBody()).length() < 300);
+    }
+
+    // --- Ronda terminada no es comprobación exitosa ---
+
+    @Test
+    void rondasPuntualesConTodasLasConsultasFallidasNoSonComprobacionCorrecta() {
+        List<EjecucionTareaDao.Ejecucion> lista = new ArrayList<>();
+        for (int minuto : new int[] {45, 30, 15, 0}) {
+            lista.add(ronda(minuto, EjecucionTareaDao.Estado.TERMINADA, 0, 2, EjecucionTareaDao.ResultadoConsultas.FALLIDAS));
+        }
+        Map<String, Object> r = ControladorTareas.resumen(lista, 15, T0.plusMinutes(50));
+        assertEquals(Boolean.TRUE, r.get("frecuencia_cumplida"), "El cron llega a tiempo");
+        assertEquals(Boolean.FALSE, r.get("comprobacion_correcta"), "Pero ninguna consulta respondió");
+        assertNull(r.get("ultima_ejecucion_exitosa"));
+        assertEquals(0, r.get("fallidas_seguidas"), "Técnicamente ninguna ronda falló");
+        assertEquals("consultas_fallidas", r.get("estado_general"));
+    }
+
+    @Test
+    void rondasSinTrabajoNoSonFalloNiEvidenciaDeConsultas() {
+        List<EjecucionTareaDao.Ejecucion> lista = new ArrayList<>();
+        for (int minuto : new int[] {45, 30, 15, 0}) {
+            lista.add(ronda(minuto, EjecucionTareaDao.Estado.TERMINADA, 0, 0, EjecucionTareaDao.ResultadoConsultas.SIN_TRABAJO));
+        }
+        Map<String, Object> r = ControladorTareas.resumen(lista, 15, T0.plusMinutes(50));
+        assertEquals(Boolean.TRUE, r.get("frecuencia_cumplida"));
+        assertNull(r.get("comprobacion_correcta"));
+        assertNull(r.get("ultima_comprobacion_de_precios"));
+        assertEquals("sin_datos_suficientes", r.get("estado_general"));
+    }
+
+    @Test
+    void unaComprobacionViejaSeguidaDeRondasSinTrabajoNoSeDaPorVigente() {
+        List<EjecucionTareaDao.Ejecucion> lista = new ArrayList<>();
+        lista.add(ronda(300, EjecucionTareaDao.Estado.TERMINADA, 0, 0, EjecucionTareaDao.ResultadoConsultas.SIN_TRABAJO));
+        lista.add(ronda(285, EjecucionTareaDao.Estado.TERMINADA, 0, 0, EjecucionTareaDao.ResultadoConsultas.SIN_TRABAJO));
+        lista.add(ronda(270, EjecucionTareaDao.Estado.TERMINADA, 0, 0, EjecucionTareaDao.ResultadoConsultas.SIN_TRABAJO));
+        lista.add(ronda(0, EjecucionTareaDao.Estado.TERMINADA));
+        Map<String, Object> r = ControladorTareas.resumen(lista, 15, T0.plusMinutes(305));
+        assertNull(r.get("comprobacion_correcta"), "Hay rondas recientes, pero sin precios que consultar");
+        assertEquals(T0, ((Map<?, ?>) r.get("ultima_comprobacion_de_precios")).get("iniciada_en"));
+    }
+
+    @Test
+    void ejecucionesAntiguasYNingunaRecienteNoCumplen() {
+        List<EjecucionTareaDao.Ejecucion> lista = new ArrayList<>();
+        lista.add(ronda(30, EjecucionTareaDao.Estado.TERMINADA, 1, 1, EjecucionTareaDao.ResultadoConsultas.PARCIALES));
+        lista.add(ronda(15, EjecucionTareaDao.Estado.TERMINADA));
+        lista.add(ronda(0, EjecucionTareaDao.Estado.TERMINADA));
+        Map<String, Object> r = ControladorTareas.resumen(lista, 15, T0.plusMinutes(30 + 600));
+        assertEquals(Boolean.FALSE, r.get("frecuencia_cumplida"));
+        assertEquals(Boolean.FALSE, r.get("comprobacion_correcta"));
+        assertEquals(600L, r.get("minutos_desde_ultima"));
+        assertEquals("atrasado", r.get("estado_general"));
+        assertEquals(T0.plusMinutes(30), ((Map<?, ?>) r.get("ultima_ejecucion_exitosa")).get("iniciada_en"),
+                "La parcial tuvo una consulta que respondió");
+    }
+
+    @Test
+    void lasRondasAnterioresAlRegistroDeConsultasNoCuentanComoComprobacion() {
+        // Filas anteriores a V15: TERMINADA sin resultado de consultas. No se sabe si consultaron con éxito.
+        List<EjecucionTareaDao.Ejecucion> lista = new ArrayList<>();
+        for (int minuto : new int[] {45, 30, 15, 0}) {
+            lista.add(new EjecucionTareaDao.Ejecucion(minuto, "seguimientos", EjecucionTareaDao.Origen.CRON,
+                    EjecucionTareaDao.Estado.TERMINADA, T0.plusMinutes(minuto), T0.plusMinutes(minuto).plusSeconds(5),
+                    1, 1, 0, 0, 0, null));
+        }
+        Map<String, Object> r = ControladorTareas.resumen(lista, 15, T0.plusMinutes(50));
+        assertNull(r.get("comprobacion_correcta"));
+        assertNull(r.get("ultima_ejecucion_exitosa"));
+        assertNull(((Map<?, ?>) r.get("ultima_ejecucion")).get("resultado_consultas"));
     }
 }

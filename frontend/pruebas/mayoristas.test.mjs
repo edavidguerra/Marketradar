@@ -12,7 +12,7 @@ test('una oferta con precio preliminar nunca se anuncia como ganadora', () => {
 });
 
 test('solo la ganadora verificada lleva la estrella', () => {
-    assert.match(etiquetaPuesto(oferta(), '1600000000044').texto, /^★ Subtotal verificado más bajo/);
+    assert.match(etiquetaPuesto(oferta(), '1600000000044').texto, /^★ Subtotal más bajo entre las ofertas verificadas$/);
     assert.equal(etiquetaPuesto(oferta({ id: 'otra', posicion: 2 }), '1600000000044').texto,
         'Puesto 2 por subtotal, precio verificado');
     assert.equal(etiquetaPuesto(oferta(), null).clase, 'ayuda', 'Sin ganadora verificada no hay estrella');

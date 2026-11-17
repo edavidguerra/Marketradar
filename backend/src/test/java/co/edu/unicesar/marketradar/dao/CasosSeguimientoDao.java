@@ -438,6 +438,19 @@ abstract class CasosSeguimientoDao {
         assertEquals(2, recientes.size());
         assertTrue(recientes.stream().anyMatch(e -> e.estado() == EjecucionTareaDao.Estado.TERMINADA
                 && e.revisados() == 3 && e.origen() == EjecucionTareaDao.Origen.CRON && e.terminadaEn() != null));
+        // Una ronda que terminó con todas sus consultas fallidas guarda ese resultado aparte (V15).
+        long otra = dao.iniciar(tarea, EjecucionTareaDao.Origen.CRON);
+        dao.terminar(otra, EjecucionTareaDao.Estado.TERMINADA, new EjecucionTareaDao.Conteo(2, 2, 0, 2, 0, 1, 0, 0, 1,
+                EjecucionTareaDao.ResultadoConsultas.FALLIDAS), null);
+        EjecucionTareaDao.Ejecucion fallida = dao.recientes(tarea, 10).stream().filter(e -> e.id() == otra)
+                .findFirst().orElseThrow();
+        assertEquals(EjecucionTareaDao.ResultadoConsultas.FALLIDAS, fallida.resultado());
+        assertEquals(0, fallida.consultasExitosas());
+        assertEquals(2, fallida.consultasFallidas());
+        assertEquals(1, fallida.correosRechazados());
+        assertEquals(1, fallida.pospuestos());
+        assertTrue(recientes.stream().filter(e -> e.estado() == EjecucionTareaDao.Estado.TERMINADA)
+                .allMatch(e -> e.resultado() == null), "La forma anterior de terminar no inventa un resultado");
 
         // Mientras una ronda tiene el bloqueo, otra (desde otro hilo, como otra copia del servidor) no entra.
         java.util.concurrent.CountDownLatch dentro = new java.util.concurrent.CountDownLatch(1);

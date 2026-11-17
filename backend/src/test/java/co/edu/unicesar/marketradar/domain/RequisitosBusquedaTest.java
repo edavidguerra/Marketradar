@@ -136,7 +136,9 @@ class RequisitosBusquedaTest {
         assertEquals(Nivel.CUMPLE, requisitos.evaluar("Samsung A16 4+128GB", SIN_DECIR).nivel());
         NormalizadorEspecificaciones.Capacidades c = NormalizadorEspecificaciones.capacidades("Samsung A16 128 GB 4 GB RAM");
         assertEquals(java.util.Set.of(4), c.ram());
-        assertEquals(java.util.Set.of(128), c.sueltas());
+        // Con la RAM dicha, la otra capacidad (mayor) es el almacenamiento: ya no queda suelta.
+        assertEquals(java.util.Set.of(128), c.almacenamiento());
+        assertEquals(java.util.Set.of(), c.sueltas());
     }
 
     @Test
@@ -189,5 +191,99 @@ class RequisitosBusquedaTest {
         assertEquals(Nivel.CUMPLE, RequisitosBusqueda.de("memoria usb 16 gb").evaluar("Memoria USB Kingston 16GB",
                 SIN_DECIR).nivel());
         assertEquals(Nivel.INCUMPLE, RequisitosBusqueda.de("disco 1 tb").evaluar("Disco externo 2 TB", SIN_DECIR).nivel());
+    }
+
+    // --- Capacidades según el tipo de producto (sin umbral general de 32 GB) ---
+
+    @ParameterizedTest(name = "{0} con «{1}»: {2}")
+    @CsvSource(delimiter = '|', value = {
+        "Memoria USB 64 GB          | Memoria USB 16 GB              | INCUMPLE      | Es de 16 GB, no de 64 GB",
+        "Memoria USB 16 GB          | Memoria USB 16 GB              | CUMPLE        | ''",
+        "MicroSD 64 GB              | MicroSD 8 GB                   | INCUMPLE      | Es de 8 GB, no de 64 GB",
+        "SSD 1 TB                   | SSD 2 TB                       | INCUMPLE      | Es de 2 TB, no de 1 TB",
+        "A16 128 GB                 | A16 4 GB RAM                   | SIN_CONFIRMAR | El título no dice la capacidad (128 GB)",
+        "A16 128 GB 4 GB RAM        | A16 128 GB 6 GB RAM            | INCUMPLE      | Tiene 6 GB de RAM, no 4 GB",
+        "A16 128 GB 4 GB RAM        | A16 4+128 GB                   | CUMPLE        | ''",
+        "tarjeta microsd 32 gb      | Tarjeta microSD SanDisk 32GB   | CUMPLE        | ''",
+        "pendrive 64 gb             | Pendrive Kingston 128 GB       | INCUMPLE      | Es de 128 GB, no de 64 GB",
+        "disco externo 1 tb         | Disco duro externo Seagate 1TB | CUMPLE        | ''",
+    })
+    void interpretaLasCapacidadesSegunElProducto(String busqueda, String titulo, Nivel esperado, String motivo) {
+        RequisitosBusqueda.Evaluacion e = RequisitosBusqueda.de(busqueda).evaluar(titulo, SIN_DECIR);
+        assertEquals(esperado, e.nivel(), e.motivos().toString());
+        assertEquals(motivo.isEmpty() ? List.of() : List.of(motivo), e.motivos());
+    }
+
+    @Test
+    void unaMemoriaUsbDe16GbMuestraSuAlmacenamientoEnLaTabla() {
+        java.util.Map<String, String> tabla = NormalizadorEspecificaciones.extraer("Memoria USB 16 GB", List.of())
+                .stream().collect(java.util.stream.Collectors.toMap(Especificacion::clave, Especificacion::valor));
+        assertEquals("16 GB", tabla.get("almacenamiento"));
+        assertEquals(null, tabla.get("ram"));
+        assertEquals(CategoriaProducto.ALMACENAMIENTO, CategoriaProducto.detectar("Memoria USB 16 GB"));
+    }
+
+    @Test
+    void laPalabraUsbSolaNoConvierteLaCapacidadEnAlmacenamiento() {
+        // Puertos USB de un portátil: "16 GB" sola sigue siendo ambigua (podría ser la RAM).
+        NormalizadorEspecificaciones.Capacidades portatil =
+                NormalizadorEspecificaciones.capacidades("Portátil Lenovo 16 GB USB 3.0 HDMI");
+        assertEquals(java.util.Set.of(), portatil.almacenamiento());
+        assertEquals(java.util.Set.of(16), portatil.sueltas());
+        assertEquals(Nivel.SIN_CONFIRMAR, RequisitosBusqueda.de("portatil 512 gb")
+                .evaluar("Portátil Lenovo 16 GB USB 3.0 HDMI", SIN_DECIR).nivel());
+        // Un celular con USB-C y ranura microSD sigue siendo un celular.
+        assertEquals(CategoriaProducto.CELULAR, CategoriaProducto.detectar("Celular Motorola 128 GB USB-C ranura microSD"));
+        assertEquals(CategoriaProducto.PORTATIL, CategoriaProducto.detectar("Portátil HP 8 GB RAM 512 GB SSD"));
+        // Sin palabra de producto, "64GB USB 3.2" no se da por memoria USB.
+        assertEquals(java.util.Set.of(64), NormalizadorEspecificaciones.capacidades("Kingston DataTraveler 64GB USB 3.2")
+                .sueltas());
+        // Una memoria nombrada primero sí lo es, aunque diga para qué equipo.
+        assertEquals(CategoriaProducto.ALMACENAMIENTO, CategoriaProducto.detectar("Memoria microSD 64GB para celular"));
+    }
+
+    @Test
+    void laRamExplicitaDeTresCifrasNoEsAlmacenamiento() {
+        NormalizadorEspecificaciones.Capacidades c =
+                NormalizadorEspecificaciones.capacidades("Estación de trabajo Dell 128 GB RAM 2 TB SSD");
+        assertEquals(java.util.Set.of(128), c.ram());
+        assertEquals(java.util.Set.of(2048), c.almacenamiento());
+        assertEquals(java.util.Set.of(), c.sueltas());
+        RequisitosBusqueda.Evaluacion e = RequisitosBusqueda.de("128 gb").evaluar("Portátil 128 GB RAM", SIN_DECIR);
+        assertEquals(Nivel.SIN_CONFIRMAR, e.nivel(), "128 GB de RAM no es almacenamiento");
+        RequisitosBusqueda ram = RequisitosBusqueda.de("portatil 128 gb ram");
+        assertEquals(java.util.Set.of(128), ram.ramGb());
+        assertEquals(java.util.Set.of(), ram.capacidadesGb());
+        assertEquals(List.of("Tiene 64 GB de RAM, no 128 GB"),
+                ram.evaluar("Portátil 64 GB RAM 1 TB SSD", SIN_DECIR).motivos());
+    }
+
+    @Test
+    void enPortatilesYCelularesSeparaRamYAlmacenamientoPorElContexto() {
+        NormalizadorEspecificaciones.Capacidades portatil =
+                NormalizadorEspecificaciones.capacidades("Portátil HP 16GB 512GB SSD");
+        assertEquals(java.util.Set.of(16), portatil.ram());
+        assertEquals(java.util.Set.of(512), portatil.almacenamiento());
+        NormalizadorEspecificaciones.Capacidades celular =
+                NormalizadorEspecificaciones.capacidades("Celular Xiaomi Redmi 13C 8GB 256GB");
+        assertEquals(java.util.Set.of(8), celular.ram());
+        assertEquals(java.util.Set.of(256), celular.almacenamiento());
+        // Una sola cifra que en ese equipo puede ser RAM queda ambigua: no cumple ni incumple.
+        assertEquals(java.util.Set.of(8), NormalizadorEspecificaciones.capacidades("Celular Samsung A05 8GB").sueltas());
+        assertEquals(Nivel.SIN_CONFIRMAR, RequisitosBusqueda.de("celular samsung a05 128gb")
+                .evaluar("Celular Samsung A05 8GB", SIN_DECIR).nivel());
+    }
+
+    @Test
+    void dosCapacidadesAmbiguasNoSeConviertenEnUnaInventada() {
+        // Dos almacenamientos posibles en una memoria: la tabla no elige uno.
+        java.util.Map<String, String> tabla = NormalizadorEspecificaciones.extraer("Kit memorias microSD 32GB 64GB",
+                List.of()).stream().collect(java.util.stream.Collectors.toMap(Especificacion::clave, Especificacion::valor));
+        assertEquals(null, tabla.get("almacenamiento"));
+        // Tres cifras sueltas sin contexto: ninguna se asigna.
+        NormalizadorEspecificaciones.Capacidades c = NormalizadorEspecificaciones.capacidades("Combo 4GB 64GB 128GB");
+        assertEquals(java.util.Set.of(), c.ram());
+        assertEquals(java.util.Set.of(), c.almacenamiento());
+        assertEquals(java.util.Set.of(4, 64, 128), c.sueltas());
     }
 }

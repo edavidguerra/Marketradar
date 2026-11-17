@@ -81,15 +81,17 @@ public class ControladorTareas {
     static final long MARGEN_MINUTOS = 5;
 
     /**
-     * Resume las rondas. Separa dos preguntas: si el cron llega con la frecuencia esperada (contando también el tiempo
-     * que lleva sin llegar ninguna) y si las rondas de verdad comprobaron precios sin fallar. Cuando no hay datos
-     * suficientes para responder, el valor es {@code null}: no se afirma nada.
+     * Resume las rondas. Separa tres preguntas: si el cron llega con la frecuencia esperada (contando también el tiempo
+     * que lleva sin llegar ninguna), si las rondas de verdad consultaron precios en las tiendas y qué pasó con los
+     * correos. Que una ronda termine ({@code TERMINADA}) no prueba que haya comprobado precios: se mira cuántas
+     * consultas respondieron. Una ronda sin trabajo pendiente no es un fallo, pero tampoco cuenta como comprobación.
+     * Cuando no hay datos suficientes para responder, el valor es {@code null}: no se afirma nada.
      *
      * @param recientes rondas de la más reciente a la más antigua
      * @param esperadaMinutos cada cuánto deberían correr
      * @param ahora hora actual (reloj controlable en las pruebas)
      */
-    static Map<String, Object> resumen(List<EjecucionTareaDao.Ejecucion> recientes, int esperadaMinutos,
+    public static Map<String, Object> resumen(List<EjecucionTareaDao.Ejecucion> recientes, int esperadaMinutos,
                                        OffsetDateTime ahora) {
         List<EjecucionTareaDao.Ejecucion> corridas = recientes.stream()
                 .filter(e -> e.estado() != EjecucionTareaDao.Estado.OMITIDA).toList();
@@ -102,8 +104,14 @@ public class ControladorTareas {
             mayorHueco = Math.max(mayorHueco, minutos);
         }
         EjecucionTareaDao.Ejecucion ultima = corridas.isEmpty() ? null : corridas.get(0);
-        EjecucionTareaDao.Ejecucion ultimaExitosa = corridas.stream()
+        EjecucionTareaDao.Ejecucion ultimaTerminada = corridas.stream()
                 .filter(e -> e.estado() == EjecucionTareaDao.Estado.TERMINADA).findFirst().orElse(null);
+        // La última ronda que de verdad consultó tiendas (con éxito o no) y la última en que alguna consulta respondió.
+        EjecucionTareaDao.Ejecucion ultimaConsulta = corridas.stream().filter(ControladorTareas::consulto)
+                .findFirst().orElse(null);
+        EjecucionTareaDao.Ejecucion ultimaExitosa = corridas.stream()
+                .filter(e -> e.estado() == EjecucionTareaDao.Estado.TERMINADA && e.consultasExitosas() > 0)
+                .findFirst().orElse(null);
         Long minutosDesdeUltima = ultima == null ? null
                 : Math.max(0, Duration.between(ultima.iniciadaEn(), ahora).toMinutes());
         Long minutosDesdeExitosa = ultimaExitosa == null ? null
@@ -128,16 +136,25 @@ public class ControladorTareas {
         } else {
             frecuencia = mayorHueco <= limite;
         }
-        // Resultado: correr a tiempo con errores no es comprobar precios.
+        // Resultado: correr a tiempo con errores no es comprobar precios, y terminar sin consultar nada tampoco.
+        boolean rondasRecientes = minutosDesdeUltima != null && minutosDesdeUltima <= limite;
+        EjecucionTareaDao.ResultadoConsultas resultadoUltimaConsulta = ultimaConsulta == null ? null
+                : ultimaConsulta.resultado();
         Boolean comprobacion;
         if (ultima == null) {
             comprobacion = null;
         } else if (fallidasSeguidas > 0) {
             comprobacion = false;
-        } else if (minutosDesdeExitosa == null) {
-            comprobacion = null;
+        } else if (resultadoUltimaConsulta == EjecucionTareaDao.ResultadoConsultas.FALLIDAS
+                || resultadoUltimaConsulta == EjecucionTareaDao.ResultadoConsultas.PARCIALES) {
+            comprobacion = false;
+        } else if (ultimaConsulta != null
+                && Duration.between(ultimaConsulta.iniciadaEn(), ahora).toMinutes() <= limite) {
+            comprobacion = true;
         } else {
-            comprobacion = minutosDesdeExitosa <= limite;
+            // Sin una consulta reciente: si las rondas siguen llegando (solo que sin trabajo) no se afirma nada; si
+            // tampoco llegan rondas, no hay comprobación.
+            comprobacion = rondasRecientes ? null : false;
         }
 
         Map<String, Object> datos = new LinkedHashMap<>();
@@ -148,17 +165,51 @@ public class ControladorTareas {
         datos.put("minutos_desde_ultima", minutosDesdeUltima);
         datos.put("frecuencia_cumplida", frecuencia);
         datos.put("ultima_ejecucion", ultima == null ? null : fila(ultima));
+        datos.put("ultima_ronda_terminada", ultimaTerminada == null ? null : fila(ultimaTerminada));
+        // "Exitosa" = alguna consulta a una tienda respondió (no basta con que la ronda terminara).
         datos.put("ultima_ejecucion_exitosa", ultimaExitosa == null ? null : fila(ultimaExitosa));
         datos.put("minutos_desde_ultima_exitosa", minutosDesdeExitosa);
+        datos.put("ultima_comprobacion_de_precios", ultimaConsulta == null ? null : fila(ultimaConsulta));
+        datos.put("resultado_ultima_comprobacion", minusculas(resultadoUltimaConsulta));
         datos.put("fallidas_seguidas", fallidasSeguidas);
         datos.put("comprobacion_correcta", comprobacion);
-        datos.put("estado_general", estadoGeneral(frecuencia, comprobacion, ultima, fallidasSeguidas));
+        datos.put("envio_correo_ultima_ronda", envioCorreo(ultimaTerminada));
+        datos.put("estado_general", estadoGeneral(frecuencia, comprobacion, ultima, fallidasSeguidas,
+                resultadoUltimaConsulta));
         datos.put("rondas", recientes.stream().limit(20).map(ControladorTareas::fila).toList());
         return datos;
     }
 
+    /** Una ronda terminada que consultó al menos una tienda (con resultado registrado, desde V15). */
+    private static boolean consulto(EjecucionTareaDao.Ejecucion e) {
+        return e.estado() == EjecucionTareaDao.Estado.TERMINADA && e.resultado() != null
+                && e.resultado() != EjecucionTareaDao.ResultadoConsultas.SIN_TRABAJO
+                && e.resultado() != EjecucionTareaDao.ResultadoConsultas.SOLO_POSPUESTOS;
+    }
+
+    private static String minusculas(Enum<?> valor) {
+        return valor == null ? null : valor.name().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    /**
+     * Qué pasó con los correos en la última ronda terminada. "aceptados" significa que el proveedor los aceptó; no
+     * confirma que hayan llegado a la bandeja.
+     */
+    private static String envioCorreo(EjecucionTareaDao.Ejecucion ronda) {
+        if (ronda == null) {
+            return null;
+        }
+        if (ronda.detalle() != null && ronda.detalle().startsWith("Sin servicio de correo")) {
+            return "sin_configurar";
+        }
+        if (ronda.correosRechazados() > 0) {
+            return ronda.correosAceptados() > 0 ? "aceptados_y_rechazados" : "rechazados";
+        }
+        return ronda.correosAceptados() > 0 ? "aceptados" : "sin_envios";
+    }
+
     private static String estadoGeneral(Boolean frecuencia, Boolean comprobacion, EjecucionTareaDao.Ejecucion ultima,
-                                        int fallidasSeguidas) {
+                                        int fallidasSeguidas, EjecucionTareaDao.ResultadoConsultas resultado) {
         if (ultima == null) {
             return "sin_datos";
         }
@@ -167,6 +218,12 @@ public class ControladorTareas {
         }
         if (Boolean.FALSE.equals(frecuencia)) {
             return "atrasado";
+        }
+        if (resultado == EjecucionTareaDao.ResultadoConsultas.FALLIDAS) {
+            return "consultas_fallidas";
+        }
+        if (resultado == EjecucionTareaDao.ResultadoConsultas.PARCIALES) {
+            return "consultas_parciales";
         }
         if (Boolean.TRUE.equals(frecuencia) && Boolean.TRUE.equals(comprobacion)) {
             return "al_dia";
@@ -182,8 +239,14 @@ public class ControladorTareas {
         fila.put("terminada_en", e.terminadaEn());
         fila.put("revisados", e.revisados());
         fila.put("consultas", e.consultas());
+        fila.put("consultas_exitosas", e.consultasExitosas());
+        fila.put("consultas_fallidas", e.consultasFallidas());
+        fila.put("ofertas_no_encontradas", e.noEncontradas());
+        fila.put("pospuestos", e.pospuestos());
+        fila.put("resultado_consultas", minusculas(e.resultado()));
         fila.put("avisos_nuevos", e.avisosNuevos());
         fila.put("correos_aceptados", e.correosAceptados());
+        fila.put("correos_rechazados", e.correosRechazados());
         fila.put("detalle", e.detalle());
         return fila;
     }

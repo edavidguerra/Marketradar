@@ -43,8 +43,12 @@ Código: `adapter/alibaba/ClienteAlibabaApiSh` (HTTP), `LectorRespuestasAlibaba`
 - Al abrir "Ver variantes y detalle" o elegir una variante, la lista se vuelve a pedir y la tarjeta, el subtotal y el
   puesto cambian juntos.
 - "Ver más" pide las páginas 1 a N y el servidor las junta: quita repetidos por id, ordena **todas** las ofertas
-  cargadas y marca un solo mínimo, o el empate si hay varios con el mismo subtotal. La página dice que es el más bajo
-  **entre las ofertas cargadas**. Cambiar producto, cantidad o unidad empieza de cero; una respuesta que llega tarde
+  cargadas y marca con estrella un solo mínimo **entre las verificadas**, o el empate si hay varios con el mismo
+  subtotal. Una oferta con precio preliminar puede quedar antes en el orden y verse más barata: la página lo dice y no
+  afirma que la recomendada sea el precio más bajo de todas las ofertas cargadas. Cambiar producto, cantidad o unidad en el formulario no cambia los resultados hasta pulsar
+  Buscar (la página avisa que hay cambios sin aplicar): resumen, tarjetas, detalle y páginas siguientes usan siempre la
+  búsqueda enviada, y la unidad se escribe con el código que confirmó el servidor y el catálogo de unidades. Buscar de
+  nuevo empieza de cero; una respuesta que llega tarde
   de una búsqueda anterior se ignora, y el botón no pide dos veces mientras carga.
 - Relevancia: se reconoce el tipo de producto (aretes, collar, pulsera, anillo, forro, cable, medias…) y el material
   (acero, plata, oro, titanio…), en español e inglés, singular y plural. Otro tipo u otro material se quita del todo

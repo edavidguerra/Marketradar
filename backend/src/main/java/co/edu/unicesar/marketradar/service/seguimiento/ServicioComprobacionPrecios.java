@@ -82,18 +82,38 @@ public class ServicioComprobacionPrecios {
     }
 
     /**
-     * Qué hizo una ronda.
+     * Qué hizo una ronda. Separa tres cosas: si la ronda corrió ({@code ejecutada}), qué pasó con las consultas a las
+     * tiendas ({@code resultadoConsultas} y sus contadores) y qué pasó con los correos.
      *
      * @param ejecutada {@code false} si ya había otra ronda en curso
      * @param revisados seguimientos comprobados
      * @param consultas consultas hechas a las tiendas
      * @param pospuestos seguimientos que quedaron para después por el cupo de consultas
      * @param avisosNuevos avisos de precio creados
-     * @param correosEnviados correos que el servidor de correo aceptó
+     * @param correosEnviados correos que el servidor de correo aceptó (no confirma que lleguen)
      * @param envioConfigurado si hay servidor de correo
+     * @param consultasExitosas consultas que respondieron
+     * @param consultasFallidas consultas que fallaron
+     * @param noEncontradas seguimientos cuya consulta respondió pero la oferta ya no apareció
+     * @param correosRechazados intentos de envío que el proveedor rechazó
+     * @param resultadoConsultas resultado de las consultas; {@code null} si la ronda no corrió
      */
     public record Resumen(boolean ejecutada, int revisados, int consultas, int pospuestos, int avisosNuevos,
-                          int correosEnviados, boolean envioConfigurado) {
+                          int correosEnviados, boolean envioConfigurado, int consultasExitosas, int consultasFallidas,
+                          int noEncontradas, int correosRechazados,
+                          EjecucionTareaDao.ResultadoConsultas resultadoConsultas) {
+
+        /** Resumen sin el detalle de las consultas. */
+        public Resumen(boolean ejecutada, int revisados, int consultas, int pospuestos, int avisosNuevos,
+                       int correosEnviados, boolean envioConfigurado) {
+            this(ejecutada, revisados, consultas, pospuestos, avisosNuevos, correosEnviados, envioConfigurado, 0, 0, 0,
+                    0, null);
+        }
+
+        EjecucionTareaDao.Conteo conteo() {
+            return new EjecucionTareaDao.Conteo(revisados, consultas, consultasExitosas, consultasFallidas,
+                    noEncontradas, pospuestos, avisosNuevos, correosEnviados, correosRechazados, resultadoConsultas);
+        }
     }
 
     /**
@@ -141,8 +161,8 @@ public class ServicioComprobacionPrecios {
         long id = ejecuciones.iniciar(TAREA, origen);
         try {
             Resumen resumen = ronda();
-            ejecuciones.terminar(id, EjecucionTareaDao.Estado.TERMINADA, resumen.revisados(), resumen.consultas(),
-                    resumen.pospuestos(), resumen.avisosNuevos(), resumen.correosEnviados(),
+            // TERMINADA solo dice que la ronda acabó; el resultado de las consultas va aparte.
+            ejecuciones.terminar(id, EjecucionTareaDao.Estado.TERMINADA, resumen.conteo(),
                     resumen.envioConfigurado() ? null : "Sin servicio de correo configurado");
             return resumen;
         } catch (RuntimeException e) {
@@ -161,6 +181,9 @@ public class ServicioComprobacionPrecios {
                         clave -> new ArrayList<>()).add(pendiente);
             }
             int consultas = 0;
+            int exitosas = 0;
+            int fallidas = 0;
+            int noEncontradas = 0;
             int pospuestos = 0;
             int revisados = 0;
             int avisos = 0;
@@ -184,19 +207,34 @@ public class ServicioComprobacionPrecios {
                     LOG.warn("No se pudo comprobar {} \"{}\": {}", primero.codigoMarketplace(), termino(primero),
                             e.getMessage());
                 }
+                if (encontradas == null) {
+                    fallidas++;
+                } else {
+                    exitosas++;
+                }
                 for (SeguimientoDao.Pendiente pendiente : grupo) {
                     revisados++;
+                    // La tienda respondió pero la oferta ya no está: no es un error de transporte.
+                    if (encontradas != null && encontradas.stream().noneMatch(o -> o.getIdExterno()
+                            .equals(pendiente.oferta().getIdExterno()))) {
+                        noEncontradas++;
+                    }
                     if (procesar(pendiente, encontradas, ahora)) {
                         avisos++;
                     }
                 }
             }
-            int enviados = envio.enviarPendientes(50);
+            ServicioEnvioAvisos.Lote correos = envio.enviarLote(50);
+            EjecucionTareaDao.ResultadoConsultas resultado =
+                    EjecucionTareaDao.ResultadoConsultas.de(exitosas, fallidas, pospuestos);
             if (!pendientes.isEmpty()) {
-                LOG.info("Ronda de seguimientos: {} revisados, {} consultas, {} pospuestos, {} avisos nuevos, {} correos "
-                        + "enviados", revisados, consultas, pospuestos, avisos, enviados);
+                LOG.info("Ronda de seguimientos: {} revisados, {} consultas ({} respondieron, {} fallaron, {} ofertas no "
+                        + "encontradas), {} pospuestos, {} avisos nuevos, {} correos aceptados, {} rechazados: {}",
+                        revisados, consultas, exitosas, fallidas, noEncontradas, pospuestos, avisos,
+                        correos.aceptados(), correos.rechazados(), resultado);
             }
-            return new Resumen(true, revisados, consultas, pospuestos, avisos, enviados, envio.envioConfigurado());
+            return new Resumen(true, revisados, consultas, pospuestos, avisos, correos.aceptados(),
+                    envio.envioConfigurado(), exitosas, fallidas, noEncontradas, correos.rechazados(), resultado);
         }
     }
 

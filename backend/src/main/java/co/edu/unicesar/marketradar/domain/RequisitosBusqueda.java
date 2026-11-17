@@ -115,17 +115,12 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
         }
         String limpio = CondicionProducto.normalizar(texto);
         Optional<CondicionProducto> condicion = CondicionProducto.detectar(limpio);
+        // La misma interpretación que la tabla de comparación. Una capacidad que la persona escribió sin decir qué es
+        // ("a16 128 gb") se pide como capacidad del producto: en la oferta tiene que aparecer como almacenamiento.
         NormalizadorEspecificaciones.Capacidades leidas = NormalizadorEspecificaciones.capacidades(texto);
         Set<Integer> ram = new TreeSet<>(leidas.ram());
         Set<Integer> capacidades = new TreeSet<>(leidas.almacenamiento());
         capacidades.addAll(leidas.sueltas());
-        // "a16 4gb 128gb" sin decir RAM: la pequeña es la RAM si hay otra de 32 GB o más.
-        if (ram.isEmpty() && leidas.sueltas().stream().anyMatch(gb -> gb >= 32)) {
-            leidas.sueltas().stream().filter(gb -> gb < 32).forEach(gb -> {
-                ram.add(gb);
-                capacidades.remove(gb);
-            });
-        }
         String sinCapacidad = CAPACIDAD.matcher(limpio).replaceAll(" ");
         List<String> palabras = List.of(sinCapacidad.split(" "));
         List<Modelo> modelos = new ArrayList<>();
@@ -278,10 +273,11 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
     }
 
     /**
-     * Almacenamiento y RAM por separado, con la misma lectura que la tabla de comparación. Una capacidad unida a la
-     * palabra RAM nunca se toma como almacenamiento. Una capacidad suelta de menos de 32 GB tampoco, cuando se pidió
-     * 32 GB o más (suele ser la RAM): queda "sin confirmar". Solo se dice que no cumple si el título trae un dato de
-     * almacenamiento que contradice lo pedido.
+     * Almacenamiento y RAM por separado, con la misma interpretación que la tabla de comparación
+     * ({@link NormalizadorEspecificaciones#capacidades(String)}). Una capacidad unida a la palabra RAM nunca se toma
+     * como almacenamiento, y una que el título deja ambigua (por ejemplo "16 GB" sola en un portátil) no confirma ni
+     * contradice: queda "sin confirmar". Solo se dice que no cumple si el título trae una capacidad identificada que
+     * contradice lo pedido.
      */
     private void revisarCapacidad(String titulo, List<String> incumple, List<String> sinConfirmar) {
         if (capacidadesGb.isEmpty() && ramGb.isEmpty()) {
@@ -290,7 +286,6 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
         NormalizadorEspecificaciones.Capacidades delTitulo = NormalizadorEspecificaciones.capacidades(titulo);
         for (Integer pedida : capacidadesGb) {
             Set<Integer> almacenamiento = new TreeSet<>(delTitulo.almacenamiento());
-            delTitulo.sueltas().stream().filter(gb -> gb >= 32 || pedida < 32).forEach(almacenamiento::add);
             if (almacenamiento.contains(pedida)) {
                 continue;
             }
