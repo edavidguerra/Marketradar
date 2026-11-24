@@ -51,14 +51,15 @@ class FiltroComplementosTest {
     }
 
     @Test
-    void siCasiTodoSonComplementosSeMuestraTodo() {
+    void aunqueCasiTodoSeanComplementosSoloSeMuestraElProducto() {
         List<OfertaNormalizada> ofertas = List.of(
                 oferta("Vaso para licuadora Oster", "Éxito", "49900"),
                 oferta("Cuchilla repuesto para licuadora", "Falabella", "19900"),
                 oferta("Licuadora Oster 3 velocidades", "Alkosto", "189900"),
                 oferta("Tapa para licuadora", "Mercado Libre", "15900"));
 
-        assertEquals(4, FiltroComplementos.filtrar("licuadora", ofertas).size());
+        // Antes, con menos de 3 productos, se volvían a mostrar los vasos y las cuchillas.
+        assertEquals(List.of("Licuadora Oster 3 velocidades"), titulos(FiltroComplementos.filtrar("licuadora", ofertas)));
     }
 
     @Test
@@ -95,6 +96,17 @@ class FiltroComplementosTest {
 
         assertEquals(List.of("iPhone 17 Pro 256 GB", "iPhone 17 Pro 512 GB", "iPhone 17 Pro Max 256 GB"),
                 titulos(FiltroComplementos.filtrar("iphone 17 pro", ofertas)));
+    }
+
+    @Test
+    void quienBuscaLaConsolaNoRecibeElControlAunqueElTituloEmpieceConLaMarca() {
+        List<OfertaNormalizada> ofertas = List.of(
+                oferta("Sony DualSense Wireless Controller PS5", "Amazon", "289900"),
+                oferta("Consola PlayStation 5 Slim", "Alkosto", "2599900"));
+
+        assertEquals(List.of("Consola PlayStation 5 Slim"), titulos(FiltroComplementos.filtrar("playstation 5", ofertas)));
+        assertEquals(2, FiltroComplementos.filtrar("control para playstation 5", ofertas).size(),
+                "quien busca el control sí lo recibe (la consola la descarta después la identidad)");
     }
 
     private static List<String> titulos(List<OfertaNormalizada> ofertas) {

@@ -38,11 +38,14 @@ import java.util.regex.Pattern;
  * </ol>
  *
  * Si Gemini no está configurado o falla, todo sigue como antes: corrección propia y {@link FiltroRelevancia}.
+ *
+ * <p>Lo que elige Gemini <b>no prueba</b> que una oferta sea el producto: solo deja candidatas. Los exactos y los
+ * parecidos se devuelven por separado y nunca se mezclan para completar una cantidad; después todos pasan por la misma
+ * revisión de identidad y requisitos que cuando Gemini no responde ({@link ServicioBusqueda}).</p>
  */
 @Service
 public class ServicioIABusqueda {
 
-    static final int MINIMO_EXACTOS = 3;
     static final int LARGO_RESUMEN = 600;
 
     private static final Logger LOG = LoggerFactory.getLogger(ServicioIABusqueda.class);
@@ -76,7 +79,8 @@ public class ServicioIABusqueda {
             (nuevo, usado, reacondicionado, de exhibición), también deben coincidir; un reacondicionado o de \
             exhibición nunca es "nuevo". El color puede cambiar. NO son exactos: cajas o empaques sin el producto, \
             forros, fundas, vidrios, cargadores, controles, repuestos, juegos, accesorios, combos con otros productos, \
-            paquetes digitales, otro modelo ni otro producto.
+            paquetes digitales, otro modelo ni otro producto. Un número que es una medida o una especificación no es el \
+            modelo: una pantalla de 3,5 pulgadas o Bluetooth 5.0 no hacen que algo sea una PlayStation 5.
             2. "parecidos": el mismo tipo de producto en otra versión, capacidad o condición, o de otra marca. Nunca \
             accesorios ni cajas.
             3. "resumen": como el resumen con IA de Google. De 2 a 4 frases cortas, en español sencillo, tratando a la \
@@ -176,23 +180,25 @@ public class ServicioIABusqueda {
 
     static Analisis leer(JsonNode respuesta, List<OfertaNormalizada> ofertas) {
         Set<Integer> exactos = indices(respuesta.path("exactos"), ofertas.size());
-        Set<Integer> elegidos = new LinkedHashSet<>(exactos);
-        if (exactos.size() < MINIMO_EXACTOS) {
-            elegidos.addAll(indices(respuesta.path("parecidos"), ofertas.size()));
-        }
-        List<OfertaNormalizada> lista = new ArrayList<>();
+        Set<Integer> parecidos = indices(respuesta.path("parecidos"), ofertas.size());
+        parecidos.removeAll(exactos);
+        List<OfertaNormalizada> exactas = new ArrayList<>();
+        List<OfertaNormalizada> parecidas = new ArrayList<>();
         for (int i = 0; i < ofertas.size(); i++) {
-            if (elegidos.contains(i)) {
-                lista.add(ofertas.get(i));
+            if (exactos.contains(i)) {
+                exactas.add(ofertas.get(i));
+            } else if (parecidos.contains(i)) {
+                parecidas.add(ofertas.get(i));
             }
         }
+        Analisis analisis = new Analisis(exactas, parecidas, null);
         String resumen = limpiar(respuesta.path("resumen").asText(""), LARGO_RESUMEN);
         // Un precio que no es de ningún producto mostrado confundiría a la persona: mejor no mostrar el resumen.
-        if (!resumen.isEmpty() && !preciosCoinciden(resumen, lista)) {
+        if (!resumen.isEmpty() && !preciosCoinciden(resumen, analisis.elegidas())) {
             LOG.warn("Se descartó el resumen de Gemini porque nombra un precio que no está en los resultados");
             resumen = "";
         }
-        return new Analisis(lista, resumen.isEmpty() ? null : resumen);
+        return new Analisis(exactas, parecidas, resumen.isEmpty() ? null : resumen);
     }
 
     /**
@@ -258,9 +264,28 @@ public class ServicioIABusqueda {
     }
 
     /**
-     * @param elegidas productos que son lo buscado (o parecidos, si hay pocos exactos), en el orden de la tienda
+     * Lo que propuso Gemini. Son candidatas: la revisión de identidad decide qué es exacto.
+     *
+     * @param exactas las que Gemini dice que son lo buscado, en el orden de la tienda
+     * @param parecidas las que Gemini dice que se parecen (otra versión, capacidad o marca); nunca se vuelven exactas
      * @param resumen resumen para la persona, o {@code null}
      */
-    public record Analisis(List<OfertaNormalizada> elegidas, String resumen) {
+    public record Analisis(List<OfertaNormalizada> exactas, List<OfertaNormalizada> parecidas, String resumen) {
+        public Analisis {
+            exactas = List.copyOf(exactas);
+            parecidas = List.copyOf(parecidas);
+        }
+
+        /** Solo exactas, sin parecidas. */
+        public Analisis(List<OfertaNormalizada> exactas, String resumen) {
+            this(exactas, List.of(), resumen);
+        }
+
+        /** @return exactas y parecidas juntas, sin repetir: las candidatas que pasan a la revisión final */
+        public List<OfertaNormalizada> elegidas() {
+            List<OfertaNormalizada> todas = new ArrayList<>(exactas);
+            parecidas.stream().filter(o -> !todas.contains(o)).forEach(todas::add);
+            return todas;
+        }
     }
 }

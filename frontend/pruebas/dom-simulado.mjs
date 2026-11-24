@@ -21,7 +21,8 @@ export class Elemento {
         this.hidden = false;
         this.disabled = false;
         this.className = '';
-        this.style = {};
+        this.style = { setProperty(nombre, valor) { this[nombre] = valor; } };
+        this.padre = null;
         this.id = '';
         this.value = '';
         this.type = '';
@@ -31,13 +32,55 @@ export class Elemento {
         return this.hijos.filter((hijo) => hijo instanceof Elemento);
     }
 
+    static comoNodo(nodo) {
+        return nodo instanceof Elemento || nodo instanceof Texto ? nodo : new Texto(nodo);
+    }
+
+    adoptar(nodo) {
+        if (nodo instanceof Elemento) {
+            nodo.padre?.quitar(nodo);
+            nodo.padre = this;
+        }
+        return nodo;
+    }
+
+    quitar(nodo) {
+        this.hijos = this.hijos.filter((hijo) => hijo !== nodo);
+    }
+
     append(...nodos) {
-        for (const nodo of nodos) this.hijos.push(nodo instanceof Elemento || nodo instanceof Texto ? nodo : new Texto(nodo));
+        for (const nodo of nodos) this.hijos.push(this.adoptar(Elemento.comoNodo(nodo)));
+    }
+
+    prepend(...nodos) {
+        this.hijos.unshift(...nodos.map((nodo) => this.adoptar(Elemento.comoNodo(nodo))));
     }
 
     replaceChildren(...nodos) {
+        this.hijos.forEach((hijo) => { if (hijo instanceof Elemento) hijo.padre = null; });
         this.hijos = [];
         this.append(...nodos);
+    }
+
+    remove() {
+        this.padre?.quitar(this);
+        this.padre = null;
+    }
+
+    /** Clases como lista, sobre className. */
+    get classList() {
+        const elemento = this;
+        const clases = () => elemento.className.split(/\s+/).filter(Boolean);
+        return {
+            add: (...nuevas) => { elemento.className = [...new Set([...clases(), ...nuevas])].join(' '); },
+            remove: (...quitadas) => { elemento.className = clases().filter((c) => !quitadas.includes(c)).join(' '); },
+            contains: (clase) => clases().includes(clase),
+            toggle: (clase, forzar) => {
+                const poner = forzar ?? !clases().includes(clase);
+                if (poner) elemento.classList.add(clase); else elemento.classList.remove(clase);
+                return poner;
+            },
+        };
     }
 
     get textContent() {
@@ -54,6 +97,10 @@ export class Elemento {
 
     getAttribute(nombre) {
         return this.atributos[nombre] ?? null;
+    }
+
+    removeAttribute(nombre) {
+        delete this.atributos[nombre];
     }
 
     addEventListener(tipo, funcion) {
@@ -136,6 +183,12 @@ export function crearEvento(tipo) {
 }
 
 const porId = new Map();
+const porSelector = new Map();
+
+/** Registra el elemento que devuelve document.querySelector para un selector complejo ("#formulario [type=x]"). */
+export function registrarSelector(selector, elemento) {
+    porSelector.set(selector, elemento);
+}
 
 const documento = {
     activeElement: null,
@@ -149,6 +202,14 @@ const documento = {
     getElementById(id) {
         return porId.get(id) ?? null;
     },
+    querySelector(selector) {
+        if (porSelector.has(selector)) return porSelector.get(selector);
+        return selector.startsWith('#') && porId.has(selector.slice(1)) ? porId.get(selector.slice(1)) : null;
+    },
+    querySelectorAll(selector) {
+        const elemento = documento.querySelector(selector);
+        return elemento ? [elemento] : [];
+    },
 };
 
 /**
@@ -159,6 +220,8 @@ const documento = {
  */
 export function instalarDom(elementos) {
     porId.clear();
+    porSelector.clear();
+    documento.body = new Elemento('body');
     for (const [id, etiqueta] of Object.entries(elementos)) {
         const elemento = documento.createElement(etiqueta);
         elemento.id = id;
@@ -167,7 +230,8 @@ export function instalarDom(elementos) {
     globalThis.document = documento;
     globalThis.window = {
         confirm: () => true,
-        location: { replace() {} },
+        location: { hash: '', replace() {} },
+        addEventListener() {},
     };
     globalThis.Option = function Option(texto, valor) {
         const opcion = new Elemento('option');
@@ -189,11 +253,17 @@ export async function esperar(vueltas = 10) {
  */
 export function instalarServidor() {
     const pendientes = [];
-    globalThis.fetch = (url) => new Promise((resolver) => {
+    globalThis.fetch = (url, opciones = {}) => new Promise((resolver, rechazar) => {
         const direccion = new URL(url, 'https://marketradar.prueba');
         pendientes.push({
             url: direccion,
             parametros: Object.fromEntries(direccion.searchParams),
+            // La señal de cancelación queda a la vista, pero la solicitud no se corta sola: así se prueba que una
+            // respuesta que llega aunque se haya cancelado tampoco cambia la pantalla.
+            senal: opciones.signal ?? null,
+            fallar(error = new TypeError('Failed to fetch')) {
+                rechazar(error);
+            },
             responder(datos, estado = 200) {
                 resolver({
                     ok: estado >= 200 && estado < 300,

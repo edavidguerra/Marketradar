@@ -32,6 +32,8 @@ import java.util.List;
  * @param sinTotalConfirmado cuántas ofertas mostradas no tienen el precio total confirmado
  * @param mejorPrecioConfirmado si la oferta más barata tiene el total confirmado; si no, "más barata" es sin contar
  *                              lo que falta
+ * @param descartadas cuántas ofertas de las tiendas eran otro producto (accesorios, juegos, otra serie) y no se
+ *                    muestran
  */
 public record RespuestaBusquedaDto(String termino, int pagina, int tamano, int totalResultados,
                                    List<OfertaDto> ofertas, List<String> advertencias, ProductoMvpDto productoMvp,
@@ -39,7 +41,7 @@ public record RespuestaBusquedaDto(String termino, int pagina, int tamano, int t
                                    BigDecimal precioMinimo, BigDecimal precioMaximo, int totalSinFiltro,
                                    String textoOriginal, List<String> requisitos, List<AlternativaDto> alternativas,
                                    String motivoSinRecomendacion, int sinTotalConfirmado,
-                                   boolean mejorPrecioConfirmado) {
+                                   boolean mejorPrecioConfirmado, int descartadas) {
 
     /**
      * @param oferta oferta
@@ -86,6 +88,6 @@ public record RespuestaBusquedaDto(String termino, int pagina, int tamano, int t
                 terminoOriginal, ampliada, resultado.getResumenIa().orElse(null), consulta.getPrecioMinimo(),
                 consulta.getPrecioMaximo(), resultado.getTotalSinFiltro(), consulta.getTextoOriginal(),
                 detalle.requisitos(), alternativas, detalle.motivoSinRecomendacion(), detalle.sinTotalConfirmado(),
-                detalle.mejorPrecioConfirmado());
+                detalle.mejorPrecioConfirmado(), detalle.descartadas());
     }
 }

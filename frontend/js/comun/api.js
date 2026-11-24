@@ -15,9 +15,10 @@ function leerCookie(nombre) {
  * Llama a la API y devuelve el JSON de la respuesta, o null si no hay contenido.
  *
  * @param {string} ruta ruta desde /api/v1
- * @param {{metodo?: string, cuerpo?: object, redirigirSinSesion?: boolean}} opciones
+ * @param {{metodo?: string, cuerpo?: object, redirigirSinSesion?: boolean, signal?: AbortSignal}} opciones
+ *        signal permite cancelar la solicitud; si se cancela, el error tiene name === 'AbortError'.
  */
-export async function pedir(ruta, { metodo = 'GET', cuerpo, redirigirSinSesion = true } = {}) {
+export async function pedir(ruta, { metodo = 'GET', cuerpo, redirigirSinSesion = true, signal } = {}) {
     const cabeceras = { Accept: 'application/json' };
     if (cuerpo !== undefined) cabeceras['Content-Type'] = 'application/json';
     if (metodo !== 'GET') {
@@ -31,8 +32,11 @@ export async function pedir(ruta, { metodo = 'GET', cuerpo, redirigirSinSesion =
             headers: cabeceras,
             body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
             credentials: 'same-origin',
+            signal,
         });
-    } catch {
+    } catch (error) {
+        // Una solicitud cancelada no es un problema de conexión: quien la canceló ya no espera la respuesta.
+        if (error?.name === 'AbortError') throw error;
         throw new Error('No hay conexión. Revise su internet e intente de nuevo.');
     }
     if (respuesta.status === 401 && redirigirSinSesion) {
@@ -62,16 +66,16 @@ export const salir = () => pedir('/auth/salida', { metodo: 'POST', redirigirSinS
  * Con exacto = true se busca el texto tal cual, sin corregir errores de escritura. precioMinimo y precioMaximo
  * (en pesos, opcionales) dejan solo las ofertas cuyo precio, más el envío si la tienda lo informa, está entre esos
  * valores. original es lo que escribió la persona cuando se buscó una corrección: se manda al pasar de página o
- * filtrar, para que "128 GB" o "nuevo" se sigan exigiendo.
+ * filtrar, para que "128 GB" o "nuevo" se sigan exigiendo. signal cancela la solicitud si llega otra búsqueda.
  */
 export function buscar(termino, pagina = 1, tamano = 10, exacto = false,
-    { precioMinimo, precioMaximo, original } = {}) {
+    { precioMinimo, precioMaximo, original, signal } = {}) {
     const parametros = new URLSearchParams({ q: termino, pagina, tamano });
     if (exacto) parametros.set('exacto', 'true');
     if (precioMinimo != null) parametros.set('precio_minimo', precioMinimo);
     if (precioMaximo != null) parametros.set('precio_maximo', precioMaximo);
     if (original && original !== termino) parametros.set('original', original);
-    return pedir(`/busqueda?${parametros}`);
+    return pedir(`/busqueda?${parametros}`, { signal });
 }
 /** Cómo se elige la recomendación: las reglas y los pesos que usa el servidor. */
 export const obtenerComoRecomendamos = () => pedir('/busqueda/como-recomendamos');

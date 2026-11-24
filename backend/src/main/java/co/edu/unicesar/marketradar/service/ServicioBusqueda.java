@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -136,27 +137,15 @@ public class ServicioBusqueda {
     private ResultadoBusqueda buscar(ConsultaBusqueda consulta, Long usuarioId, boolean registrar) {
         long inicio = System.nanoTime();
         ResultadoCompleto completo = cache.get(consulta.claveCache(), clave -> consultarMarketplaces(consulta));
-        List<OfertaNormalizada> todas = marcarPreciosAtipicos(ordenar(completo.ofertas(), consulta.getOrden()),
-                consulta.requisitos());
 
-        // Lo que pidió la persona se revisa antes de recomendar: solo las que cumplen todo van arriba y pueden ser la
-        // recomendación. Las demás se muestran aparte, con lo que les falta.
+        // Revisión final, en cada búsqueda y también cuando la respuesta sale de la caché: la caché guarda candidatos
+        // de las tiendas, no la decisión. Lo que pidió esta persona (su texto original) decide qué es coincidencia,
+        // qué es una alternativa y qué es otro producto. Ni la IA ni el filtro de palabras pueden saltarse esto.
         RequisitosBusqueda requisitos = consulta.requisitos();
-        List<OfertaNormalizada> cumplen = new ArrayList<>();
-        List<ResultadoBusqueda.Alternativa> porConfirmar = new ArrayList<>();
-        List<ResultadoBusqueda.Alternativa> incumplen = new ArrayList<>();
-        for (OfertaNormalizada oferta : todas) {
-            RequisitosBusqueda.Evaluacion evaluacion = requisitos.evaluar(oferta.getTitulo(), oferta.condicionProducto());
-            switch (evaluacion.nivel()) {
-                case CUMPLE -> cumplen.add(oferta);
-                case SIN_CONFIRMAR -> porConfirmar.add(new ResultadoBusqueda.Alternativa(oferta, evaluacion.nivel(),
-                        evaluacion.motivos()));
-                case INCUMPLE -> incumplen.add(new ResultadoBusqueda.Alternativa(oferta, evaluacion.nivel(),
-                        evaluacion.motivos()));
-            }
-        }
-        List<ResultadoBusqueda.Alternativa> alternativas = new ArrayList<>(porConfirmar);
-        alternativas.addAll(incumplen);
+        Clasificacion clasificacion = clasificar(ordenar(completo.ofertas(), consulta.getOrden()), requisitos,
+                completo.exactasIa());
+        List<OfertaNormalizada> cumplen = clasificacion.cumplen();
+        List<ResultadoBusqueda.Alternativa> alternativas = clasificacion.alternativas();
 
         // El rango de precio se aplica sobre lo que ya está en caché: cambiarlo no gasta búsquedas en las tiendas.
         // Compara el costo conocido (precio más el envío que informa la tienda); la página avisa cuáles no lo informan.
@@ -168,6 +157,7 @@ public class ServicioBusqueda {
                 : alternativas;
         int desde = Math.min((consulta.getPagina() - 1) * consulta.getTamano(), ordenadas.size());
         int hasta = Math.min(desde + consulta.getTamano(), ordenadas.size());
+        // Solo puede ser la recomendación una oferta con identidad confirmada, que cumple todo y con precio admisible.
         List<OfertaNormalizada> candidatas = ordenadas.stream().filter(OfertaNormalizada::precioVerificado).toList();
         Optional<OfertaNormalizada> masBarata = candidatas.stream()
                 .min(Comparator.comparing(OfertaNormalizada::costoConocido));
@@ -177,20 +167,122 @@ public class ServicioBusqueda {
         if (registrar && consulta.getPagina() == 1 && !consulta.tieneRangoDePrecio()) {
             // En el historial queda lo que escribió la persona (sin saludos), no la corrección: así "nuevo" o "128 GB"
             // no se pierden al repetir la búsqueda.
-            registrarBusquedaSinInterrumpir(ServicioSugerencias.limpiarFrase(consulta.getTextoOriginal()), todas.size(),
-                    inicio, usuarioId,
-                    imagenRepresentativa(mvp, ordenadas.isEmpty() ? todas : ordenadas));
+            registrarBusquedaSinInterrumpir(ServicioSugerencias.limpiarFrase(consulta.getTextoOriginal()),
+                    cumplen.size(), inicio, usuarioId, imagenRepresentativa(mvp, ordenadas.isEmpty()
+                            ? alternativas.stream().map(ResultadoBusqueda.Alternativa::oferta).toList() : ordenadas));
         }
-        // El resumen de la IA se escribió sin revisar lo que pidió la persona ni el rango: si algo quedó por fuera,
-        // podría nombrar ofertas o precios que ya no están arriba.
-        String resumen = ordenadas.size() == todas.size() ? completo.resumenIa() : null;
+        // El resumen de la IA se escribió antes de esta revisión: solo se muestra si todo lo que eligió sigue arriba,
+        // si sus precios son los de lo que se ve y si no nombra ningún producto descartado.
+        String resumen = ordenadas.size() == completo.ofertas().size()
+                && resumenValido(completo.resumenIa(), ordenadas, clasificacion.descartadas()) ? completo.resumenIa()
+                : null;
+        int descartadas = Math.max(0, completo.recibidas() - cumplen.size() - alternativas.size());
         ResultadoBusqueda.Detalle detalle = new ResultadoBusqueda.Detalle(
                 consulta.getPagina() == 1 ? alternativasEnRango : List.of(), requisitos.etiquetas(),
-                motivoSinRecomendacion(mvp, cumplen, ordenadas, todas, requisitos),
+                motivoSinRecomendacion(mvp, clasificacion, ordenadas, completo.recibidas(), descartadas, requisitos),
                 (int) ordenadas.stream().filter(o -> o.totalConfirmado().isEmpty()).count(),
-                masBarata.map(o -> o.totalConfirmado().isPresent()).orElse(true));
+                masBarata.map(o -> o.totalConfirmado().isPresent()).orElse(true), descartadas);
         return new ResultadoBusqueda(ordenadas.subList(desde, hasta), completo.advertencias(), ordenadas.size(),
                 completo.idsPersistidos(), mejorPrecio, mvp, resumen, cumplen.size(), detalle);
+    }
+
+    /**
+     * Resultado de la revisión final de una búsqueda.
+     *
+     * @param cumplen ofertas con la identidad confirmada que cumplen todo lo pedido, con alerta de precio si aplica
+     * @param alternativas el mismo tipo de producto, pero sin confirmar o con algo distinto (marca, variante, paquete)
+     * @param descartadas otro producto: no se muestran ni como alternativa
+     */
+    record Clasificacion(List<OfertaNormalizada> cumplen, List<ResultadoBusqueda.Alternativa> alternativas,
+                         List<OfertaNormalizada> descartadas) {
+    }
+
+    /**
+     * Clasifica cada candidata según lo que pidió la persona. Lo que la IA marcó como "parecido" nunca pasa a
+     * coincidencia exacta, aunque el título lo parezca. Los precios atípicos se marcan con la mediana de las que
+     * cumplen, que son el mismo producto.
+     *
+     * @param ofertas candidatas, en el orden en que se muestran
+     * @param requisitos lo que pidió la persona
+     * @param exactasIa identificadores de lo que la IA eligió como exacto, o {@code null} si la IA no eligió
+     * @return la clasificación
+     */
+    static Clasificacion clasificar(List<OfertaNormalizada> ofertas, RequisitosBusqueda requisitos,
+                                    Set<String> exactasIa) {
+        Map<OfertaNormalizada, RequisitosBusqueda.Evaluacion> evaluaciones = new java.util.LinkedHashMap<>();
+        for (OfertaNormalizada oferta : ofertas) {
+            RequisitosBusqueda.Evaluacion evaluacion = requisitos.evaluar(oferta.getTitulo(), oferta.condicionProducto());
+            if (evaluacion.nivel() == RequisitosBusqueda.Nivel.CUMPLE && exactasIa != null
+                    && !exactasIa.contains(clave(oferta))) {
+                evaluacion = new RequisitosBusqueda.Evaluacion(RequisitosBusqueda.Nivel.SIN_CONFIRMAR,
+                        List.of("Puede no ser exactamente el producto que buscó"));
+            }
+            evaluaciones.put(oferta, evaluacion);
+        }
+        List<OfertaNormalizada> marcadas = marcarPreciosAtipicos(ofertas, evaluaciones);
+        List<OfertaNormalizada> cumplen = new ArrayList<>();
+        List<ResultadoBusqueda.Alternativa> porConfirmar = new ArrayList<>();
+        List<ResultadoBusqueda.Alternativa> incumplen = new ArrayList<>();
+        List<OfertaNormalizada> descartadas = new ArrayList<>();
+        for (int i = 0; i < ofertas.size(); i++) {
+            OfertaNormalizada oferta = marcadas.get(i);
+            RequisitosBusqueda.Evaluacion evaluacion = evaluaciones.get(ofertas.get(i));
+            if (evaluacion.ajena()) {
+                descartadas.add(oferta);
+                continue;
+            }
+            switch (evaluacion.nivel()) {
+                case CUMPLE -> cumplen.add(oferta);
+                case SIN_CONFIRMAR -> porConfirmar.add(new ResultadoBusqueda.Alternativa(oferta, evaluacion.nivel(),
+                        evaluacion.motivos()));
+                case INCUMPLE -> incumplen.add(new ResultadoBusqueda.Alternativa(oferta, evaluacion.nivel(),
+                        evaluacion.motivos()));
+            }
+        }
+        List<ResultadoBusqueda.Alternativa> alternativas = new ArrayList<>(porConfirmar);
+        alternativas.addAll(incumplen);
+        return new Clasificacion(cumplen, alternativas, descartadas);
+    }
+
+    private static String clave(OfertaNormalizada oferta) {
+        return oferta.getCodigoMarketplace() + "|" + oferta.getIdExterno() + "|" + oferta.getTitulo();
+    }
+
+    /**
+     * El resumen de la IA vale si cada precio que nombra es de una oferta que se muestra y si no menciona ninguna
+     * palabra propia de un producto descartado ("Q21", "X5"). Revisar solo los montos no basta: una consola Q21 y una
+     * PS5 pueden costar lo mismo.
+     */
+    static boolean resumenValido(String resumen, List<OfertaNormalizada> mostradas, List<OfertaNormalizada> descartadas) {
+        if (resumen == null || resumen.isBlank()) {
+            return false;
+        }
+        if (!ServicioIABusqueda.preciosCoinciden(resumen, mostradas)) {
+            return false;
+        }
+        return !nombraOtras(resumen, mostradas, descartadas);
+    }
+
+    private static boolean nombraOtras(String resumen, List<OfertaNormalizada> mostradas,
+                                       List<OfertaNormalizada> descartadas) {
+        if (descartadas.isEmpty()) {
+            return false;
+        }
+        java.util.Set<String> vistas = new java.util.HashSet<>();
+        mostradas.forEach(o -> vistas.addAll(co.edu.unicesar.marketradar.domain.TextoProducto.palabras(o.getTitulo())));
+        java.util.Set<String> delResumen = new java.util.HashSet<>(
+                co.edu.unicesar.marketradar.domain.TextoProducto.palabras(resumen));
+        for (OfertaNormalizada descartada : descartadas) {
+            for (String palabra : co.edu.unicesar.marketradar.domain.TextoProducto.palabrasClave(descartada.getTitulo())) {
+                // Solo palabras que distinguen al producto descartado: con letras, y que no están en lo que se muestra.
+                if (palabra.length() >= 2 && palabra.matches(".*[a-z].*") && !vistas.contains(palabra)
+                        && delResumen.contains(palabra)) {
+                    LOG.info("Se descartó el resumen de la IA porque nombra \"{}\", de una oferta descartada", palabra);
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** Una oferta cuyo precio es más de 4 veces la mediana es sospechosa, y también si es menos de un cuarto. */
@@ -201,16 +293,30 @@ public class ServicioBusqueda {
     /**
      * Marca los precios que no se parecen a los demás del mismo producto, sin cambiarlos: se muestran con un aviso y
      * no se usan para recomendar ni para decir cuál es más barata. Se compara con la mediana de las ofertas que cumplen
-     * o que solo falta confirmar (las de otra versión o capacidad no cuentan), si hay al menos 3.
+     * todo (el mismo producto, con la identidad confirmada), si hay al menos 3. Las alternativas también se marcan con
+     * esa referencia; lo que es otro producto no cuenta ni se marca.
      *
      * @param ofertas ofertas de la búsqueda
-     * @param requisitos lo que pidió la persona
-     * @return las mismas ofertas, con alerta en las de precio atípico
+     * @param evaluaciones la evaluación de cada oferta
+     * @return las mismas ofertas, en el mismo orden, con alerta en las de precio atípico
      */
     static List<OfertaNormalizada> marcarPreciosAtipicos(List<OfertaNormalizada> ofertas, RequisitosBusqueda requisitos) {
+        Map<OfertaNormalizada, RequisitosBusqueda.Evaluacion> evaluaciones = new java.util.HashMap<>();
+        ofertas.forEach(o -> evaluaciones.put(o, requisitos.evaluar(o.getTitulo(), o.condicionProducto())));
+        return marcarPreciosAtipicos(ofertas, evaluaciones);
+    }
+
+    /**
+     * Igual que {@link #marcarPreciosAtipicos(List, RequisitosBusqueda)}, con las evaluaciones ya hechas.
+     *
+     * @param ofertas ofertas de la búsqueda
+     * @param evaluaciones la evaluación de cada oferta
+     * @return las mismas ofertas, en el mismo orden, con alerta en las de precio atípico
+     */
+    static List<OfertaNormalizada> marcarPreciosAtipicos(List<OfertaNormalizada> ofertas,
+                                                         Map<OfertaNormalizada, RequisitosBusqueda.Evaluacion> evaluaciones) {
         List<BigDecimal> precios = ofertas.stream()
-                .filter(o -> requisitos.evaluar(o.getTitulo(), o.condicionProducto()).nivel()
-                        != RequisitosBusqueda.Nivel.INCUMPLE)
+                .filter(o -> evaluaciones.get(o).nivel() == RequisitosBusqueda.Nivel.CUMPLE)
                 .map(OfertaNormalizada::getPrecio).sorted().toList();
         if (precios.size() < 3) {
             return ofertas;
@@ -222,8 +328,10 @@ public class ServicioBusqueda {
         BigDecimal piso = mediana.divide(FACTOR_ATIPICO, java.math.RoundingMode.HALF_UP);
         List<OfertaNormalizada> marcadas = new ArrayList<>();
         for (OfertaNormalizada oferta : ofertas) {
+            RequisitosBusqueda.Evaluacion evaluacion = evaluaciones.get(oferta);
+            boolean comparable = !evaluacion.ajena() && evaluacion.nivel() != RequisitosBusqueda.Nivel.INCUMPLE;
             boolean atipica = oferta.getPrecio().compareTo(techo) > 0 || oferta.getPrecio().compareTo(piso) < 0;
-            if (atipica && oferta.precioVerificado()) {
+            if (comparable && atipica && oferta.precioVerificado()) {
                 LOG.info("Precio atípico en \"{}\": {} {} (texto original \"{}\"; mediana {})", oferta.getTitulo(),
                         oferta.getPrecio(), oferta.getMoneda(), oferta.getPrecioTexto(), mediana);
                 marcadas.add(oferta.conAlertaPrecio(ALERTA_ATIPICO));
@@ -234,14 +342,21 @@ public class ServicioBusqueda {
         return marcadas;
     }
 
-    private static String motivoSinRecomendacion(ProductoMvp mvp, List<OfertaNormalizada> cumplen,
-                                                 List<OfertaNormalizada> enRango, List<OfertaNormalizada> todas,
+    private static String motivoSinRecomendacion(ProductoMvp mvp, Clasificacion clasificacion,
+                                                 List<OfertaNormalizada> enRango, int recibidas, int descartadas,
                                                  RequisitosBusqueda requisitos) {
-        if (mvp != null || todas.isEmpty()) {
+        if (mvp != null || recibidas == 0) {
             return null;
         }
-        if (cumplen.isEmpty()) {
-            return requisitos.estaVacio() ? null
+        if (clasificacion.cumplen().isEmpty() && clasificacion.alternativas().isEmpty()) {
+            return "Las tiendas mostraron " + recibidas + (recibidas == 1 ? " oferta" : " ofertas")
+                    + ", pero ninguna es lo que buscó: " + (recibidas == 1 ? "era otro producto" : "eran otros productos")
+                    + " o accesorios. No recomendamos ninguna. Pruebe con otras palabras o revise cómo se escribe.";
+        }
+        if (clasificacion.cumplen().isEmpty()) {
+            return requisitos.estaVacio()
+                    ? "Ninguna oferta confirma que sea el producto que buscó, así que no recomendamos ninguna. Abajo "
+                    + "están las que se parecen."
                     : "Ninguna oferta confirma todo lo que usted pidió (" + String.join(", ", requisitos.etiquetas())
                     + "), así que no recomendamos ninguna. Abajo están las que se parecen, con lo que les falta.";
         }
@@ -316,21 +431,13 @@ public class ServicioBusqueda {
         List<OfertaNormalizada> relevantes = elegidasPorIA
                 .orElseGet(() -> FiltroRelevancia.filtrar(consulta.getTermino(), conProducto));
         Map<String, Long> ids = guardarSinInterrumpir(relevantes);
-        return new ResultadoCompleto(relevantes, advertencias, ids, huboFallas[0],
-                resumenQueCoincide(analisis, elegidasPorIA));
-    }
-
-    /**
-     * El resumen de la IA solo se muestra si se usaron sus productos y cada precio que nombra sigue a la vista,
-     * aunque se hayan quitado accesorios de su elección.
-     */
-    private static String resumenQueCoincide(Optional<ServicioIABusqueda.Analisis> analisis,
-                                             Optional<List<OfertaNormalizada>> elegidas) {
-        if (analisis.isEmpty() || elegidas.isEmpty() || analisis.get().resumen() == null) {
-            return null;
-        }
-        String resumen = analisis.get().resumen();
-        return ServicioIABusqueda.preciosCoinciden(resumen, elegidas.get()) ? resumen : null;
+        // Lo que la IA eligió como exacto se recuerda aparte: lo que marcó como parecido nunca pasa a exacto.
+        Set<String> exactasIa = elegidasPorIA.isPresent()
+                ? analisis.get().exactas().stream().map(ServicioBusqueda::clave)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet())
+                : null;
+        String resumen = elegidasPorIA.isPresent() ? analisis.get().resumen() : null;
+        return new ResultadoCompleto(relevantes, advertencias, ids, huboFallas[0], resumen, exactasIa, ofertas.size());
     }
 
     private CompletableFuture<List<OfertaNormalizada>> consultarAsincrono(AdaptadorMarketplace adaptador,
@@ -408,8 +515,15 @@ public class ServicioBusqueda {
         return (int) TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - inicioNanos);
     }
 
+    /**
+     * Lo que se guarda en caché: candidatos de las tiendas, no la decisión final (esa se toma en cada búsqueda).
+     *
+     * @param exactasIa claves de lo que la IA eligió como exacto, o {@code null} si no se usó su elección
+     * @param recibidas cuántas ofertas mandaron las tiendas, antes de cualquier filtro
+     */
     private record ResultadoCompleto(List<OfertaNormalizada> ofertas, List<String> advertencias,
-                                     Map<String, Long> idsPersistidos, boolean huboFallas, String resumenIa) {
+                                     Map<String, Long> idsPersistidos, boolean huboFallas, String resumenIa,
+                                     Set<String> exactasIa, int recibidas) {
     }
 
     /**

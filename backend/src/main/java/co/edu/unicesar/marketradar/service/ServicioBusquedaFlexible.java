@@ -1,7 +1,10 @@
 package co.edu.unicesar.marketradar.service;
 
 import co.edu.unicesar.marketradar.domain.ConsultaBusqueda;
+import co.edu.unicesar.marketradar.domain.RequisitosBusqueda;
 import co.edu.unicesar.marketradar.domain.ResultadoBusqueda;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -26,6 +29,8 @@ import java.util.Optional;
  */
 @Service
 public class ServicioBusquedaFlexible {
+
+    private static final Logger LOG = LoggerFactory.getLogger(ServicioBusquedaFlexible.class);
 
     private final ServicioBusqueda servicioBusqueda;
     private final ServicioSugerencias servicioSugerencias;
@@ -60,8 +65,11 @@ public class ServicioBusquedaFlexible {
         String limpio = ServicioSugerencias.limpiarFrase(escrito);
         // Con IA, Gemini entiende la frase completa ("un ps5 pa mi nieto" es "playstation 5"); si no está o no
         // responde, se corrige con el diccionario propio.
+        // Una corrección solo se acepta si conserva el tipo de producto, la marca, el modelo y la versión que se
+        // escribieron: "control para ps5" no puede volverse "playstation 5", ni "iphone 13" volverse "iphone 14".
         String corregido = (ia == null ? Optional.<String>empty() : ia.interpretar(escrito))
-                .or(() -> servicioSugerencias.corregir(limpio))
+                .filter(c -> conserva(escrito, c))
+                .or(() -> servicioSugerencias.corregir(limpio).filter(c -> conserva(escrito, c)))
                 .orElse(limpio);
         // La consulta corregida recuerda lo que escribió la persona: lo que pidió se sigue exigiendo.
         ConsultaBusqueda elegida = consulta.conTermino(corregido).conTextoOriginal(escrito);
@@ -76,7 +84,10 @@ public class ServicioBusquedaFlexible {
             Optional<String> principal = ServicioSugerencias.nucleo(corregido);
             if (principal.isPresent() && principal.get().length() >= ConsultaBusqueda.LONGITUD_MINIMA) {
                 ConsultaBusqueda amplia = consulta.conTermino(principal.get()).conTextoOriginal(escrito);
-                if (servicioBusqueda.consultar(amplia.sinRangoDePrecio()).getTotalResultados() > 0) {
+                // La búsqueda amplia sigue exigiendo lo que escribió la persona (marca, modelo, variante, capacidad,
+                // condición): lo que no lo cumpla solo se muestra como alternativa, con lo que le falta.
+                ResultadoBusqueda amplio = servicioBusqueda.consultar(amplia.sinRangoDePrecio());
+                if (amplio.getTotalResultados() > 0 || !amplio.getDetalle().alternativas().isEmpty()) {
                     elegida = amplia;
                     ampliada = true;
                 }
@@ -86,6 +97,15 @@ public class ServicioBusquedaFlexible {
         ResultadoBusqueda resultado = servicioBusqueda.buscar(elegida, usuarioId);
         boolean cambio = !mismoTexto(elegida.getTermino(), limpio);
         return new Resultado(elegida, resultado, cambio ? escrito : null, ampliada);
+    }
+
+    private static boolean conserva(String escrito, String corregido) {
+        boolean conserva = RequisitosBusqueda.correccionConserva(escrito, corregido);
+        if (!conserva) {
+            LOG.info("Se ignoró la corrección \"{}\" de \"{}\": cambia el producto, la marca o el modelo", corregido,
+                    escrito);
+        }
+        return conserva;
     }
 
     private static boolean mismoTexto(String a, String b) {

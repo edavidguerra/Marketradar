@@ -6,6 +6,7 @@ import co.edu.unicesar.marketradar.domain.CondicionProducto;
 import co.edu.unicesar.marketradar.domain.ConsultaBusqueda;
 import co.edu.unicesar.marketradar.domain.EnlaceCompra;
 import co.edu.unicesar.marketradar.domain.EstadoEnvio;
+import co.edu.unicesar.marketradar.domain.NombreVendedor;
 import co.edu.unicesar.marketradar.domain.OfertaNormalizada;
 import co.edu.unicesar.marketradar.domain.ResenasProducto;
 import co.edu.unicesar.marketradar.exception.MarketplaceException;
@@ -204,9 +205,17 @@ public class AdaptadorGoogleShopping extends AdaptadorMarketplaceBase {
         // Se prefiere el enlace a la tienda; si no viene, la ficha del producto en Google Shopping. En Colombia
         // casi ningún producto trae esos enlaces, así que si faltan se ofrece buscar la oferta en Google, y el botón
         // lo dice así (ver EnlaceCompra). Solo se aceptan enlaces https sin usuario ni IP.
+        // El nombre de la tienda que manda el proveedor a veces trae identificadores internos o plantillas: se
+        // limpia antes de mostrarlo y antes de usarlo en la búsqueda de Google. El original solo va al registro.
+        String vendedor = NombreVendedor.limpiar(resultado.tienda()).map(t -> recortar(t, 150)).orElse(null);
+        if (NombreVendedor.tieneMarcador(resultado.tienda())) {
+            LOG.info("Google Shopping: el vendedor de \"{}\" traía un marcador técnico (\"{}\"); se muestra \"{}\"",
+                    recortar(resultado.titulo(), 80), NombreVendedor.paraDiagnostico(resultado.tienda()),
+                    vendedor == null ? "Vendedor no identificado" : vendedor);
+        }
         String enlace = EnlaceCompra.esSeguro(resultado.link()) ? resultado.link()
                 : EnlaceCompra.esSeguro(resultado.productLink()) ? resultado.productLink()
-                : enlaceBusqueda(resultado.titulo(), resultado.tienda());
+                : enlaceBusqueda(resultado.titulo(), vendedor);
         String id = tieneValor(resultado.productId()) ? resultado.productId()
                 : Integer.toHexString(enlace.hashCode());
         String moneda = monedaDe(resultado.precioTexto()).orElse("COP");
@@ -226,7 +235,7 @@ public class AdaptadorGoogleShopping extends AdaptadorMarketplaceBase {
                 .costoEnvio(envio.costo())
                 .estadoEnvio(envio.estado())
                 .condicion(condicion.map(CondicionProducto::codigo).orElse(null))
-                .vendedor(tieneValor(resultado.tienda()) ? recortar(resultado.tienda(), 150) : null)
+                .vendedor(vendedor)
                 .urlDestino(enlace)
                 .urlImagen(imagenSegura(resultado.imagen()))
                 .calificacion(calificacion(resultado.calificacion()))

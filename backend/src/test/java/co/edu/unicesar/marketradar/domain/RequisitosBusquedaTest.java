@@ -50,7 +50,7 @@ class RequisitosBusquedaTest {
         "galaxy s24 ultra       | Samsung Galaxy S24 Ultra 256 GB            | CUMPLE",
         "galaxy s24 ultra       | Samsung Galaxy S24+ 256 GB                 | INCUMPLE",
         "galaxy s24             | Samsung Galaxy S23 128 GB                  | INCUMPLE",
-        "ps5                    | Consola PlayStation 5 Slim                 | SIN_CONFIRMAR",
+        "ps5                    | Consola PlayStation 5 Slim                 | CUMPLE",
         "ps5                    | Consola PS5 Slim 1 TB                      | CUMPLE",
         "portatil 1 tb          | Portátil Lenovo 1TB SSD                    | CUMPLE",
         "portatil 1 tb          | Portátil Lenovo 512 GB SSD                 | INCUMPLE",
