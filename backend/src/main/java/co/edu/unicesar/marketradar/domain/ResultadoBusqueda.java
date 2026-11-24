@@ -168,14 +168,21 @@ public final class ResultadoBusqueda {
      * @param motivoSinRecomendacion por qué no se recomienda ninguna, o {@code null} si hay recomendación
      * @param sinTotalConfirmado cuántas ofertas que cumplen no tienen el precio total confirmado
      * @param mejorPrecioConfirmado si la oferta más barata tiene su total confirmado
+     * @param descartadas cuántas ofertas de las tiendas eran otro producto (otra familia, accesorio, otra serie) y no
+     *                    se muestran ni como alternativa
      */
     public record Detalle(List<Alternativa> alternativas, List<String> requisitos, String motivoSinRecomendacion,
-                          int sinTotalConfirmado, boolean mejorPrecioConfirmado) {
-        public static final Detalle VACIO = new Detalle(List.of(), List.of(), null, 0, true);
+                          int sinTotalConfirmado, boolean mejorPrecioConfirmado, int descartadas) {
+        public static final Detalle VACIO = new Detalle(List.of(), List.of(), null, 0, true, 0);
 
         public Detalle {
             alternativas = List.copyOf(alternativas);
             requisitos = List.copyOf(requisitos);
+        }
+
+        public Detalle(List<Alternativa> alternativas, List<String> requisitos, String motivoSinRecomendacion,
+                       int sinTotalConfirmado, boolean mejorPrecioConfirmado) {
+            this(alternativas, requisitos, motivoSinRecomendacion, sinTotalConfirmado, mejorPrecioConfirmado, 0);
         }
     }
 }

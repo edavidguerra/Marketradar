@@ -1,178 +1,73 @@
 package co.edu.unicesar.marketradar.service;
 
-import co.edu.unicesar.marketradar.domain.CondicionProducto;
 import co.edu.unicesar.marketradar.domain.OfertaNormalizada;
-import co.edu.unicesar.marketradar.domain.RequisitosBusqueda;
+import co.edu.unicesar.marketradar.domain.TextoProducto;
 
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
-import java.util.regex.Pattern;
 
 /**
- * Deja los resultados que más se parecen a lo que la persona buscó.
+ * Deja los resultados que más se parecen a lo que la persona buscó, sin completar con otros.
  *
  * <ol>
+ *   <li>Quita los juegos y accesorios que no pidió ({@link FiltroComplementos}), siempre, queden los que queden.</li>
  *   <li>Cuenta cuántas palabras de la búsqueda trae cada título ("licuadora oster" en "Licuadora Oster 600 W"
- *       son 2 de 2; en "Licuadora Imusa" es 1 de 2). Los números cuentan exactos: "playstation 5" no es
- *       "playstation 4". Se aceptan plurales ("ollas" y "olla") y abreviaturas comunes ("PS5", "TV").</li>
- *   <li>Se muestran primero los que tienen todas las palabras. Si son menos de {@value #MINIMO}, se agregan los
- *       que tienen una palabra menos, y así, para no dejar a la persona sin nada.</li>
- *   <li>Después se quitan los juegos y accesorios que no pidió ({@link FiltroComplementos}) y los precios
- *       absurdamente bajos, que casi siempre son de otro producto.</li>
+ *       son 2 de 2; en "Licuadora Imusa" es 1 de 2), con la misma lectura de {@link TextoProducto} que usa la
+ *       revisión de requisitos: los números cuentan exactos, los decimales no se parten ("3.5 pulgadas" no trae un
+ *       5), y se aceptan plurales y abreviaturas ("PS5", "TV").</li>
+ *   <li>Se dejan solo los que tienen el puntaje más alto. Si son uno o dos, quedan uno o dos: el tamaño de la lista
+ *       no cambia la regla. Si ninguno trae ninguna palabra, no queda ninguno.</li>
  * </ol>
+ *
+ * <p>El precio no se usa para decidir qué producto es: una oferta muy barata o muy cara se muestra con un aviso de
+ * precio atípico (ver {@link ServicioBusqueda#marcarPreciosAtipicos}), no se esconde.</p>
+ *
+ * <p>Esto solo escoge candidatos. Qué es coincidencia exacta, qué es una alternativa y qué es otro producto lo decide
+ * después la revisión de identidad y requisitos ({@link co.edu.unicesar.marketradar.domain.RequisitosBusqueda}).</p>
  */
 final class FiltroRelevancia {
-
-    static final int MINIMO = 3;
-
-    /** Un precio por debajo de esta parte del precio del medio se considera de otro producto. */
-    private static final BigDecimal FRACCION_MINIMA = new BigDecimal("0.25");
-
-    /** Palabras que no dicen qué producto es. */
-    private static final Set<String> VACIAS = Set.of("de", "del", "la", "el", "los", "las", "un", "una", "unos",
-            "unas", "para", "con", "sin", "y", "o", "en", "por", "a", "al");
-
-    /** Abreviaturas que usan las tiendas en los títulos. */
-    private static final Map<String, String> ABREVIATURAS = abreviaturas();
 
     private FiltroRelevancia() {
     }
 
-    /** En orden: "smart tv" se cambia antes que "tv". */
-    private static Map<String, String> abreviaturas() {
-        Map<String, String> mapa = new LinkedHashMap<>();
-        mapa.put("ps5", "playstation 5");
-        mapa.put("ps4", "playstation 4");
-        mapa.put("ps3", "playstation 3");
-        mapa.put("smart tv", "televisor");
-        mapa.put("tv", "televisor");
-        mapa.put("tele", "televisor");
-        mapa.put("pc", "computador");
-        mapa.put("laptop", "portatil");
-        mapa.put("notebook", "portatil");
-        mapa.put("celular", "telefono");
-        return Collections.unmodifiableMap(mapa);
-    }
-
     static List<OfertaNormalizada> filtrar(String termino, List<OfertaNormalizada> ofertas) {
+        List<OfertaNormalizada> productos = FiltroComplementos.filtrar(termino, ofertas);
         List<String> buscadas = palabras(termino);
-        if (buscadas.isEmpty() || ofertas.size() <= MINIMO) {
-            return sinPreciosAbsurdos(FiltroComplementos.filtrar(termino, ofertas));
+        if (buscadas.isEmpty()) {
+            return productos;
         }
-        // Puntaje: cuántas palabras de la búsqueda trae el título. Se conserva el orden de la tienda.
-        TreeMap<Integer, List<OfertaNormalizada>> porPuntaje = new TreeMap<>(Comparator.reverseOrder());
-        for (OfertaNormalizada oferta : ofertas) {
-            porPuntaje.computeIfAbsent(coincidencias(buscadas, oferta.getTitulo()), k -> new ArrayList<>()).add(oferta);
+        int mejor = productos.stream().mapToInt(o -> coincidencias(buscadas, o.getTitulo())).max().orElse(0);
+        if (mejor == 0) {
+            return List.of();
         }
-        List<OfertaNormalizada> elegidas = new ArrayList<>();
-        for (Map.Entry<Integer, List<OfertaNormalizada>> grupo : porPuntaje.entrySet()) {
-            if (grupo.getKey() == 0 && !elegidas.isEmpty()) {
-                break;
-            }
-            elegidas.addAll(grupo.getValue());
-            if (elegidas.size() >= MINIMO) {
-                break;
-            }
-        }
-        // Se respeta el orden original entre los elegidos.
-        List<OfertaNormalizada> ordenadas = ofertas.stream().filter(elegidas::contains).toList();
-        return sinPreciosAbsurdos(FiltroComplementos.filtrar(termino, ordenadas));
+        // Se respeta el orden de la tienda entre los elegidos.
+        return productos.stream().filter(o -> coincidencias(buscadas, o.getTitulo()) == mejor).toList();
     }
 
     /**
-     * Revisa lo que eligió la IA: quita accesorios que se le hayan colado ("Funda iPhone 17 Pro") y lo que cuesta
-     * menos de la cuarta parte del precio del medio de los demás candidatos que sí son el producto. Así una caja o
-     * un repuesto no queda como lo único que se muestra.
+     * Revisa lo que eligió la IA: quita accesorios, juegos, repuestos y cajas que se le hayan colado ("Funda iPhone 17
+     * Pro"). Lo que queda no se da por exacto: pasa por la misma revisión de identidad que todo lo demás.
      *
      * @param termino lo que buscó la persona
      * @param elegidas lo que eligió la IA
      * @param candidatas todo lo que se le mostró a la IA
-     * @return lo elegido que sí sirve; vacío si nada sirve
+     * @return lo elegido que sí puede ser el producto; vacío si nada sirve
      */
     static List<OfertaNormalizada> revisarEleccion(String termino, List<OfertaNormalizada> elegidas,
                                                    List<OfertaNormalizada> candidatas) {
         String buscado = ServicioSugerencias.normalizar(termino);
         Set<String> palabrasBuscadas = Set.of(buscado.split(" "));
-        List<OfertaNormalizada> productos = candidatas.stream()
-                .filter(oferta -> !FiltroComplementos.esComplemento(oferta, buscado, palabrasBuscadas)).toList();
-        BigDecimal minimo = productos.isEmpty() ? BigDecimal.ZERO
-                : productos.stream().map(OfertaNormalizada::costoConocido).sorted().toList()
-                        .get(productos.size() / 2).multiply(FRACCION_MINIMA);
-        return elegidas.stream()
+        // En el orden de la tienda, no en el que las nombró la IA.
+        return candidatas.stream()
+                .filter(elegidas::contains)
                 .filter(oferta -> !FiltroComplementos.esComplemento(oferta, buscado, palabrasBuscadas))
-                .filter(oferta -> oferta.costoConocido().compareTo(minimo) >= 0)
+                .filter(oferta -> !FiltroComplementos.esSinProducto(oferta, buscado, palabrasBuscadas))
                 .toList();
     }
 
-    /**
-     * Quita lo que cuesta menos de la cuarta parte del precio del medio: con "playstation 5", una consola de
-     * $ 80.000 es una PlayStation vieja o un repuesto, no lo que la persona busca. Solo cuando quedan al menos
-     * {@value #MINIMO} resultados.
-     */
-    static List<OfertaNormalizada> sinPreciosAbsurdos(List<OfertaNormalizada> ofertas) {
-        if (ofertas.size() <= MINIMO) {
-            return ofertas;
-        }
-        List<BigDecimal> precios = ofertas.stream().map(OfertaNormalizada::costoConocido).sorted().toList();
-        BigDecimal minimo = precios.get(precios.size() / 2).multiply(FRACCION_MINIMA);
-        List<OfertaNormalizada> razonables = ofertas.stream()
-                .filter(oferta -> oferta.costoConocido().compareTo(minimo) >= 0).toList();
-        return razonables.size() >= MINIMO ? razonables : ofertas;
-    }
-
     static int coincidencias(List<String> buscadas, String titulo) {
-        List<String> delTitulo = List.of(expandir(titulo).split(" "));
-        int total = 0;
-        for (String buscada : buscadas) {
-            if (delTitulo.stream().anyMatch(palabra -> coincide(buscada, palabra))) {
-                total++;
-            }
-        }
-        return total;
+        return TextoProducto.coincidencias(buscadas, titulo);
     }
-
-    private static boolean coincide(String buscada, String delTitulo) {
-        if (buscada.equals(delTitulo)) {
-            return true;
-        }
-        if (buscada.chars().anyMatch(Character::isDigit) || delTitulo.chars().anyMatch(Character::isDigit)) {
-            return false;
-        }
-        String raizBuscada = raiz(buscada);
-        String raizTitulo = raiz(delTitulo);
-        return raizBuscada.length() >= 3 && raizBuscada.equals(raizTitulo);
-    }
-
-    /** Quita el plural: "ollas" y "olla", "televisores" y "televisor". */
-    private static String raiz(String palabra) {
-        if (palabra.length() > 5 && palabra.endsWith("es")) {
-            return palabra.substring(0, palabra.length() - 2);
-        }
-        if (palabra.length() > 3 && palabra.endsWith("s")) {
-            return palabra.substring(0, palabra.length() - 1);
-        }
-        return palabra;
-    }
-
-    /** Escribe completas las abreviaturas: "Consola PS5" queda "consola playstation 5". */
-    private static String expandir(String texto) {
-        String expandido = " " + ServicioSugerencias.normalizar(texto) + " ";
-        for (Map.Entry<String, String> abreviatura : ABREVIATURAS.entrySet()) {
-            expandido = expandido.replace(" " + abreviatura.getKey() + " ", " " + abreviatura.getValue() + " ");
-        }
-        return expandido.strip();
-    }
-
-    /** "128 GB", "1 TB": la capacidad la revisa {@link RequisitosBusqueda}, que dice cuál es la que no cumple. */
-    private static final Pattern CAPACIDAD =
-            Pattern.compile("\\b\\d{1,4}\\s?(gb|tb|gigas?|teras?)\\b");
 
     /**
      * Palabras de la búsqueda que dicen qué producto es. La capacidad y la condición ("nuevo", "usado") no cuentan:
@@ -180,12 +75,16 @@ final class FiltroRelevancia {
      * muestra aparte diciendo qué le falta.
      */
     static List<String> palabras(String termino) {
-        Map<String, Boolean> unicas = new LinkedHashMap<>();
-        for (String palabra : CAPACIDAD.matcher(expandir(termino)).replaceAll(" ").split(" ")) {
-            if (!palabra.isEmpty() && !VACIAS.contains(palabra) && CondicionProducto.detectar(palabra).isEmpty()) {
-                unicas.put(palabra, true);
+        List<String> palabras = new java.util.ArrayList<>(TextoProducto.palabrasClave(termino));
+        List<String> leidas = TextoProducto.palabras(termino);
+        // "128 gb", "1 tb": la capacidad la revisa RequisitosBusqueda, que dice cuál es la que no cumple.
+        for (int i = 0; i + 1 < leidas.size(); i++) {
+            if (leidas.get(i).matches("\\d{1,4}") && leidas.get(i + 1).matches("gb|tb|gigas?|teras?")) {
+                palabras.remove(leidas.get(i));
+                palabras.remove(leidas.get(i + 1));
             }
         }
-        return List.copyOf(unicas.keySet());
+        palabras.removeIf(p -> p.matches("\\d{1,4}(gb|tb)"));
+        return List.copyOf(palabras);
     }
 }

@@ -359,13 +359,94 @@ class ServicioBusquedaTest {
                 .buscar(ConsultaBusqueda.crear("licuadora oster 6640", null, Set.of(), 1, 10));
 
         List<OfertaNormalizada> ofertas = resultado.getOfertas();
-        // La de $ 35.971 ya la quitaba el filtro de precios absurdamente bajos (suele ser un repuesto). La de
-        // $ 359.718.000 se muestra, con el aviso.
-        assertEquals(List.of("2", "3", "4"), ofertas.stream().map(OfertaNormalizada::getIdExterno).toList());
-        assertEquals(ServicioBusqueda.ALERTA_ATIPICO, ofertas.get(2).getAlertaPrecio());
-        assertNull(ofertas.get(0).getAlertaPrecio());
+        // El precio no dice qué producto es: la de $ 35.971 ya no se esconde por barata. Se muestra, igual que la de
+        // $ 359.718.000, con el aviso de precio atípico, y ninguna de las dos se recomienda.
+        assertEquals(List.of("1", "2", "3", "4"), ofertas.stream().map(OfertaNormalizada::getIdExterno).toList());
+        assertEquals(ServicioBusqueda.ALERTA_ATIPICO, ofertas.get(0).getAlertaPrecio());
+        assertEquals(ServicioBusqueda.ALERTA_ATIPICO, ofertas.get(3).getAlertaPrecio());
+        assertNull(ofertas.get(1).getAlertaPrecio());
         assertEquals("2", resultado.getProductoMvp().orElseThrow().oferta().getIdExterno());
         assertTrue(resultado.esMejorPrecio(ofertas.stream().filter(o -> o.getIdExterno().equals("2")).findFirst().orElseThrow()));
+    }
+
+    @Test
+    void laMedianaSoloUsaLasOfertasQueSonElMismoProducto() {
+        // Cuatro consolas que no dicen ser una PS5 (sin confirmar) y cuestan poco: antes bajaban la mediana y las
+        // PS5 de verdad quedaban marcadas como "precio atípico", sin recomendación.
+        AdaptadorMarketplace tienda = adaptador("a", List.of(
+                titulada("1", "Consola PlayStation 5 Slim 1 TB", "2499900"),
+                titulada("2", "Consola PlayStation 5 Slim 1 TB Blanca", "2599900"),
+                titulada("3", "Consola PlayStation 5 Slim 1 TB Nueva", "2399900"),
+                titulada("4", "Consola de videojuegos 4K 1 TB", "300000"),
+                titulada("5", "Consola de videojuegos 4K negra", "310000"),
+                titulada("6", "Consola de videojuegos 4K blanca", "320000"),
+                titulada("7", "Consola de videojuegos 4K azul", "330000")));
+
+        ServicioIABusqueda ia = mock(ServicioIABusqueda.class);
+        when(ia.analizar(any(), any())).thenAnswer(invocacion -> java.util.Optional.of(
+                new ServicioIABusqueda.Analisis(invocacion.getArgument(1), null)));
+        ServicioBusqueda servicio = servicio(tienda);
+        servicio.usarIA(ia);
+
+        ResultadoBusqueda resultado = servicio.buscar(ConsultaBusqueda.crear("playstation 5", null, Set.of(), 1, 10));
+
+        assertEquals(List.of("3", "1", "2"), resultado.getOfertas().stream().map(OfertaNormalizada::getIdExterno).toList());
+        assertTrue(resultado.getOfertas().stream().allMatch(OfertaNormalizada::precioVerificado));
+        assertEquals("3", resultado.getProductoMvp().orElseThrow().oferta().getIdExterno());
+    }
+
+    @Test
+    void unaSolaCoincidenciaValidaSeMuestraSolaYSinRelleno() {
+        AdaptadorMarketplace tienda = adaptador("a", List.of(
+                titulada("1", "Licuadora Imusa 1,5 L", "129900"),
+                titulada("2", "Licuadora Oster 600 W", "189900"),
+                titulada("3", "Batidora de mano Imusa", "89900"),
+                titulada("4", "Vaso para licuadora Oster", "49900")));
+
+        ResultadoBusqueda resultado = servicio(tienda)
+                .buscar(ConsultaBusqueda.crear("licuadora oster", null, Set.of(), 1, 10));
+
+        assertEquals(List.of("2"), resultado.getOfertas().stream().map(OfertaNormalizada::getIdExterno).toList());
+        assertEquals(1, resultado.getTotalResultados());
+        assertEquals("2", resultado.getProductoMvp().orElseThrow().oferta().getIdExterno());
+        assertEquals(1, resultado.getProductoMvp().orElseThrow().comparadas());
+    }
+
+    @Test
+    void laCacheNoSeSaltaLaValidacionDeLaConsultaActual() {
+        AdaptadorMarketplace tienda = adaptador("a", List.of(
+                titulada("1", "Consola PlayStation 5 Slim 1 TB", "2499900"),
+                titulada("2", "Control DualSense PS5 Blanco", "289900")));
+        ServicioBusqueda servicio = servicio(tienda);
+
+        ResultadoBusqueda consola = servicio.buscar(ConsultaBusqueda.crear("playstation 5", null, Set.of(), 1, 10));
+        // La misma búsqueda guardada en caché, pero la persona había escrito que quería el control: la consola
+        // guardada no puede quedar como coincidencia ni como recomendación.
+        ResultadoBusqueda control = servicio.buscar(ConsultaBusqueda.crear("playstation 5", null, Set.of(), 1, 10)
+                .conTextoOriginal("control para ps5"));
+
+        verify(tienda, times(1)).buscar(any());
+        assertEquals("1", consola.getProductoMvp().orElseThrow().oferta().getIdExterno());
+        assertTrue(control.getOfertas().stream().noneMatch(o -> o.getIdExterno().equals("1")));
+        assertTrue(control.getProductoMvp().map(m -> !m.oferta().getIdExterno().equals("1")).orElse(true));
+    }
+
+    @Test
+    void elResumenDeLaIANoPuedeNombrarUnaOfertaDescartada() {
+        AdaptadorMarketplace tienda = adaptador("a", List.of(
+                titulada("1", "Consola PlayStation 5 Slim 1 TB", "2499900"),
+                titulada("2", "Consola Retro X5 Portátil 4.3 Pulgadas", "2499900")));
+        ServicioIABusqueda ia = mock(ServicioIABusqueda.class);
+        when(ia.analizar(any(), any())).thenAnswer(invocacion -> java.util.Optional.of(new ServicioIABusqueda.Analisis(
+                invocacion.getArgument(1), "Encontré la consola X5 y la PS5 Slim, las dos a $ 2.499.900.")));
+        ServicioBusqueda servicio = servicio(tienda);
+        servicio.usarIA(ia);
+
+        ResultadoBusqueda resultado = servicio.buscar(ConsultaBusqueda.crear("playstation 5", null, Set.of(), 1, 10));
+
+        // El precio coincide con la PS5, pero el resumen habla de la X5, que se descartó.
+        assertEquals(List.of("1"), resultado.getOfertas().stream().map(OfertaNormalizada::getIdExterno).toList());
+        assertTrue(resultado.getResumenIa().isEmpty());
     }
 
     @Test

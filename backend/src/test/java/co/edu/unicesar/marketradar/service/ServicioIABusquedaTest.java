@@ -67,19 +67,25 @@ class ServicioIABusquedaTest {
 
         ServicioIABusqueda.Analisis analisis = ia.analizar("iphone 15", ofertas).orElseThrow();
 
-        // Pocos exactos: se suman los parecidos. Se respeta el orden de la tienda y se ignoran números inválidos.
-        assertEquals(List.of("Apple iPhone 15 128 GB Negro", "iPhone 15 Pro 256 GB", "Apple iPhone 15 128 GB Azul"),
+        // Exactos y parecidos quedan separados (antes, con menos de 3 exactos, se mezclaban). Se respeta el orden de la
+        // tienda y se ignoran números inválidos. Las candidatas son las dos listas juntas, para la validación final.
+        assertEquals(List.of("Apple iPhone 15 128 GB Negro", "Apple iPhone 15 128 GB Azul"),
+                analisis.exactas().stream().map(OfertaNormalizada::getTitulo).toList());
+        assertEquals(List.of("iPhone 15 Pro 256 GB"),
+                analisis.parecidas().stream().map(OfertaNormalizada::getTitulo).toList());
+        assertEquals(List.of("Apple iPhone 15 128 GB Negro", "Apple iPhone 15 128 GB Azul", "iPhone 15 Pro 256 GB"),
                 analisis.elegidas().stream().map(OfertaNormalizada::getTitulo).toList());
         assertEquals("Encontré el iPhone 15 desde $ 3.799.900 en Alkosto. Revise que sea nuevo.", analisis.resumen());
     }
 
     @Test
-    void conSuficientesExactosNoAgregaParecidos() throws Exception {
-        responde("{\"exactos\": [1, 2, 3], \"parecidos\": [4, 5], \"resumen\": \"\"}");
+    void losParecidosNuncaSeConviertenEnExactos() throws Exception {
+        responde("{\"exactos\": [1], \"parecidos\": [4, 5], \"resumen\": \"\"}");
 
         ServicioIABusqueda.Analisis analisis = ia.analizar("x", ofertas).orElseThrow();
 
-        assertEquals(3, analisis.elegidas().size());
+        assertEquals(1, analisis.exactas().size());
+        assertEquals(2, analisis.parecidas().size());
         assertNull(analisis.resumen());
     }
 

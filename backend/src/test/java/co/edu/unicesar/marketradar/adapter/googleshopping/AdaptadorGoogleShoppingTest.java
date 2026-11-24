@@ -116,6 +116,31 @@ class AdaptadorGoogleShoppingTest {
     }
 
     @Test
+    void elVendedorConMarcadorTecnicoNoSeMuestraNiSeUsaEnLaBusquedaExterna() {
+        String respuesta = """
+                {"shopping_results":[
+                  {"title":"Consola Q21 Retro","product_id":"1","source":"mc_9f3a77c1e2b44d0a8 · merchant_id=8841377",
+                   "price":"$ 89.900","extracted_price":89900},
+                  {"title":"Consola PlayStation 5 Slim","product_id":"2","source":"Alkosto · merchant_id=12345",
+                   "price":"$ 2.599.900","extracted_price":2599900},
+                  {"title":"Licuadora Oster","product_id":"3","source":"Black+Decker Store",
+                   "price":"$ 189.900","extracted_price":189900}
+                ]}""";
+        servidor.expect(once(), requestTo(startsWith(URL + "/search.json")))
+                .andRespond(withSuccess(respuesta, MediaType.APPLICATION_JSON));
+
+        List<OfertaNormalizada> ofertas = crear(CLAVE).consultarApi(consulta("consola"));
+
+        assertNull(ofertas.get(0).getVendedor(), "sin nombre comercial fiable: la interfaz dice «Vendedor no identificado»");
+        assertFalse(ofertas.get(0).getUrlDestino().contains("merchant"), ofertas.get(0).getUrlDestino());
+        assertFalse(ofertas.get(0).getUrlDestino().contains("mc_9f3a"), ofertas.get(0).getUrlDestino());
+        assertEquals("Alkosto", ofertas.get(1).getVendedor());
+        assertTrue(ofertas.get(1).getUrlDestino().contains("Alkosto"));
+        assertFalse(ofertas.get(1).getUrlDestino().contains("merchant"));
+        assertEquals("Black+Decker Store", ofertas.get(2).getVendedor(), "un nombre comercial legítimo no se toca");
+    }
+
+    @Test
     void elEnlaceDeBusquedaIncluyeLaTiendaYEsSeguro() {
         String enlace = AdaptadorGoogleShopping.enlaceBusqueda("Licuadora Oster 600 W & vaso", "Éxito");
 

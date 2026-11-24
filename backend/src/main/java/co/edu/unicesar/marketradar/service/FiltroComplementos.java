@@ -1,5 +1,6 @@
 package co.edu.unicesar.marketradar.service;
 
+import co.edu.unicesar.marketradar.domain.CategoriaProducto;
 import co.edu.unicesar.marketradar.domain.OfertaNormalizada;
 
 import java.util.ArrayList;
@@ -15,15 +16,15 @@ import java.util.Set;
  * "expansión", dice "para playstation", o viene de una tienda de juegos digitales, y la persona no escribió esas
  * palabras. "Juego de ollas" o "set de sábanas" no cuentan: ahí "juego" quiere decir varias piezas.</p>
  *
- * <p>Si quedan al menos {@value #MINIMO_PRINCIPALES} resultados que no son complementos, se muestran solo esos.
- * Si no, se muestran todos, para no dejar a la persona sin nada.</p>
+ * <p>Los complementos se quitan siempre, queden los productos que queden: si solo hay una consola, se muestra una;
+ * si no hay ninguna, no se completa con controles ni juegos. Quien busca el complemento ("control para playstation 5",
+ * "juego ps5") sí lo recibe. También cuenta como complemento lo que {@link CategoriaProducto} reconoce como accesorio,
+ * juego o caja aunque el título empiece por la marca ("Sony DualSense Wireless Controller PS5").</p>
  *
  * <p>Lo que no trae el producto, como la caja vacía de un iPhone ("Caja iPhone 17 Pro", "Solo caja", "Empty box"),
  * se quita siempre con {@link #quitarSinProducto}: mostrarla, aunque sea lo único, confundiría a la persona.</p>
  */
 final class FiltroComplementos {
-
-    static final int MINIMO_PRINCIPALES = 3;
 
     /** Al comienzo del título indican que no es el producto sino algo para él ("Funda para...", "Juego PS5..."). */
     private static final Set<String> AL_COMIENZO = Set.of(
@@ -41,8 +42,9 @@ final class FiltroComplementos {
             "sin equipo", "sin telefono", "sin celular", "sin consola", "no incluye equipo", "no incluye telefono",
             "empty box", "box only", "only box", "only the box", "solo para exhibicion", "dummy", "replica de exhibicion");
 
-    /** En cualquier parte del título: solo existen en contenido digital para juegos. */
-    private static final Set<String> EN_CUALQUIER_PARTE = Set.of("dlc", "expansion", "addon", "skins", "season");
+    /** En cualquier parte del título: solo existen en contenido digital para juegos, o es un repuesto. */
+    private static final Set<String> EN_CUALQUIER_PARTE = Set.of("dlc", "expansion", "addon", "skins", "season",
+            "repuesto", "repuestos", "refaccion");
 
     /** "Juego de ollas", "set de cuchillos": varias piezas del mismo producto, no un complemento. */
     private static final Set<String> VARIAS_PIEZAS = Set.of("juego", "juegos", "set", "pack");
@@ -56,7 +58,7 @@ final class FiltroComplementos {
 
     static List<OfertaNormalizada> filtrar(String termino, List<OfertaNormalizada> ofertas) {
         String buscado = ServicioSugerencias.normalizar(termino);
-        if (buscado.isEmpty() || ofertas.size() <= MINIMO_PRINCIPALES) {
+        if (buscado.isEmpty()) {
             return ofertas;
         }
         Set<String> palabrasBuscadas = Set.of(buscado.split(" "));
@@ -66,7 +68,7 @@ final class FiltroComplementos {
                 principales.add(oferta);
             }
         }
-        return principales.size() >= MINIMO_PRINCIPALES ? principales : ofertas;
+        return principales;
     }
 
     /**
@@ -122,6 +124,11 @@ final class FiltroComplementos {
         String primera = buscado.split(" ")[0];
         if (!palabrasBuscadas.contains("para") && (titulo.contains("para " + primera)
                 || titulo.contains("compatible con " + primera))) {
+            return true;
+        }
+        // El tipo de producto del título: un control o un juego no es la consola, aunque el título empiece por "Sony".
+        CategoriaProducto delTitulo = CategoriaProducto.detectar(oferta.getTitulo());
+        if (delTitulo.esComplemento() && delTitulo != CategoriaProducto.detectar(buscado)) {
             return true;
         }
         String tienda = ServicioSugerencias.normalizar(oferta.getVendedor());

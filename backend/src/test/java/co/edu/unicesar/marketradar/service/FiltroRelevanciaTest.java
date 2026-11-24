@@ -51,7 +51,7 @@ class FiltroRelevanciaTest {
     }
 
     @Test
-    void siPocasTraenTodasLasPalabrasSeCompletaConLasMasParecidas() {
+    void siSoloUnaTraeTodasLasPalabrasSeMuestraSoloEsaSinCompletar() {
         List<OfertaNormalizada> ofertas = List.of(
                 oferta("Olla arrocera Oster 1,8 L"),
                 oferta("Olla arrocera Imusa"),
@@ -59,44 +59,56 @@ class FiltroRelevanciaTest {
                 oferta("Olla de presión Universal"),
                 oferta("Arrocera Samurai"));
 
-        // Solo una trae "olla arrocera oster"; se agregan las que traen dos palabras, y no la sartén.
-        assertEquals(List.of("Olla arrocera Oster 1,8 L", "Olla arrocera Imusa"),
-                titulos(FiltroRelevancia.filtrar("olla arrocera oster", ofertas)).subList(0, 2));
-        assertFalse(titulos(FiltroRelevancia.filtrar("olla arrocera oster", ofertas)).contains("Sartén antiadherente"));
+        // Antes se completaba hasta 3 con las que traían menos palabras (la Imusa, la Samurai).
+        assertEquals(List.of("Olla arrocera Oster 1,8 L"), titulos(FiltroRelevancia.filtrar("olla arrocera oster", ofertas)));
     }
 
     @Test
-    void siNingunaSeParecePorLasPalabrasSeMuestranTodas() {
+    void conDosCoincidenciasSeMuestranDosAunqueHayaMasResultados() {
+        List<OfertaNormalizada> ofertas = List.of(
+                oferta("Consola PS5 Slim 1 TB"),
+                oferta("Consola Sony PlayStation 4 Slim 1 TB"),
+                oferta("Sony PlayStation 5 Pro"),
+                oferta("PlayStation 4 Pro reacondicionada"));
+
+        assertEquals(List.of("Consola PS5 Slim 1 TB", "Sony PlayStation 5 Pro"),
+                titulos(FiltroRelevancia.filtrar("playstation 5", ofertas)));
+    }
+
+    @Test
+    void siNingunaSeParecePorLasPalabrasNoSeMuestraNinguna() {
         List<OfertaNormalizada> ofertas = List.of(
                 oferta("Producto A"), oferta("Producto B"), oferta("Producto C"), oferta("Producto D"));
 
-        assertEquals(4, FiltroRelevancia.filtrar("licuadora", ofertas).size());
+        // Antes se mostraban las 4 "para no dejar a la persona sin nada": ninguna es una licuadora.
+        assertEquals(List.of(), FiltroRelevancia.filtrar("licuadora", ofertas));
+        assertEquals(List.of(), FiltroRelevancia.filtrar("licuadora", ofertas.subList(0, 2)), "ni siquiera si son pocas");
     }
 
     @Test
-    void quitaLosPreciosQueSonDeOtroProducto() {
+    void unaPantallaDeTresPuntoCincoNoCuentaComoElNumeroCinco() {
         List<OfertaNormalizada> ofertas = List.of(
-                oferta("Consola Sony PlayStation Reacondicionada", "80961"),
+                oferta("Consola De Videojuegos Portátil Q21 Pantalla 3.5 Pulgadas 10000 Juegos Retro"),
+                oferta("Consola PlayStation 5 Slim 1 TB"));
+
+        assertEquals(List.of("Consola PlayStation 5 Slim 1 TB"), titulos(FiltroRelevancia.filtrar("playstation 5", ofertas)));
+        assertEquals(0, FiltroRelevancia.coincidencias(FiltroRelevancia.palabras("5"), "Pantalla 3,5 pulgadas"));
+    }
+
+    @Test
+    void elPrecioNoDecideQueProductoEs() {
+        // Una PS5 barata no se quita por su precio: se muestra y el aviso de precio atípico lo decide después.
+        List<OfertaNormalizada> ofertas = List.of(
+                oferta("Consola PlayStation 5 Slim", "80961"),
                 oferta("Consola PlayStation 5 Slim", "2167685"),
-                oferta("Consola PlayStation 5 Slim Digital", "3045900"),
-                oferta("Combo PlayStation 5 Slim + 2 juegos", "4199900"),
-                oferta("PlayStation 5 Pro 2 TB", "5399055"));
+                oferta("PlayStation 5 Pro 2 TB", "5399055"),
+                oferta("Consola PlayStation 5 Slim 1 TB", "2399000"));
 
-        assertEquals(List.of("Consola PlayStation 5 Slim", "Consola PlayStation 5 Slim Digital",
-                        "Combo PlayStation 5 Slim + 2 juegos", "PlayStation 5 Pro 2 TB"),
-                titulos(FiltroRelevancia.filtrar("playstation", ofertas)));
+        assertEquals(4, FiltroRelevancia.filtrar("playstation 5", ofertas).size());
     }
 
     @Test
-    void noQuitaPreciosSiQuedariaCasiNada() {
-        List<OfertaNormalizada> ofertas = List.of(oferta("Lupa A", "5000"), oferta("Lupa B", "6000"),
-                oferta("Lupa C", "90000"), oferta("Lupa D", "95000"));
-
-        assertEquals(4, FiltroRelevancia.sinPreciosAbsurdos(ofertas).size());
-    }
-
-    @Test
-    void deLoQueEligeLaIAQuitaAccesoriosYPreciosAbsurdos() {
+    void deLoQueEligeLaIAQuitaAccesoriosYRepuestos() {
         List<OfertaNormalizada> candidatas = List.of(
                 oferta("Funda iPhone 17 Pro", "60000"),
                 oferta("iPhone 17 Pro 256 GB", "5200000"),

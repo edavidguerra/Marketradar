@@ -12,7 +12,10 @@ el servidor.
 
 | Requisito | Ejemplo | Cómo se revisa en el título de la oferta |
 |---|---|---|
-| Modelo | "iphone 13", "ps5", "galaxy s24" | El mismo número con las mismas letras. Si el título trae otro número de la misma forma ("iPhone 14"), no cumple. "PlayStation 5" cuando se escribió "ps5" queda por confirmar. |
+| Modelo | "iphone 13", "ps5", "galaxy s24" | El mismo número con las mismas letras. Si el título trae otro número de la misma forma ("iPhone 14"), no cumple. "PS5" y "PlayStation 5" son el mismo modelo en los dos sentidos (`TextoProducto`). Un número que es una medida, una cantidad o una especificación ("3.5 pulgadas", "Bluetooth 5.0", "10000 juegos", "5G") nunca confirma un modelo, y un modelo corto pedido con su serie ("playstation 5", "iphone 13") tiene que aparecer junto a esa serie. |
+| Tipo de producto | "consola", "licuadora", "control para ps5" | `CategoriaProducto` del título contra el de la búsqueda: un portátil de 13 pulgadas no es un iPhone 13, y quien busca la consola no recibe controles, fundas, juegos ni cajas vacías. Si busca el control, sí. |
+| Marca | "licuadora oster" | Si la persona nombró una marca, otra marca en el título no cumple ("Es de la marca Imusa, no Oster") y queda como alternativa del mismo tipo. |
+| Variante y medida | "ps5 digital", "televisor 55 pulgadas" | La edición pedida debe estar, y una edición no pedida (Digital) no cumple. Una medida pedida se compara como medida, con decimales ("1,25 L" es 1.25 litros). |
 | Versión | "pro", "mini", "pro max", "ultra", "plus" | Las palabras de versión que van justo después del modelo deben ser las mismas: un "iPhone 13 Pro" no es un "iPhone 13" y un "Pro Max" no es un "Pro". |
 | Capacidad | "128 GB", "1 TB", "4 GB RAM" | Almacenamiento y RAM se revisan por separado. Otra capacidad identificada no cumple; si el título no la dice, o la deja ambigua, queda por confirmar. |
 | Condición | "nuevo", "usado", "reacondicionado", "de exhibición" | Se lee de lo que informa la tienda (`second_hand_condition`, etiquetas y título). Reacondicionado y de exhibición nunca son nuevos. Si la tienda no dice nada, queda por confirmar: no se da por nuevo. |
@@ -28,8 +31,11 @@ celulares, tabletas y portátiles, la RAM y el almacenamiento se separan con los
 máxima de ese tipo de equipo. Lo que sigue siendo ambiguo ("16 GB" sola en un portátil) no confirma ni contradice, y
 dos capacidades posibles no se convierten en una sola.
 
-Cada oferta queda en uno de tres grupos:
+Cada oferta queda en uno de cuatro grupos. Solo cumple con evidencia positiva en el título; si algo lo contradice no
+cumple, y si falta información queda por confirmar:
 
+- **Otro producto**: otra familia, un accesorio, un juego, una caja vacía u otra serie ("Consola Q21", "X5"). No se
+  muestra ni como alternativa; la respuesta dice cuántas se descartaron (`descartadas`).
 - **Cumple**: va en la lista principal y puede ser la recomendación.
 - **Falta confirmar**: se muestra aparte, en "Parecidas, pero no son lo que pidió", con lo que falta confirmar.
 - **No cumple**: también aparte, con el motivo ("Es la versión Pro, no la que pidió", "Es de 256 GB, no de 128 GB",
@@ -42,6 +48,16 @@ búsqueda exacta ("Buscar tal como lo escribió") también los exige.
 
 La capacidad y la condición tampoco cuentan para `FiltroRelevancia`: una oferta de otra capacidad no se esconde, se
 muestra aparte diciendo qué le falta.
+
+No hay un mínimo de resultados: si solo una oferta es lo buscado se muestra una, y si ninguna lo es no se muestra
+ninguna ni se recomienda nada ("Las tiendas mostraron N ofertas, pero ninguna es lo que buscó"). Los accesorios no
+vuelven porque queden pocos productos.
+
+Esta clasificación se hace en cada búsqueda, también cuando la respuesta sale de la caché, y también sobre lo que
+eligió Gemini: lo que la IA marca como exacto pasa por las mismas reglas, y lo que marca como parecido nunca pasa a
+coincidencia exacta. El resumen de la IA solo se muestra si sus precios son los de las ofertas que se ven y si no nombra
+un producto descartado. Una corrección de la búsqueda (de Gemini o del diccionario) solo se usa si conserva el tipo de
+producto, la marca, el modelo y la versión que se escribieron (`RequisitosBusqueda.correccionConserva`).
 
 ## 2. Precio, envío y total
 
@@ -72,8 +88,8 @@ Un precio con alerta se muestra con un recuadro rojo, pero no se recomienda ni s
 
 - "Desde", por cuotas o por mes: no es el precio completo.
 - El número del texto de Google (`price`) no coincide con el que leyó SerpApi (`extracted_price`) en más de 1 %.
-- Es más de 4 veces o menos de la cuarta parte de la mediana de las ofertas que cumplen o están por confirmar (si hay al
-  menos 3). Así se marcan precios como $ 359.718.000 para un celular.
+- Es más de 4 veces o menos de la cuarta parte de la mediana de las ofertas que cumplen, que son el mismo producto (si hay al
+  menos 3). Lo que es otro producto no cuenta para la mediana. Así se marcan precios como $ 359.718.000 para un celular.
 - Está en una moneda que no se reconoce ("A$", "¥", "S/"), o no hay tasa para ella: esa oferta no se muestra y queda en
   el registro.
 

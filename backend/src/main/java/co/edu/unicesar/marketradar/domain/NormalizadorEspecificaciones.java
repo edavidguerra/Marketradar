@@ -320,6 +320,33 @@ public final class NormalizadorEspecificaciones {
         }
     }
 
+    /**
+     * Marca de una palabra, con su nombre bien escrito ("Oster", "Sony"). Redmi y Poco son de Xiaomi.
+     *
+     * @param palabra palabra en minúsculas
+     * @param incluirSeries si una serie ("playstation", "iphone") cuenta como su marca
+     * @return marca, o vacío si la palabra no es una marca
+     */
+    static Optional<String> marcaDe(String palabra, boolean incluirSeries) {
+        String marca = MARCAS.get(palabra);
+        if (marca == null) {
+            return Optional.empty();
+        }
+        boolean esSerie = !marca.toLowerCase(Locale.ROOT).equals(palabra);
+        if (esSerie && !incluirSeries) {
+            return Optional.empty();
+        }
+        return Optional.of("Redmi".equals(marca) || "Poco".equals(marca) ? "Xiaomi" : marca);
+    }
+
+    /**
+     * @param palabra palabra en minúsculas
+     * @return si es una serie de productos ("iphone", "galaxy", "playstation"), que va antes del número del modelo
+     */
+    static boolean esSerie(String palabra) {
+        return SERIES.contains(palabra);
+    }
+
     private static Optional<String> marca(String texto) {
         for (String palabra : texto.split("[^a-z0-9+]+")) {
             String marca = MARCAS.get(palabra);

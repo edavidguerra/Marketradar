@@ -23,6 +23,29 @@ const estado = {
 
 const $ = (id) => document.getElementById(id);
 
+/*
+ * Respuestas en desorden: cada búsqueda nueva (o cada cambio de filtro) abre una "generación". Una solicitud guarda la
+ * generación en que salió y solo puede tocar la pantalla si sigue siendo la actual; si llega tarde, se ignora su
+ * respuesta, su error y su limpieza (círculo del botón, mensajes, tarjetas, paginación). Es la misma idea de
+ * solicitudes vigentes que usa Emprender (mayoristas.js). Además se cancela la solicitud anterior con AbortController,
+ * pero la revisión de la generación es la que manda: una respuesta puede llegar aunque se haya cancelado.
+ */
+const carga = { generacion: 0, controlador: null, enCurso: false };
+
+/** Abre una generación nueva: lo que esté en camino ya no cuenta. */
+function nuevaGeneracion() {
+    carga.generacion += 1;
+    carga.controlador?.abort();
+    carga.controlador = null;
+    carga.enCurso = false;
+    return carga.generacion;
+}
+
+/** Si la solicitud pedida pertenece a la búsqueda que está en pantalla. */
+export function solicitudVigente(pedida, generacionActual = carga.generacion) {
+    return pedida.generacion === generacionActual;
+}
+
 function validarTermino(termino) {
     if (termino.length < 2) return 'Escriba al menos 2 letras del producto que busca.';
     if (termino.length > 100) return 'Escriba un nombre más corto, de máximo 100 letras.';
@@ -43,34 +66,43 @@ export function textoRango(minimo, maximo) {
     return `hasta ${pesos(maximo)}`;
 }
 
-function hayFiltroPrecio() {
-    return estado.precioMinimo != null || estado.precioMaximo != null;
+function hayFiltroPrecio(foto = estado) {
+    return foto.precioMinimo != null || foto.precioMaximo != null;
 }
 
-function textoResultados(respuesta) {
+/**
+ * Texto que resume los resultados. Usa la foto de la búsqueda que respondió (término y filtros con que salió), no el
+ * estado del momento, y los contadores de la clasificación final del servidor.
+ */
+export function textoResultados(respuesta, foto = estado) {
+    const termino = foto.termino;
     const parecidas = (respuesta.alternativas || []).length;
+    const descartadas = respuesta.descartadas ?? 0;
+    const conFiltro = hayFiltroPrecio(foto);
+    const rango = conFiltro ? textoRango(foto.precioMinimo, foto.precioMaximo) : '';
     if (respuesta.total_resultados === 0 && parecidas > 0) {
         return `Encontramos ${parecidas} ${parecidas === 1 ? 'oferta parecida' : 'ofertas parecidas'} a `
-            + `"${estado.termino}"${hayFiltroPrecio() ? ` ${textoRango(estado.precioMinimo, estado.precioMaximo)}` : ''}`
-            + ', pero ninguna confirma todo lo que pidió.';
+            + `"${termino}"${conFiltro ? ` ${rango}` : ''}, pero ninguna confirma todo lo que pidió.`;
     }
-    if (!hayFiltroPrecio()) {
-        if (respuesta.total_resultados === 0) {
-            return `No encontramos resultados para "${estado.termino}". Pruebe con otra palabra.`;
-        }
-        return `Encontramos ${respuesta.total_resultados} resultados para "${estado.termino}". `
+    if (respuesta.total_resultados === 0 && !(conFiltro && respuesta.total_sin_filtro > 0)) {
+        return descartadas > 0
+            ? `No encontramos coincidencias con "${termino}". Las tiendas mostraron ${descartadas} `
+              + `${descartadas === 1 ? 'oferta, pero era otro producto' : 'ofertas, pero eran otros productos'} o `
+              + 'accesorios. Pruebe con otras palabras.'
+            : `No encontramos resultados para "${termino}". Pruebe con otra palabra.`;
+    }
+    const cuantos = respuesta.total_resultados === 1 ? '1 resultado' : `${respuesta.total_resultados} resultados`;
+    if (!conFiltro) {
+        return `Encontramos ${cuantos} para "${termino}". `
             + (respuesta.producto_mvp ? 'Primero le mostramos la mejor opción de compra y después todas las ofertas'
                 : 'Estas son las ofertas') + ', de la más barata a la más cara.';
     }
-    const rango = textoRango(estado.precioMinimo, estado.precioMaximo);
     if (respuesta.total_resultados === 0) {
-        return respuesta.total_sin_filtro > 0
-            ? `No hay ofertas de "${estado.termino}" ${rango}. Sin el filtro hay ${respuesta.total_sin_filtro}: `
-              + 'pruebe con otros precios o pulse "Quitar filtro".'
-            : `No encontramos resultados para "${estado.termino}". Pruebe con otra palabra.`;
+        return `No hay ofertas de "${termino}" ${rango}. Sin el filtro hay ${respuesta.total_sin_filtro}: `
+            + 'pruebe con otros precios o pulse "Quitar filtro".';
     }
     return `Encontramos ${respuesta.total_resultados} de ${respuesta.total_sin_filtro} resultados para `
-        + `"${estado.termino}" con precio ${rango} (precio más el envío, cuando la tienda lo informa), de la más `
+        + `"${termino}" con precio ${rango} (precio más el envío, cuando la tienda lo informa), de la más `
         + 'barata a la más cara.';
 }
 
@@ -423,19 +455,32 @@ function mostrarAdvertencias(advertencias) {
 }
 
 async function cargarPagina() {
+    // Una sola página en camino por búsqueda: dos clics seguidos en "Ver más" no piden la misma página dos veces.
+    if (carga.enCurso) return;
+    const foto = {
+        generacion: carga.generacion, termino: estado.termino, original: estado.original, exacto: estado.exacto,
+        precioMinimo: estado.precioMinimo, precioMaximo: estado.precioMaximo, pagina: estado.pagina,
+    };
+    const controlador = typeof AbortController === 'function' ? new AbortController() : null;
+    carga.controlador = controlador;
+    carga.enCurso = true;
+    const vigente = () => solicitudVigente(foto);
     const estadoResultados = $('estado-resultados');
     mostrarEstado(estadoResultados, 'Buscando los mejores precios, un momento por favor…');
     $('ver-mas').hidden = true;
-    const esqueletos = crearEsqueletos(estado.pagina === 1 ? 3 : 1);
+    const esqueletos = crearEsqueletos(foto.pagina === 1 ? 3 : 1);
     $('lista-resultados').append(...esqueletos);
     // El botón Buscar muestra un círculo que gira mientras llegan los precios.
     const botonBuscar = document.querySelector('#formulario-busqueda [type="submit"]');
-    botonBuscar.classList.add('buscando');
+    botonBuscar?.classList.add('buscando');
     try {
-        const respuesta = await buscar(estado.termino, estado.pagina, TAMANO_PAGINA, estado.exacto,
-            { precioMinimo: estado.precioMinimo, precioMaximo: estado.precioMaximo, original: estado.original });
+        const respuesta = await buscar(foto.termino, foto.pagina, TAMANO_PAGINA, foto.exacto,
+            { precioMinimo: foto.precioMinimo, precioMaximo: foto.precioMaximo, original: foto.original,
+                signal: controlador?.signal });
+        // Llegó tarde: la persona ya buscó otra cosa o cambió el filtro. No se toca nada.
+        if (!vigente()) return;
         mostrarAdvertencias(respuesta.advertencias || []);
-        if (estado.pagina === 1) {
+        if (foto.pagina === 1) {
             estado.mejorPrecioConfirmado = respuesta.mejor_precio_confirmado !== false;
             mostrarResumen(respuesta.resumen_ia);
             mostrarRequisitos(respuesta.requisitos);
@@ -453,18 +498,32 @@ async function cargarPagina() {
             }
         }
         $('lista-resultados').append(...respuesta.ofertas.map((oferta) => crearTarjeta(oferta)));
-        mostrarEstado(estadoResultados, textoResultados(respuesta));
+        mostrarEstado(estadoResultados, textoResultados(respuesta, { ...foto, termino: respuesta.termino || foto.termino }));
         const notaTotales = $('nota-totales');
         notaTotales.textContent = textoSinTotal(respuesta);
         notaTotales.hidden = !notaTotales.textContent;
         // El filtro de precio aparece cuando hay algo que filtrar, o si ya se está usando.
         $('filtro-precio').hidden = (respuesta.total_sin_filtro ?? respuesta.total_resultados) === 0;
-        $('ver-mas').hidden = estado.pagina * TAMANO_PAGINA >= respuesta.total_resultados;
+        $('ver-mas').hidden = foto.pagina * TAMANO_PAGINA >= respuesta.total_resultados;
     } catch (error) {
-        mostrarEstado(estadoResultados, error.message, cargarPagina);
+        // El error de una solicitud vieja (o cancelada) no borra lo que ya muestra la búsqueda actual.
+        if (!vigente() || error?.name === 'AbortError') return;
+        if (foto.pagina > 1) estado.pagina = foto.pagina - 1;
+        mostrarEstado(estadoResultados, error.message, () => {
+            if (!vigente()) return;
+            if (foto.pagina > 1) estado.pagina = foto.pagina;
+            cargarPagina();
+        });
+        // Si falló una página siguiente, se puede volver a pedir con "Ver más".
+        if (foto.pagina > 1) $('ver-mas').hidden = false;
     } finally {
+        // Las tarjetas de espera son de esta solicitud: quitarlas no afecta a la búsqueda nueva.
         esqueletos.forEach((esqueleto) => esqueleto.remove());
-        botonBuscar.classList.remove('buscando');
+        if (vigente()) {
+            carga.enCurso = false;
+            carga.controlador = null;
+            botonBuscar?.classList.remove('buscando');
+        }
     }
 }
 
@@ -485,6 +544,8 @@ export function buscarTermino(termino, { exacto = false } = {}) {
 }
 
 function recargarResultados() {
+    // Lo que esté en camino es de la búsqueda o del filtro anterior.
+    nuevaGeneracion();
     estado.pagina = 1;
     $('lista-resultados').replaceChildren();
     mostrarResumen(null);
@@ -721,6 +782,7 @@ export function iniciarBusqueda() {
         buscarTermino(texto);
     });
     $('ver-mas').addEventListener('click', () => {
+        if (carga.enCurso) return;
         estado.pagina += 1;
         cargarPagina();
     });
