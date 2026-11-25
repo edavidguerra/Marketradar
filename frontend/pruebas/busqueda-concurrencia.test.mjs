@@ -189,3 +189,35 @@ test('solicitudVigente compara la generación de la solicitud con la actual', ()
     assert.equal(busqueda.solicitudVigente({ generacion: 3 }, 3), true);
     assert.equal(busqueda.solicitudVigente({ generacion: 2 }, 3), false);
 });
+
+test('el marcador técnico de eBay no aparece y queda el nombre comercial', async () => {
+    buscarConFormulario('consola ps5');
+    const datos = respuesta('consola ps5', ['Consola PlayStation 5 Slim']);
+    datos.ofertas[0].vendedor = 'eBay - item_title_google_cloud_translation_test_for_us_es';
+    pendientes[0].responder(datos);
+    await esperar();
+
+    const texto = $('lista-resultados').textContent;
+    assert.doesNotMatch(texto, /item_title|translation_test/);
+    assert.match(texto, /eBay/);
+});
+
+test('cada alternativa dice qué la separa: otra variante, dato sin confirmar o requisito distinto', async () => {
+    buscarConFormulario('playstation 5');
+    const datos = respuesta('playstation 5', ['Consola Playstation 5 Slim 1TB']);
+    const base = datos.ofertas[0];
+    datos.alternativas = [
+        { oferta: { ...base, id: 'd', titulo: 'Consola PlayStation 5 Slim Edición Digital' }, nivel: 'otra_variante',
+            motivos: ['Es la edición Digital (sin lector de discos)'] },
+        { oferta: { ...base, id: 's', titulo: 'Consola de videojuegos 4K' }, nivel: 'sin_confirmar',
+            motivos: ['El título no dice que sea una consola de videojuegos'] },
+        { oferta: { ...base, id: 'c', titulo: 'Consola PS5 Slim + 2 Juegos' }, nivel: 'incumple',
+            motivos: ['Es un combo o paquete con otros productos'] },
+    ];
+    pendientes[0].responder(datos);
+    await esperar();
+
+    const titulosFaltantes = $('lista-alternativas').querySelectorAll('.faltantes-titulo').map((p) => p.textContent);
+    assert.deepEqual(titulosFaltantes, ['Es otra variante del producto:', 'Falta confirmar:', 'No es lo que pidió:']);
+});
+

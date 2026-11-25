@@ -149,8 +149,8 @@ public class HerramientasAsistente {
 
     /** En Google Shopping la tienda real va en el vendedor, por ejemplo "Éxito". */
     private static String tienda(OfertaNormalizada oferta) {
-        if ("googleshopping".equals(oferta.getCodigoMarketplace()) && oferta.getVendedor() != null) {
-            return oferta.getVendedor();
+        if ("googleshopping".equals(oferta.getCodigoMarketplace())) {
+            return co.edu.unicesar.marketradar.domain.NombreVendedor.paraMostrar(oferta.getVendedor());
         }
         return ServicioBusqueda.nombreVisible(oferta.getCodigoMarketplace());
     }

@@ -63,6 +63,9 @@ public final class TextoProducto {
         mapa.put(Pattern.compile("\\bplay station\\b"), "playstation");
         mapa.put(Pattern.compile("\\bps ?([1-5])\\b"), "playstation $1");
         mapa.put(Pattern.compile("\\b(iphone|ipad|galaxy|pixel|xbox|redmi)(\\d)"), "$1 $2");
+        // Nombres de producto de dos palabras que se escriben de varias formas: "olla arrocera" y "arrocera" son lo mismo.
+        mapa.put(Pattern.compile("\\b(olla|ollas) arroceras?\\b"), "arrocera");
+        mapa.put(Pattern.compile("\\b(controles?|mandos?) (de|del|para) (la )?(?=playstation|xbox|nintendo)"), "control para ");
         return Collections.unmodifiableMap(mapa);
     }
 

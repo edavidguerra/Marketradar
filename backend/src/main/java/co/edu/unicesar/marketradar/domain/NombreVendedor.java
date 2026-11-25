@@ -7,7 +7,8 @@ import java.util.regex.Pattern;
 /**
  * Nombre del vendedor tal como se puede mostrar. Los proveedores de datos (SerpApi) a veces mandan en el nombre de la
  * tienda marcadores técnicos: identificadores internos ("mc_9f3a77c1e2b44d0a8"), pares clave=valor
- * ("merchant_id=8841377"), plantillas sin llenar ("{{seller_name}}"), valores vacíos ("null", "undefined") o enlaces.
+ * ("merchant_id=8841377"), plantillas sin llenar ("{{seller_name}}"), valores vacíos ("null", "undefined"), enlaces o
+ * nombres de prueba de sus sistemas ("eBay - item_title_google_cloud_translation_test_for_us_es").
  *
  * <p>Se quita solo lo que es técnico. Si queda un nombre comercial con letras ("Alkosto" en
  * "Alkosto · merchant_id=12345"), se conserva; si no queda nada fiable, no hay nombre, y la página dice
@@ -31,7 +32,12 @@ public final class NombreVendedor {
             // Enlaces.
             Pattern.compile("(?i)^(https?://|www\\.google\\.).*"),
             // Identificador con guion bajo y cifras ("mc_9f3a77c1", "seller_12345").
-            Pattern.compile("(?i)^[a-z]{1,10}_[a-z0-9_]*\\d[a-z0-9_]*$"),
+            Pattern.compile("(?i)^[a-z]{1,10}_(?=[a-z0-9]*\\d)[a-z0-9]{5,}$"),
+            // Identificadores en snake_case con palabras técnicas ("item_title_google_cloud_translation_test_for_us_es"),
+            // o tan largos que no son un nombre. Un nombre corto con guion bajo ("tienda_la_14", "Mi_Tienda") se conserva.
+            Pattern.compile("(?i)^(?=[a-z0-9]+(?:_[a-z0-9]+){2,}$).*(test|debug|sample|placeholder|translation|google|"
+                    + "cloud|item_title|seller_name|merchant|lorem|dummy|tmp|undefined|null|example).*"),
+            Pattern.compile("(?i)^[a-z0-9]+(?:_[a-z0-9]+){4,}$"),
             // Solo cifras largas (un número de comercio).
             Pattern.compile("^\\d{6,}$"),
             // Cadena larga sin espacios que mezcla letras y cifras (un hash o un token).
@@ -60,6 +66,17 @@ public final class NombreVendedor {
             }
         }
         return Optional.empty();
+    }
+
+    /** Lo que se muestra cuando no queda un nombre fiable. */
+    public static final String SIN_NOMBRE = "Vendedor no identificado";
+
+    /**
+     * @param recibido nombre que mandó el proveedor, o {@code null}
+     * @return nombre limpio, o "Vendedor no identificado"
+     */
+    public static String paraMostrar(String recibido) {
+        return limpiar(recibido).orElse(SIN_NOMBRE);
     }
 
     /**

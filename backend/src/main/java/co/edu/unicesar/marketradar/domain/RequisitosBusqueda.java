@@ -43,8 +43,12 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
                                  List<Modelo> modelos, Set<String> versiones, boolean pideCombo, Set<Integer> ramGb,
                                  Identidad identidad) {
 
-    /** Qué tan bien cumple una oferta lo que pidió la persona. */
-    public enum Nivel { CUMPLE, SIN_CONFIRMAR, INCUMPLE }
+    /**
+     * Qué tan bien cumple una oferta lo que pidió la persona. {@code OTRA_VARIANTE} es el mismo producto en una
+     * variante que la persona no eligió ni rechazó (la edición Digital cuando buscó "playstation 5"): se muestra aparte
+     * para no compararla como si fuera la misma, sin decir que incumple.
+     */
+    public enum Nivel { CUMPLE, SIN_CONFIRMAR, OTRA_VARIANTE, INCUMPLE }
 
     /**
      * Resultado de comparar una oferta.
@@ -71,12 +75,15 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
      * @param marcas marcas escritas ("Oster", "Sony"); las series ("iPhone") se revisan con el modelo
      * @param variantes variantes pedidas ("digital")
      * @param medidas medidas pedidas ("55 pulgadas", "600 W")
-     * @param palabras palabras que dicen qué es, cuando no hay familia, marca ni modelo ("olla arrocera")
+     * @param palabras palabras significativas que no son la familia, la marca, el modelo ni una característica
+     *                 ("arrocera" en "olla arrocera oster"): reconocer la marca no las vuelve opcionales
+     * @param atributos características pedidas de forma expresa: conectividad, funcionamiento, color
      */
     public record Identidad(CategoriaProducto familia, String accesorio, Set<String> marcas, Set<String> variantes,
-                            List<TextoProducto.Medida> medidas, List<String> palabras) {
+                            List<TextoProducto.Medida> medidas, List<String> palabras,
+                            List<AtributosProducto.Atributo> atributos) {
         public static final Identidad NINGUNA = new Identidad(CategoriaProducto.DESCONOCIDA, "", Set.of(), Set.of(),
-                List.of(), List.of());
+                List.of(), List.of(), List.of());
 
         public Identidad {
             accesorio = accesorio == null ? "" : accesorio;
@@ -84,11 +91,18 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
             variantes = Set.copyOf(variantes);
             medidas = List.copyOf(medidas);
             palabras = List.copyOf(palabras);
+            atributos = atributos == null ? List.of() : List.copyOf(atributos);
+        }
+
+        /** Sin características pedidas. */
+        public Identidad(CategoriaProducto familia, String accesorio, Set<String> marcas, Set<String> variantes,
+                         List<TextoProducto.Medida> medidas, List<String> palabras) {
+            this(familia, accesorio, marcas, variantes, medidas, palabras, List.of());
         }
 
         boolean estaVacia() {
             return familia == CategoriaProducto.DESCONOCIDA && marcas.isEmpty() && variantes.isEmpty()
-                    && medidas.isEmpty() && palabras.isEmpty();
+                    && medidas.isEmpty() && palabras.isEmpty() && atributos.isEmpty();
         }
     }
 
@@ -215,17 +229,22 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
             VARIANTES_CONSOLA.keySet().stream().filter(palabras::contains).forEach(variantes::add);
         }
         List<TextoProducto.Medida> medidas = TextoProducto.medidas(palabras);
+        // Las palabras que dicen qué es el producto cuentan siempre, aunque se haya reconocido una marca o un modelo:
+        // "Oster" no dice que sea una olla arrocera. Las de una característica ("roja", "inalámbricos") se revisan
+        // como característica, con sus sinónimos, y no como palabra literal.
         List<String> clave = new ArrayList<>();
-        // Sin familia, marca ni modelo, lo único que dice qué es el producto son sus palabras ("olla arrocera").
-        if (familia == CategoriaProducto.DESCONOCIDA && marcas.isEmpty() && modelos.isEmpty()) {
-            for (int i = 0; i < palabras.size(); i++) {
-                String palabra = palabras.get(i);
-                if (esPalabraClave(palabra) && !clave.contains(palabra)) {
-                    clave.add(palabra);
-                }
+        for (int i = 0; i < palabras.size(); i++) {
+            String palabra = palabras.get(i);
+            boolean deModelo = modelos.stream().anyMatch(m -> palabra.equals(m.anterior()));
+            if (esPalabraClave(palabra) && !deModelo && !clave.contains(palabra)) {
+                clave.add(palabra);
             }
         }
-        return new Identidad(familia, accesorio, marcas, variantes, medidas, clave);
+        // Un accesorio se reconoce por su tipo ("control", "mando"): sus demás palabras son la compatibilidad.
+        if (familia == CategoriaProducto.ACCESORIO) {
+            clave.clear();
+        }
+        return new Identidad(familia, accesorio, marcas, variantes, medidas, clave, AtributosProducto.lista(texto));
     }
 
     private static boolean esPalabraClave(String palabra) {
@@ -234,7 +253,9 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
                 && !PALABRAS_CONDICION.contains(palabra) && CondicionProducto.detectar(palabra).isEmpty()
                 && !PALABRAS_VERSION.contains(palabra) && !COMBO.matcher(palabra).find()
                 && !palabra.matches("gb|tb|gigas?|teras?|pulgadas?|litros?|watts?|velocidades|unidades")
-                && !TextoProducto.esSerieOMarca(palabra)
+                && !TextoProducto.esSerieOMarca(palabra) && !AtributosProducto.esPalabraDeAtributo(palabra)
+                && !VARIANTES_CONSOLA.containsKey(palabra) && !palabra.matches("color|colores|tipo|con|sin|telefonos?|computador(es)?|equipos?|aparatos?|dispositivos?|"
+                + "productos?|articulos?")
                 && CategoriaProducto.detectar(palabra) == CategoriaProducto.DESCONOCIDA;
     }
 
@@ -263,7 +284,9 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
         Set<String> numeros = new TreeSet<>();
         buscados.modelos.forEach(m -> numeros.add(m.letras() + m.numero()));
         boolean mismosModelos = escritos.modelos.stream().allMatch(m -> numeros.contains(m.letras() + m.numero()));
-        return mismosModelos && buscados.versiones.containsAll(escritos.versiones);
+        // Tampoco puede quitar ni cambiar una característica pedida ("inalámbricos", "de aire", "roja").
+        return mismosModelos && buscados.versiones.containsAll(escritos.versiones)
+                && buscados.identidad.atributos().containsAll(escritos.identidad.atributos());
     }
 
     /**
@@ -303,12 +326,13 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
         variantes.addAll(buscada.variantes());
         List<TextoProducto.Medida> medidas = new ArrayList<>(dicha.medidas());
         buscada.medidas().stream().filter(m -> medidas.stream().noneMatch(m::mismaQue)).forEach(medidas::add);
-        // Las palabras clave salen de la búsqueda corregida (la original puede traer saludos y relleno), y solo si la
-        // persona no nombró tipo, marca ni modelo.
-        List<String> palabras = familia == CategoriaProducto.DESCONOCIDA && marcas.isEmpty() && modelos.isEmpty()
-                ? buscada.palabras() : List.of();
+        // Las palabras clave salen de la búsqueda corregida (la original puede traer saludos, relleno o errores de
+        // escritura). Las características se juntan: se leen con sinónimos, así que un error no las cambia.
+        List<String> palabras = familia == CategoriaProducto.ACCESORIO ? List.of() : buscada.palabras();
+        List<AtributosProducto.Atributo> atributos = new ArrayList<>(dicha.atributos());
+        buscada.atributos().stream().filter(a -> !atributos.contains(a)).forEach(atributos::add);
         Identidad identidad = new Identidad(familia, dicha.accesorio().isEmpty() ? buscada.accesorio() : dicha.accesorio(),
-                marcas, variantes, medidas, palabras);
+                marcas, variantes, medidas, palabras, atributos);
         return new RequisitosBusqueda(escritos.texto, escritos.condicion.or(buscados::condicion), capacidades, modelos,
                 versiones, escritos.pideCombo || buscados.pideCombo, ram, identidad);
     }
@@ -317,7 +341,7 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
     public boolean estaVacio() {
         return condicion.isEmpty() && capacidadesGb.isEmpty() && ramGb.isEmpty() && modelos.isEmpty()
                 && versiones.isEmpty() && identidad.marcas().isEmpty() && identidad.medidas().isEmpty()
-                && identidad.variantes().isEmpty();
+                && identidad.variantes().isEmpty() && identidad.atributos().isEmpty();
     }
 
     /**
@@ -334,6 +358,7 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
         }
         identidad.variantes().forEach(v -> etiquetas.add("edición " + v));
         identidad.medidas().forEach(m -> etiquetas.add(m.toString()));
+        identidad.atributos().forEach(a -> etiquetas.add("color".equals(a.grupo()) ? "color " + a.valor() : a.valor()));
         capacidadesGb.stream().sorted().forEach(gb -> etiquetas.add(textoCapacidad(gb)));
         ramGb.stream().sorted().forEach(gb -> etiquetas.add(textoCapacidad(gb) + " de RAM"));
         condicion.ifPresent(c -> etiquetas.add(c.texto().toLowerCase(java.util.Locale.ROOT)));
@@ -360,8 +385,10 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
         }
         revisarMarca(palabras, revision, incumple, sinConfirmar);
         revisarModelos(palabras, revision, incumple, sinConfirmar);
-        revisarVariantes(palabras, incumple, sinConfirmar);
+        List<String> otraVariante = new ArrayList<>();
+        revisarVariantes(palabras, otraVariante, sinConfirmar);
         revisarMedidas(palabras, incumple, sinConfirmar);
+        revisarAtributos(original, incumple, sinConfirmar);
         revisarPalabras(palabras, revision, sinConfirmar);
         revisarCapacidad(original, incumple, sinConfirmar);
         condicion.ifPresent(pedida -> {
@@ -382,8 +409,35 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
             motivos.addAll(sinConfirmar);
             return new Evaluacion(Nivel.INCUMPLE, motivos, revision.ajena);
         }
+        if (!otraVariante.isEmpty()) {
+            List<String> motivos = new ArrayList<>(otraVariante);
+            motivos.addAll(sinConfirmar);
+            return new Evaluacion(Nivel.OTRA_VARIANTE, motivos);
+        }
         return sinConfirmar.isEmpty() ? new Evaluacion(Nivel.CUMPLE, List.of())
                 : new Evaluacion(Nivel.SIN_CONFIRMAR, sinConfirmar);
+    }
+
+    /**
+     * Las características pedidas de forma expresa: si el título dice otra del mismo grupo, no cumple ("Es con cable,
+     * no inalámbrico"); si no dice ninguna, queda por confirmar.
+     */
+    private void revisarAtributos(String titulo, List<String> incumple, List<String> sinConfirmar) {
+        if (identidad.atributos().isEmpty()) {
+            return;
+        }
+        Map<String, Set<String>> delTitulo = AtributosProducto.leer(titulo);
+        for (AtributosProducto.Atributo pedido : identidad.atributos()) {
+            Set<String> tiene = delTitulo.getOrDefault(pedido.grupo(), Set.of());
+            if (tiene.contains(pedido.valor())) {
+                continue;
+            }
+            if (tiene.isEmpty()) {
+                sinConfirmar.add(AtributosProducto.falta(pedido));
+            } else {
+                incumple.add(AtributosProducto.contradice(pedido, tiene));
+            }
+        }
     }
 
     /** Lo que se fue sabiendo de la oferta mientras se revisaba. */
@@ -397,11 +451,20 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
     private void revisarFamilia(List<String> palabras, Revision revision, List<String> incumple,
                                 List<String> sinConfirmar) {
         CategoriaProducto pedida = identidad.familia();
-        if (pedida == CategoriaProducto.DESCONOCIDA) {
-            return;
-        }
         String leido = String.join(" ", palabras);
         CategoriaProducto deLaOferta = CategoriaProducto.detectar(leido);
+        if (pedida == CategoriaProducto.DESCONOCIDA) {
+            // Sin una familia reconocida, lo que dice qué es son sus palabras ("arrocera"). Si el título es claramente
+            // otro tipo de producto (una licuadora) y no nombra ninguna de ellas, es otro producto aunque la marca
+            // coincida.
+            if (!identidad.palabras().isEmpty() && deLaOferta != CategoriaProducto.DESCONOCIDA
+                    && identidad.palabras().stream().noneMatch(p -> TextoProducto.aparece(p, palabras))) {
+                incumple.add("Es " + articulo(deLaOferta) + ", no lo que buscó («" + String.join(" ", identidad.palabras())
+                        + "»)");
+                revision.ajena = true;
+            }
+            return;
+        }
         if (pedida == CategoriaProducto.ACCESORIO) {
             String tipo = CategoriaProducto.tipoAccesorio(leido);
             if (deLaOferta != CategoriaProducto.ACCESORIO) {
@@ -569,6 +632,7 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
     }
 
     private void revisarVariantes(List<String> palabras, List<String> incumple, List<String> sinConfirmar) {
+        // Si pidió una edición y el título trae otra, es una contradicción; si no pidió ninguna, es otra variante.
         if (identidad.familia() != CategoriaProducto.CONSOLA) {
             return;
         }
@@ -576,7 +640,10 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
             boolean pedida = identidad.variantes().contains(variante.getKey());
             boolean tiene = palabras.contains(variante.getKey());
             if (tiene && !pedida) {
-                incumple.add("Es " + variante.getValue() + ", no la que pidió");
+                // La persona no eligió edición: no se le atribuye que la rechazó, pero tampoco se compara como si
+                // fuera la misma.
+                incumple.add("Es " + variante.getValue() + ". Usted no eligió edición: se muestra aparte para no "
+                        + "compararla con la estándar");
             } else if (pedida && !tiene) {
                 sinConfirmar.add("El título no dice que sea " + variante.getValue());
             }
@@ -617,6 +684,7 @@ public record RequisitosBusqueda(String texto, Optional<CondicionProducto> condi
             case VIDEOJUEGO -> "un videojuego o contenido digital";
             case EMPAQUE -> "una caja o empaque sin el producto";
             case DESCONOCIDA -> "otro producto";
+            case AUDIFONOS -> "unos audífonos";
             case CELULAR, TELEVISOR, TENSIOMETRO, RELOJ, PORTATIL ->
                     "un " + familia.texto().toLowerCase(java.util.Locale.ROOT);
             default -> "una " + familia.texto().toLowerCase(java.util.Locale.ROOT);

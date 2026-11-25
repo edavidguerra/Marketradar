@@ -63,7 +63,8 @@ public record SeguimientoDto(long ofertaId, String titulo, String tienda, String
         Seguimiento s = vista.detalle().seguimiento();
         Oferta oferta = vista.detalle().oferta();
         String codigo = vista.detalle().codigoMarketplace();
-        String vendedor = "googleshopping".equals(codigo) && oferta.getVendedor() != null ? oferta.getVendedor()
+        String vendedor = "googleshopping".equals(codigo)
+                ? co.edu.unicesar.marketradar.domain.NombreVendedor.paraMostrar(oferta.getVendedor())
                 : ServicioBusqueda.nombreVisible(codigo);
         EnlaceCompra enlace = EnlaceCompra.de(oferta.getUrlDestino());
         return new SeguimientoDto(oferta.getId(), oferta.getTitulo(), codigo, vendedor,

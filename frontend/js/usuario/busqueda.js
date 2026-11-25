@@ -266,11 +266,19 @@ function crearTarjeta(oferta, alternativa = null) {
     return tarjeta;
 }
 
-/** Lo que le falta a una alternativa para cumplir lo que pidió la persona. */
-function crearFaltantes(alternativa) {
-    const caja = crear('div', `faltantes ${alternativa.nivel === 'incumple' ? 'incumple' : 'sin-confirmar'}`);
-    caja.append(crear('p', 'faltantes-titulo', alternativa.nivel === 'incumple'
-        ? 'No es lo que pidió:' : 'Falta confirmar:'));
+/** Títulos de cada tipo de diferencia: no es lo mismo un dato que falta que otra variante o un requisito distinto. */
+const TITULO_FALTANTES = {
+    incumple: 'No es lo que pidió:',
+    otra_variante: 'Es otra variante del producto:',
+    sin_confirmar: 'Falta confirmar:',
+};
+
+/** Lo que le falta a una alternativa para cumplir lo que pidió la persona, o en qué variante es distinta. */
+export function crearFaltantes(alternativa) {
+    const clase = alternativa.nivel === 'incumple' ? 'incumple'
+        : alternativa.nivel === 'otra_variante' ? 'otra-variante' : 'sin-confirmar';
+    const caja = crear('div', `faltantes ${clase}`);
+    caja.append(crear('p', 'faltantes-titulo', TITULO_FALTANTES[alternativa.nivel] ?? TITULO_FALTANTES.sin_confirmar));
     const lista = crear('ul');
     alternativa.motivos.forEach((motivo) => lista.append(crear('li', null, motivo)));
     caja.append(lista);
@@ -308,8 +316,8 @@ function mostrarAlternativas(alternativas) {
         return;
     }
     $('ayuda-alternativas').textContent = `${alternativas.length === 1 ? 'Esta oferta se parece' : `Estas ${alternativas.length} ofertas se parecen`} `
-        + 'a lo que buscó, pero no confirman todo lo que pidió. No las recomendamos ni las tenemos en cuenta para '
-        + 'decir cuál es más barata.';
+        + 'a lo que buscó, pero no confirman todo lo que pidió o son otra variante del producto. No las recomendamos '
+        + 'ni las tenemos en cuenta para decir cuál es más barata.';
     lista.replaceChildren(...alternativas.map((alternativa) => crearTarjeta(alternativa.oferta, alternativa)));
     seccion.hidden = false;
 }

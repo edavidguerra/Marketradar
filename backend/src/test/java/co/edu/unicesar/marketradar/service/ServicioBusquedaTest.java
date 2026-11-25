@@ -177,7 +177,7 @@ class ServicioBusquedaTest {
     }
 
     @Test
-    void conIALaListaYElResumenLosEligeGemini() {
+    void conIALasReglasDecidenQueSeMuestraYGeminiEscribeElResumen() {
         AdaptadorMarketplace tienda = adaptador("a", List.of(oferta("a", "1", "30000", "0"),
                 oferta("a", "2", "20000", "0"), oferta("a", "3", "25000", "0")));
         ServicioIABusqueda ia = mock(ServicioIABusqueda.class);
@@ -191,7 +191,9 @@ class ServicioBusquedaTest {
 
         ResultadoBusqueda resultado = servicio.buscar(consulta(null));
 
-        assertEquals(List.of("3"), resultado.getOfertas().stream().map(OfertaNormalizada::getIdExterno).toList());
+        // Gemini eligió solo la 3, pero las tres son licuadoras que cumplen: su opinión sola no esconde las demás.
+        assertEquals(Set.of("1", "2", "3"), Set.copyOf(resultado.getOfertas().stream()
+                .map(OfertaNormalizada::getIdExterno).toList()));
         assertEquals("La licuadora 3 cuesta $ 25.000.", resultado.getResumenIa().orElseThrow());
     }
 

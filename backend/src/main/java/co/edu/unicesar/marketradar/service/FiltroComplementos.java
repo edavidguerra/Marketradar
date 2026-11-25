@@ -42,9 +42,9 @@ final class FiltroComplementos {
             "sin equipo", "sin telefono", "sin celular", "sin consola", "no incluye equipo", "no incluye telefono",
             "empty box", "box only", "only box", "only the box", "solo para exhibicion", "dummy", "replica de exhibicion");
 
-    /** En cualquier parte del título: solo existen en contenido digital para juegos, o es un repuesto. */
-    private static final Set<String> EN_CUALQUIER_PARTE = Set.of("dlc", "expansion", "addon", "skins", "season",
-            "repuesto", "repuestos", "refaccion");
+    /** En cualquier parte del título: solo existen en contenido digital para juegos. Los repuestos los distingue
+     * {@link CategoriaProducto} según el contexto ("con vaso de repuesto" trae el producto). */
+    private static final Set<String> EN_CUALQUIER_PARTE = Set.of("dlc", "expansion", "addon", "skins", "season");
 
     /** "Juego de ollas", "set de cuchillos": varias piezas del mismo producto, no un complemento. */
     private static final Set<String> VARIAS_PIEZAS = Set.of("juego", "juegos", "set", "pack");
@@ -104,15 +104,38 @@ final class FiltroComplementos {
         return false;
     }
 
+    /**
+     * Decide si una publicación vende algo para el producto buscado y no el producto. Se mira el contexto con
+     * {@link CategoriaProducto}, no una palabra suelta: "Tarjeta microSD" es almacenamiento y "Tarjeta regalo
+     * PlayStation" es contenido digital; "Licuadora con vaso de repuesto" es la licuadora y "Vaso para licuadora" es un
+     * repuesto. Quien busca "mando ps5" recibe un "Control DualSense": son el mismo tipo de accesorio.
+     */
     static boolean esComplemento(OfertaNormalizada oferta, String buscado, Set<String> palabrasBuscadas) {
         String titulo = ServicioSugerencias.normalizar(oferta.getTitulo());
-        String[] palabras = titulo.split(" ");
-        for (int i = 0; i < Math.min(2, palabras.length); i++) {
-            String palabra = palabras[i];
-            boolean variasPiezas = VARIAS_PIEZAS.contains(palabra) && i + 1 < palabras.length
-                    && "de".equals(palabras[i + 1]);
-            if (AL_COMIENZO.contains(palabra) && !variasPiezas && !palabrasBuscadas.contains(palabra)) {
+        CategoriaProducto delTitulo = CategoriaProducto.detectar(oferta.getTitulo());
+        CategoriaProducto deLaBusqueda = CategoriaProducto.detectar(buscado);
+        if (delTitulo.esComplemento()) {
+            if (delTitulo != deLaBusqueda) {
                 return true;
+            }
+            // Las dos son accesorios: sirve si es el mismo tipo ("mando" y "control"), o si alguna no dice cuál.
+            String pedido = CategoriaProducto.tipoAccesorio(buscado);
+            String ofrecido = CategoriaProducto.tipoAccesorio(oferta.getTitulo());
+            return delTitulo == CategoriaProducto.ACCESORIO && !pedido.isEmpty() && !ofrecido.isEmpty()
+                    && !pedido.equals(ofrecido);
+        }
+        // El título dice con claridad que es un producto (una memoria, una licuadora): las palabras de comienzo no lo
+        // vuelven complemento.
+        boolean productoReconocido = delTitulo != CategoriaProducto.DESCONOCIDA;
+        String[] palabras = titulo.split(" ");
+        if (!productoReconocido) {
+            for (int i = 0; i < Math.min(2, palabras.length); i++) {
+                String palabra = palabras[i];
+                boolean variasPiezas = VARIAS_PIEZAS.contains(palabra) && i + 1 < palabras.length
+                        && "de".equals(palabras[i + 1]);
+                if (AL_COMIENZO.contains(palabra) && !variasPiezas && !palabrasBuscadas.contains(palabra)) {
+                    return true;
+                }
             }
         }
         for (String palabra : palabras) {
@@ -120,15 +143,10 @@ final class FiltroComplementos {
                 return true;
             }
         }
-        // "Control para PlayStation 5", "Funda para iPhone 15": es para el producto, no el producto.
+        // "Funda para iPhone 15": es para el producto, no el producto.
         String primera = buscado.split(" ")[0];
-        if (!palabrasBuscadas.contains("para") && (titulo.contains("para " + primera)
+        if (!productoReconocido && !palabrasBuscadas.contains("para") && (titulo.contains("para " + primera)
                 || titulo.contains("compatible con " + primera))) {
-            return true;
-        }
-        // El tipo de producto del título: un control o un juego no es la consola, aunque el título empiece por "Sony".
-        CategoriaProducto delTitulo = CategoriaProducto.detectar(oferta.getTitulo());
-        if (delTitulo.esComplemento() && delTitulo != CategoriaProducto.detectar(buscado)) {
             return true;
         }
         String tienda = ServicioSugerencias.normalizar(oferta.getVendedor());
