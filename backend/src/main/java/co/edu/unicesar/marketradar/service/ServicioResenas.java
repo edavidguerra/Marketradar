@@ -88,7 +88,7 @@ public class ServicioResenas {
         return switch (evaluacion.nivel()) {
             case CUMPLE -> new Procedencia(Procedencia.Estado.VERIFICADA, deQuien + " Google las asocia a \""
                     + resenas.tituloProducto() + "\", el mismo modelo; pueden incluir otras capacidades o colores.");
-            case SIN_CONFIRMAR -> new Procedencia(Procedencia.Estado.SIN_VERIFICAR, deQuien
+            case SIN_CONFIRMAR, OTRA_VARIANTE -> new Procedencia(Procedencia.Estado.SIN_VERIFICAR, deQuien
                     + " Google las asocia a \"" + resenas.tituloProducto()
                     + "\" y no pudimos confirmar que sea el mismo modelo.");
             case INCUMPLE -> new Procedencia(Procedencia.Estado.RECHAZADA, "Google entregó opiniones de \""

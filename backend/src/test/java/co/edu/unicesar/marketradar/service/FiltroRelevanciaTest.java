@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class FiltroRelevanciaTest {
@@ -21,9 +22,15 @@ class FiltroRelevanciaTest {
                 oferta("Licuadora Oster Clásica 3 velocidades"),
                 oferta("Licuadora Samurai Power Jet"));
 
+        // La similitud ordena: primero las que traen las dos palabras. Las que traen una siguen como candidatas y la
+        // revisión de identidad decide (la Imusa es otra marca, la batidora es otro producto).
+        List<OfertaNormalizada> candidatas = FiltroRelevancia.filtrar("licuadora oster", ofertas);
         assertEquals(List.of("Licuadora Oster 600 W Vaso de Vidrio", "Licuadora Oster Xpert Series",
-                        "Licuadora Oster Clásica 3 velocidades"),
-                titulos(FiltroRelevancia.filtrar("licuadora oster", ofertas)));
+                        "Licuadora Oster Clásica 3 velocidades"), titulos(candidatas).subList(0, 3));
+        ServicioBusqueda.Clasificacion clasificacion = ServicioBusqueda.clasificar(candidatas,
+                co.edu.unicesar.marketradar.domain.RequisitosBusqueda.de("licuadora oster"));
+        assertEquals(List.of("Licuadora Oster 600 W Vaso de Vidrio", "Licuadora Oster Xpert Series",
+                "Licuadora Oster Clásica 3 velocidades"), titulos(clasificacion.cumplen()));
     }
 
     @Test
@@ -35,14 +42,20 @@ class FiltroRelevanciaTest {
                 oferta("PlayStation 4 Pro reacondicionada"),
                 oferta("PlayStation 5 Digital Edition"));
 
+        List<OfertaNormalizada> candidatas = FiltroRelevancia.filtrar("playstation 5", ofertas);
         assertEquals(List.of("Consola PS5 Slim 1 TB", "Sony PlayStation 5 Pro", "PlayStation 5 Digital Edition"),
-                titulos(FiltroRelevancia.filtrar("playstation 5", ofertas)));
-        assertEquals(3, FiltroRelevancia.filtrar("ps5", ofertas).size());
+                titulos(candidatas).subList(0, 3));
+        assertEquals(titulos(candidatas), titulos(FiltroRelevancia.filtrar("ps5", ofertas)));
+        // Las PS4 no confirman el modelo 5: nunca quedan como coincidencia.
+        ServicioBusqueda.Clasificacion clasificacion = ServicioBusqueda.clasificar(candidatas,
+                co.edu.unicesar.marketradar.domain.RequisitosBusqueda.de("playstation 5"));
+        assertTrue(titulos(clasificacion.cumplen()).stream().noneMatch(t -> t.contains("4")), titulos(clasificacion.cumplen()).toString());
     }
 
     @Test
     void aceptaPluralesTildesYMayusculas() {
-        assertEquals(2, FiltroRelevancia.coincidencias(FiltroRelevancia.palabras("ollas arroceras"),
+        // "Ollas arroceras" y "olla arrocera" son el mismo producto ("arrocera"), con plural y mayúsculas.
+        assertEquals(1, FiltroRelevancia.coincidencias(FiltroRelevancia.palabras("ollas arroceras"),
                 "Olla Arrocera Eléctrica 1,8 L"));
         assertEquals(2, FiltroRelevancia.coincidencias(FiltroRelevancia.palabras("televisores samsung"),
                 "TV SAMSUNG 55\" Crystal UHD"));
@@ -59,8 +72,14 @@ class FiltroRelevanciaTest {
                 oferta("Olla de presión Universal"),
                 oferta("Arrocera Samurai"));
 
-        // Antes se completaba hasta 3 con las que traían menos palabras (la Imusa, la Samurai).
-        assertEquals(List.of("Olla arrocera Oster 1,8 L"), titulos(FiltroRelevancia.filtrar("olla arrocera oster", ofertas)));
+        // Antes se completaba hasta 3. Ahora las otras arroceras siguen como candidatas, pero solo la Oster cumple: las
+        // demás son de otra marca, y la sartén y la olla de presión no son arroceras.
+        List<OfertaNormalizada> candidatas = FiltroRelevancia.filtrar("olla arrocera oster", ofertas);
+        assertEquals("Olla arrocera Oster 1,8 L", candidatas.get(0).getTitulo());
+        ServicioBusqueda.Clasificacion clasificacion = ServicioBusqueda.clasificar(candidatas,
+                co.edu.unicesar.marketradar.domain.RequisitosBusqueda.de("olla arrocera oster"));
+        assertEquals(List.of("Olla arrocera Oster 1,8 L"), titulos(clasificacion.cumplen()));
+        assertTrue(titulos(candidatas).stream().noneMatch(t -> t.startsWith("Sartén") || t.startsWith("Olla de presión")));
     }
 
     @Test
@@ -71,8 +90,13 @@ class FiltroRelevanciaTest {
                 oferta("Sony PlayStation 5 Pro"),
                 oferta("PlayStation 4 Pro reacondicionada"));
 
-        assertEquals(List.of("Consola PS5 Slim 1 TB", "Sony PlayStation 5 Pro"),
-                titulos(FiltroRelevancia.filtrar("playstation 5", ofertas)));
+        List<OfertaNormalizada> candidatas = FiltroRelevancia.filtrar("playstation 5", ofertas);
+        assertEquals(List.of("Consola PS5 Slim 1 TB", "Sony PlayStation 5 Pro"), titulos(candidatas).subList(0, 2));
+        // Sin relleno: las PS4 no se vuelven coincidencias para llegar a una cantidad.
+        ServicioBusqueda.Clasificacion clasificacion = ServicioBusqueda.clasificar(candidatas,
+                co.edu.unicesar.marketradar.domain.RequisitosBusqueda.de("playstation 5"));
+        assertTrue(clasificacion.cumplen().size() <= 2, titulos(clasificacion.cumplen()).toString());
+        assertTrue(titulos(clasificacion.cumplen()).stream().noneMatch(t -> t.contains("4")));
     }
 
     @Test

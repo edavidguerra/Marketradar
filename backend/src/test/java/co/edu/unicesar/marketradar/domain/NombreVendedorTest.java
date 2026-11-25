@@ -28,8 +28,20 @@ class NombreVendedorTest {
         "8841377123                                     | NULO",
         "https://www.google.com/aclk?sa=l&ai=DChcSEw    | NULO",
         "                                               | NULO",
+        "eBay - item_title_google_cloud_translation_test_for_us_es | eBay",
+        "item_title_google_cloud_translation_test_for_us_es | NULO",
+        "tienda_la_14                                   | tienda_la_14",
+        "Mi_Tienda                                      | Mi_Tienda",
+        "seller_12345                                   | NULO",
     })
     void soloSeConservaElNombreComercialFiable(String recibido, String esperado) {
         assertEquals(esperado, NombreVendedor.limpiar(recibido).orElse(null));
+    }
+
+    @org.junit.jupiter.api.Test
+    void sinNombreFiableSeMuestraVendedorNoIdentificado() {
+        assertEquals("Vendedor no identificado",
+                NombreVendedor.paraMostrar("item_title_google_cloud_translation_test_for_us_es"));
+        assertEquals("eBay", NombreVendedor.paraMostrar("eBay - item_title_google_cloud_translation_test_for_us_es"));
     }
 }

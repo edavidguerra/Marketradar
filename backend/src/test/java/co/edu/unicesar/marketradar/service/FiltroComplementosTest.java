@@ -109,6 +109,32 @@ class FiltroComplementosTest {
                 "quien busca el control sí lo recibe (la consola la descarta después la identidad)");
     }
 
+    @org.junit.jupiter.params.ParameterizedTest(name = "{0} con «{1}»")
+    @org.junit.jupiter.params.provider.CsvSource(delimiter = '|', value = {
+        "microSD 64GB            | Tarjeta microSD SanDisk 64GB",
+        "memoria micro sd 128 gb | Tarjeta de Memoria Kingston microSDXC 128GB",
+        "mando ps5               | Control Sony DualSense PS5",
+        "control para ps5        | Mando Inalámbrico Compatible PS5",
+        "licuadora oster         | Licuadora Oster con vaso de repuesto",
+        "licuadora oster         | Licuadora Oster 600 W incluye cuchilla de repuesto",
+    })
+    void loQueSeVendeSeDecidePorElContextoYNoPorUnaPalabraSuelta(String busqueda, String titulo) {
+        assertEquals(List.of(titulo), titulos(FiltroComplementos.filtrar(busqueda, List.of(oferta(titulo, "Tienda", "100000")))));
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest(name = "{0} con «{1}»")
+    @org.junit.jupiter.params.provider.CsvSource(delimiter = '|', value = {
+        "microSD 64GB     | Tarjeta Regalo PlayStation Store 64000",
+        "licuadora oster  | Vaso de repuesto para licuadora Oster",
+        "licuadora oster  | Vaso Licuadora Oster Original",
+        "licuadora oster  | Repuesto cuchilla licuadora Oster",
+        "mando ps5        | Funda Protectora Para Control PS5",
+        "playstation 5    | Control Sony DualSense PS5",
+    })
+    void lasExclusionesSeConservanAunqueNoQuedeNada(String busqueda, String titulo) {
+        assertEquals(List.of(), FiltroComplementos.filtrar(busqueda, List.of(oferta(titulo, "Tienda", "100000"))));
+    }
+
     private static List<String> titulos(List<OfertaNormalizada> ofertas) {
         return ofertas.stream().map(OfertaNormalizada::getTitulo).toList();
     }

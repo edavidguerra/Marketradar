@@ -142,8 +142,12 @@ public class ServicioBusqueda {
         // de las tiendas, no la decisión. Lo que pidió esta persona (su texto original) decide qué es coincidencia,
         // qué es una alternativa y qué es otro producto. Ni la IA ni el filtro de palabras pueden saltarse esto.
         RequisitosBusqueda requisitos = consulta.requisitos();
-        Clasificacion clasificacion = clasificar(ordenar(completo.ofertas(), consulta.getOrden()), requisitos,
-                completo.exactasIa());
+        // Primero se revisa la identidad y después se ordena: el puntaje de palabras ya no deja fuera ofertas
+        // confirmadas. La caché guarda todas las que traen el producto, así cada consulta se revisa con sus requisitos.
+        List<OfertaNormalizada> porRevisar = FiltroRelevancia.filtrar(consulta.getTermino(), completo.ofertas(),
+                requisitos);
+        Clasificacion clasificacion = clasificar(ordenar(porRevisar, consulta.getOrden()), requisitos,
+                completo.exactasIa(), completo.parecidasIa());
         List<OfertaNormalizada> cumplen = clasificacion.cumplen();
         List<ResultadoBusqueda.Alternativa> alternativas = clasificacion.alternativas();
 
@@ -173,9 +177,14 @@ public class ServicioBusqueda {
         }
         // El resumen de la IA se escribió antes de esta revisión: solo se muestra si todo lo que eligió sigue arriba,
         // si sus precios son los de lo que se ve y si no nombra ningún producto descartado.
-        String resumen = ordenadas.size() == completo.ofertas().size()
-                && resumenValido(completo.resumenIa(), ordenadas, clasificacion.descartadas()) ? completo.resumenIa()
-                : null;
+        // Cuenta como descartado todo lo que trajo la tienda y no se muestra: lo que es otro producto y lo que ni
+        // siquiera pasó a la revisión (una "Consola X5" cuando se buscó "playstation 5").
+        Set<String> visibles = new java.util.HashSet<>(claves(cumplen));
+        alternativas.forEach(a -> visibles.add(clave(a.oferta())));
+        List<OfertaNormalizada> noMostradas = completo.ofertas().stream().filter(o -> !visibles.contains(clave(o)))
+                .toList();
+        String resumen = ordenadas.size() == cumplen.size()
+                && resumenValido(completo.resumenIa(), ordenadas, noMostradas) ? completo.resumenIa() : null;
         int descartadas = Math.max(0, completo.recibidas() - cumplen.size() - alternativas.size());
         ResultadoBusqueda.Detalle detalle = new ResultadoBusqueda.Detalle(
                 consulta.getPagina() == 1 ? alternativasEnRango : List.of(), requisitos.etiquetas(),
@@ -198,30 +207,32 @@ public class ServicioBusqueda {
     }
 
     /**
-     * Clasifica cada candidata según lo que pidió la persona. Lo que la IA marcó como "parecido" nunca pasa a
-     * coincidencia exacta, aunque el título lo parezca. Los precios atípicos se marcan con la mediana de las que
-     * cumplen, que son el mismo producto.
+     * Clasifica cada candidata según lo que pidió la persona: coincidencias confirmadas, alternativas del mismo producto
+     * (por confirmar, otra variante o con un requisito distinto) y productos ajenos. Los precios atípicos se marcan con
+     * la mediana de las que cumplen, que son el mismo producto.
+     *
+     * <p>Las reglas deciden. Gemini no puede volver válida una oferta que las reglas rechazan, y su opinión sola
+     * tampoco degrada una que las reglas confirman: en los dos casos se usa la regla y la discrepancia queda en el
+     * registro con su motivo.</p>
      *
      * @param ofertas candidatas, en el orden en que se muestran
      * @param requisitos lo que pidió la persona
-     * @param exactasIa identificadores de lo que la IA eligió como exacto, o {@code null} si la IA no eligió
+     * @param exactasIa claves de lo que la IA eligió como exacto, o {@code null} si la IA no respondió
+     * @param parecidasIa claves de lo que la IA eligió como parecido, o {@code null}
      * @return la clasificación
      */
     static Clasificacion clasificar(List<OfertaNormalizada> ofertas, RequisitosBusqueda requisitos,
-                                    Set<String> exactasIa) {
+                                    Set<String> exactasIa, Set<String> parecidasIa) {
         Map<OfertaNormalizada, RequisitosBusqueda.Evaluacion> evaluaciones = new java.util.LinkedHashMap<>();
         for (OfertaNormalizada oferta : ofertas) {
             RequisitosBusqueda.Evaluacion evaluacion = requisitos.evaluar(oferta.getTitulo(), oferta.condicionProducto());
-            if (evaluacion.nivel() == RequisitosBusqueda.Nivel.CUMPLE && exactasIa != null
-                    && !exactasIa.contains(clave(oferta))) {
-                evaluacion = new RequisitosBusqueda.Evaluacion(RequisitosBusqueda.Nivel.SIN_CONFIRMAR,
-                        List.of("Puede no ser exactamente el producto que buscó"));
-            }
+            registrarDiscrepancia(oferta, evaluacion, exactasIa, parecidasIa);
             evaluaciones.put(oferta, evaluacion);
         }
         List<OfertaNormalizada> marcadas = marcarPreciosAtipicos(ofertas, evaluaciones);
         List<OfertaNormalizada> cumplen = new ArrayList<>();
         List<ResultadoBusqueda.Alternativa> porConfirmar = new ArrayList<>();
+        List<ResultadoBusqueda.Alternativa> variantes = new ArrayList<>();
         List<ResultadoBusqueda.Alternativa> incumplen = new ArrayList<>();
         List<OfertaNormalizada> descartadas = new ArrayList<>();
         for (int i = 0; i < ofertas.size(); i++) {
@@ -231,17 +242,41 @@ public class ServicioBusqueda {
                 descartadas.add(oferta);
                 continue;
             }
+            ResultadoBusqueda.Alternativa alternativa = new ResultadoBusqueda.Alternativa(oferta, evaluacion.nivel(),
+                    evaluacion.motivos());
             switch (evaluacion.nivel()) {
                 case CUMPLE -> cumplen.add(oferta);
-                case SIN_CONFIRMAR -> porConfirmar.add(new ResultadoBusqueda.Alternativa(oferta, evaluacion.nivel(),
-                        evaluacion.motivos()));
-                case INCUMPLE -> incumplen.add(new ResultadoBusqueda.Alternativa(oferta, evaluacion.nivel(),
-                        evaluacion.motivos()));
+                case SIN_CONFIRMAR -> porConfirmar.add(alternativa);
+                case OTRA_VARIANTE -> variantes.add(alternativa);
+                case INCUMPLE -> incumplen.add(alternativa);
             }
         }
         List<ResultadoBusqueda.Alternativa> alternativas = new ArrayList<>(porConfirmar);
+        alternativas.addAll(variantes);
         alternativas.addAll(incumplen);
         return new Clasificacion(cumplen, alternativas, descartadas);
+    }
+
+    /** Sin la opinión de la IA. */
+    static Clasificacion clasificar(List<OfertaNormalizada> ofertas, RequisitosBusqueda requisitos) {
+        return clasificar(ofertas, requisitos, null, null);
+    }
+
+    private static void registrarDiscrepancia(OfertaNormalizada oferta, RequisitosBusqueda.Evaluacion evaluacion,
+                                              Set<String> exactasIa, Set<String> parecidasIa) {
+        if (exactasIa == null) {
+            return;
+        }
+        boolean exactaIa = exactasIa.contains(clave(oferta));
+        boolean cumple = evaluacion.nivel() == RequisitosBusqueda.Nivel.CUMPLE;
+        if (exactaIa && !cumple) {
+            LOG.info("La IA eligió \"{}\" como exacta, pero las reglas no la confirman ({}): se usa la regla",
+                    oferta.getTitulo(), String.join("; ", evaluacion.motivos()));
+        } else if (!exactaIa && cumple) {
+            LOG.info("La IA {} \"{}\", pero las reglas confirman lo pedido: se muestra como coincidencia",
+                    parecidasIa != null && parecidasIa.contains(clave(oferta)) ? "marcó como parecida" : "no eligió",
+                    oferta.getTitulo());
+        }
     }
 
     private static String clave(OfertaNormalizada oferta) {
@@ -418,26 +453,23 @@ public class ServicioBusqueda {
         // Las cajas vacías y lo que no trae el producto no se muestran nunca, ni se le pasan a la IA.
         List<OfertaNormalizada> conProducto = FiltroComplementos.quitarSinProducto(consulta.getTermino(), ofertas);
 
-        // Con IA: Gemini deja solo lo que de verdad es lo buscado y escribe el resumen. Sin IA, o si no eligió
-        // nada que sirva, se deja lo que más se parece a lo buscado, sin juegos, fundas ni paquetes digitales.
+        // Con IA: Gemini da su opinión (exactas y parecidas) y escribe el resumen. Su opinión no decide: la revisión de
+        // identidad se hace en cada búsqueda con las mismas reglas, responda Gemini, falle o no esté configurado.
         Optional<ServicioIABusqueda.Analisis> analisis = ia == null || conProducto.isEmpty() ? Optional.empty()
                 : ia.analizar(consulta.getTermino(), conProducto);
-        Optional<List<OfertaNormalizada>> elegidasPorIA = analisis
-                .map(elegido -> FiltroRelevancia.revisarEleccion(consulta.getTermino(), elegido.elegidas(), conProducto))
-                .filter(elegidas -> !elegidas.isEmpty());
-        if (analisis.isPresent() && elegidasPorIA.isEmpty()) {
-            LOG.info("La IA no eligió productos que sirvan para \"{}\"; se usan los filtros propios", consulta.getTermino());
-        }
-        List<OfertaNormalizada> relevantes = elegidasPorIA
-                .orElseGet(() -> FiltroRelevancia.filtrar(consulta.getTermino(), conProducto));
-        Map<String, Long> ids = guardarSinInterrumpir(relevantes);
-        // Lo que la IA eligió como exacto se recuerda aparte: lo que marcó como parecido nunca pasa a exacto.
-        Set<String> exactasIa = elegidasPorIA.isPresent()
-                ? analisis.get().exactas().stream().map(ServicioBusqueda::clave)
-                .collect(java.util.stream.Collectors.toUnmodifiableSet())
-                : null;
-        String resumen = elegidasPorIA.isPresent() ? analisis.get().resumen() : null;
-        return new ResultadoCompleto(relevantes, advertencias, ids, huboFallas[0], resumen, exactasIa, ofertas.size());
+        // Se guarda todo lo que trae el producto, no solo lo que pasó el filtro de esta consulta: así otra consulta con
+        // la misma búsqueda en la tienda (por ejemplo "control para ps5" corregida a "playstation 5") se revisa con
+        // sus propios requisitos.
+        Map<String, Long> ids = guardarSinInterrumpir(conProducto);
+        Set<String> exactasIa = analisis.map(a -> claves(a.exactas())).orElse(null);
+        Set<String> parecidasIa = analisis.map(a -> claves(a.parecidas())).orElse(null);
+        String resumen = analisis.map(ServicioIABusqueda.Analisis::resumen).orElse(null);
+        return new ResultadoCompleto(conProducto, advertencias, ids, huboFallas[0], resumen, exactasIa, parecidasIa,
+                ofertas.size());
+    }
+
+    private static Set<String> claves(List<OfertaNormalizada> ofertas) {
+        return ofertas.stream().map(ServicioBusqueda::clave).collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
     private CompletableFuture<List<OfertaNormalizada>> consultarAsincrono(AdaptadorMarketplace adaptador,
@@ -518,12 +550,13 @@ public class ServicioBusqueda {
     /**
      * Lo que se guarda en caché: candidatos de las tiendas, no la decisión final (esa se toma en cada búsqueda).
      *
-     * @param exactasIa claves de lo que la IA eligió como exacto, o {@code null} si no se usó su elección
+     * @param exactasIa claves de lo que la IA eligió como exacto, o {@code null} si la IA no respondió
+     * @param parecidasIa claves de lo que la IA marcó como parecido, o {@code null}
      * @param recibidas cuántas ofertas mandaron las tiendas, antes de cualquier filtro
      */
     private record ResultadoCompleto(List<OfertaNormalizada> ofertas, List<String> advertencias,
                                      Map<String, Long> idsPersistidos, boolean huboFallas, String resumenIa,
-                                     Set<String> exactasIa, int recibidas) {
+                                     Set<String> exactasIa, Set<String> parecidasIa, int recibidas) {
     }
 
     /**

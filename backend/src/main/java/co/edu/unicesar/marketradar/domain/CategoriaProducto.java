@@ -24,7 +24,10 @@ public enum CategoriaProducto {
     NEVERA("Nevera"),
     LAVADORA("Lavadora"),
     LICUADORA("Licuadora"),
-    FREIDORA("Freidora de aire"),
+    FREIDORA("Freidora"),
+    ARROCERA("Olla arrocera"),
+    BATIDORA("Batidora"),
+    CAFETERA("Cafetera"),
     TENSIOMETRO("Tensiómetro"),
     ALMACENAMIENTO("Memoria o disco de almacenamiento"),
     VIDEOJUEGO("Videojuego o contenido digital"),
@@ -55,9 +58,12 @@ public enum CategoriaProducto {
      */
     private static final Pattern ACCESORIO_EN_EL_TITULO = Pattern.compile("\\b(dualsense|dualshock|joy ?con|joystick|"
             + "gamepad|controller|controles?|mandos?|repuestos?|refaccion|funda|carcasa|skin|protector|cargador|"
-            + "estacion de carga|base de carga|soporte)\\b");
+            + "estacion de carga|base de carga|soporte|vaso|jarra|aspas|cuchillas?)\\b");
 
     private static final Pattern REPUESTO = Pattern.compile("(?<!\\bde )\\b(repuestos?|refaccion)\\b");
+    /** "Licuadora con vaso de repuesto", "incluye repuesto": el producto completo trae un repuesto de regalo. */
+    private static final Pattern REPUESTO_INCLUIDO = Pattern.compile("\\b(con|incluye|trae|mas|y)\\b[a-z0-9 ]*?\\b"
+            + "(repuestos?|refaccion)\\b");
 
     /** Grupos de accesorios: quien busca un control acepta un mando o un DualSense, pero no una funda. */
     private static final List<String[]> TIPOS_ACCESORIO = List.of(
@@ -106,6 +112,9 @@ public enum CategoriaProducto {
             new Regla(LAVADORA, Pattern.compile("\\b(lavadora|lavasecadora)\\b")),
             new Regla(FREIDORA, Pattern.compile("\\b(freidora|air fryer|airfryer)\\b")),
             new Regla(LICUADORA, Pattern.compile("\\b(licuadora|blender)\\b")),
+            new Regla(ARROCERA, Pattern.compile("\\b(arroceras?|olla arrocera|rice cooker)\\b")),
+            new Regla(BATIDORA, Pattern.compile("\\b(batidoras?|mixer)\\b")),
+            new Regla(CAFETERA, Pattern.compile("\\b(cafeteras?|maquina de cafe|coffee maker)\\b")),
             new Regla(TENSIOMETRO, Pattern.compile("\\b(tensiometro|monitor de presion|baumanometro)\\b")));
 
     /**
@@ -154,7 +163,9 @@ public enum CategoriaProducto {
         }
         // "iPhone 17 Pro repuesto pantalla" es un repuesto, aunque nombre primero el celular; "con vaso de repuesto"
         // describe algo que viene incluido.
-        if (REPUESTO.matcher(texto).find()) {
+        java.util.regex.Matcher repuesto = REPUESTO.matcher(texto);
+        if (repuesto.find() && (repuesto.start() < posicion || elegida == DESCONOCIDA
+                || !REPUESTO_INCLUIDO.matcher(texto).find())) {
             return ACCESORIO;
         }
         java.util.regex.Matcher accesorio = ACCESORIO_EN_EL_TITULO.matcher(texto);

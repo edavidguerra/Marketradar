@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Deja los resultados que más se parecen a lo que la persona buscó, sin completar con otros.
+ * Prepara las candidatas que pasan a la revisión de identidad, sin completar con otras.
  *
  * <ol>
  *   <li>Quita los juegos y accesorios que no pidió ({@link FiltroComplementos}), siempre, queden los que queden.</li>
@@ -15,8 +15,9 @@ import java.util.Set;
  *       son 2 de 2; en "Licuadora Imusa" es 1 de 2), con la misma lectura de {@link TextoProducto} que usa la
  *       revisión de requisitos: los números cuentan exactos, los decimales no se parten ("3.5 pulgadas" no trae un
  *       5), y se aceptan plurales y abreviaturas ("PS5", "TV").</li>
- *   <li>Se dejan solo los que tienen el puntaje más alto. Si son uno o dos, quedan uno o dos: el tamaño de la lista
- *       no cambia la regla. Si ninguno trae ninguna palabra, no queda ninguno.</li>
+ *   <li>El puntaje solo ordena. Se quitan las que no traen ninguna palabra de la búsqueda y tampoco cumplen lo
+ *       pedido; las demás pasan a la revisión, porque quitar por puntaje antes de revisar la identidad dejaba fuera
+ *       ofertas confirmadas. Si ninguna sirve, no queda ninguna: no se completa con otras.</li>
  * </ol>
  *
  * <p>El precio no se usa para decidir qué producto es: una oferta muy barata o muy cara se muestra con un aviso de
@@ -31,17 +32,34 @@ final class FiltroRelevancia {
     }
 
     static List<OfertaNormalizada> filtrar(String termino, List<OfertaNormalizada> ofertas) {
+        return filtrar(termino, ofertas, co.edu.unicesar.marketradar.domain.RequisitosBusqueda.de(termino));
+    }
+
+    /**
+     * Candidatas para la revisión final. Primero se quitan los complementos; después la similitud de palabras solo
+     * ordena: una oferta que las reglas confirman nunca se quita porque otra repita más palabras de la búsqueda
+     * ("Samsung Galaxy A16 128GB" no cae frente a "Celular Samsung A16 4GB RAM"). Se quitan solo las que no comparten
+     * ninguna palabra con la búsqueda y tampoco cumplen lo pedido.
+     *
+     * @param termino lo que se buscó en la tienda
+     * @param ofertas resultados de las tiendas
+     * @param requisitos lo que pidió la persona
+     * @return candidatas, de la más parecida a la menos; entre iguales, en el orden de la tienda
+     */
+    static List<OfertaNormalizada> filtrar(String termino, List<OfertaNormalizada> ofertas,
+                                           co.edu.unicesar.marketradar.domain.RequisitosBusqueda requisitos) {
         List<OfertaNormalizada> productos = FiltroComplementos.filtrar(termino, ofertas);
         List<String> buscadas = palabras(termino);
         if (buscadas.isEmpty()) {
             return productos;
         }
-        int mejor = productos.stream().mapToInt(o -> coincidencias(buscadas, o.getTitulo())).max().orElse(0);
-        if (mejor == 0) {
-            return List.of();
-        }
-        // Se respeta el orden de la tienda entre los elegidos.
-        return productos.stream().filter(o -> coincidencias(buscadas, o.getTitulo()) == mejor).toList();
+        java.util.Map<OfertaNormalizada, Integer> puntajes = new java.util.IdentityHashMap<>();
+        productos.forEach(o -> puntajes.put(o, coincidencias(buscadas, o.getTitulo())));
+        return productos.stream()
+                .filter(o -> puntajes.get(o) > 0 || requisitos.evaluar(o.getTitulo(), o.condicionProducto()).nivel()
+                        == co.edu.unicesar.marketradar.domain.RequisitosBusqueda.Nivel.CUMPLE)
+                .sorted(java.util.Comparator.comparingInt((OfertaNormalizada o) -> puntajes.get(o)).reversed())
+                .toList();
     }
 
     /**

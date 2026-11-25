@@ -35,7 +35,9 @@ const MARCADORES_VENDEDOR = [
     /\{\{|\}\}|\$\{|%s|<[^>]*>/,
     /^(null|undefined|nan|none|n\/?a|\[?object object\]?|sin nombre|unknown|-+)$/i,
     /^(https?:\/\/|www\.google\.)/i,
-    /^[a-z]{1,10}_[a-z0-9_]*\d[a-z0-9_]*$/i,
+    /^[a-z]{1,10}_(?=[a-z0-9]*\d)[a-z0-9]{5,}$/i,
+    /^(?=[a-z0-9]+(?:_[a-z0-9]+){2,}$).*(test|debug|sample|placeholder|translation|google|cloud|item_title|seller_name|merchant|lorem|dummy|tmp|undefined|null|example)/i,
+    /^[a-z0-9]+(?:_[a-z0-9]+){4,}$/i,
     /^\d{6,}$/,
     /^(?=[A-Za-z0-9_-]{16,}$)(?=.*\d)(?=.*[A-Za-z])[A-Za-z0-9_-]+$/,
 ];
@@ -45,7 +47,8 @@ const tieneLetras = (parte) => (parte.match(/\p{L}/gu) || []).length >= 2 || /^[
 
 /**
  * Nombre comercial del vendedor, sin identificadores internos, plantillas ni enlaces que a veces manda el proveedor.
- * "Alkosto · merchant_id=12345" queda "Alkosto"; "mc_9f3a77c1e2b44d0a8" no deja nada. Nombres como "3M Colombia" o
+ * "Alkosto · merchant_id=12345" y "eBay - item_title_google_cloud_translation_test_for_us_es" quedan "Alkosto" y "eBay";
+ * "mc_9f3a77c1e2b44d0a8" no deja nada. Nombres como "3M Colombia" o
  * "Black+Decker Store" no se tocan.
  *
  * @param {string|null|undefined} texto nombre recibido

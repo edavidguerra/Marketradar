@@ -144,9 +144,12 @@ class IdentidadProductoTest {
         Evaluacion conJuegos = requisitos.evaluar("Consola PS5 Slim + 2 Juegos", NUEVO);
         assertEquals(Nivel.INCUMPLE, conJuegos.nivel());
         assertFalse(conJuegos.ajena(), "trae la consola: se muestra aparte, identificada como paquete");
+        // "playstation 5" no dice qué edición: la Digital no incumple, pero se muestra aparte como otra variante.
         Evaluacion digital = requisitos.evaluar("Consola PlayStation 5 Slim Edición Digital", NUEVO);
-        assertEquals(Nivel.INCUMPLE, digital.nivel());
+        assertEquals(Nivel.OTRA_VARIANTE, digital.nivel());
+        assertFalse(digital.ajena());
         assertTrue(digital.motivos().get(0).contains("Digital"), digital.motivos().toString());
+        assertFalse(digital.motivos().get(0).contains("no la que pidió"), digital.motivos().toString());
         assertEquals(Nivel.CUMPLE, RequisitosBusqueda.de("ps5 digital")
                 .evaluar("Consola PlayStation 5 Slim Edición Digital", NUEVO).nivel());
     }

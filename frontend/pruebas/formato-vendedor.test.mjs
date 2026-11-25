@@ -18,6 +18,11 @@ const casos = [
     ['D1', 'D1'],
     ['alkosto.com', 'alkosto.com'],
     ['Tienda (Bogotá)', 'Tienda (Bogotá)'],
+    ['eBay - item_title_google_cloud_translation_test_for_us_es', 'eBay'],
+    ['item_title_google_cloud_translation_test_for_us_es', null],
+    ['tienda_la_14', 'tienda_la_14'],
+    ['Mi_Tienda', 'Mi_Tienda'],
+    ['seller_12345', null],
 ];
 
 for (const [recibido, esperado] of casos) {

@@ -147,7 +147,9 @@ public class ServicioComparacion {
         List<List<Especificacion>> especificaciones = new ArrayList<>();
         for (Oferta oferta : ofertas) {
             String codigo = codigos.computeIfAbsent(oferta.getMarketplaceId(), this::codigoTienda);
-            String tienda = "googleshopping".equals(codigo) && oferta.getVendedor() != null ? oferta.getVendedor()
+            // Las ofertas guardadas antes de limpiar el vendedor pueden traer marcadores técnicos: se limpian aquí.
+            String tienda = "googleshopping".equals(codigo)
+                    ? co.edu.unicesar.marketradar.domain.NombreVendedor.paraMostrar(oferta.getVendedor())
                     : ServicioBusqueda.nombreVisible(codigo);
             productos.add(new Producto(oferta.getId(), oferta.getTitulo(), codigo, tienda,
                     EnlaceCompra.esSeguro(oferta.getUrlImagen()) ? oferta.getUrlImagen() : null,
@@ -194,7 +196,7 @@ public class ServicioComparacion {
             case CONSOLA -> claves.addAll(List.of("version", "almacenamiento"));
             case ALMACENAMIENTO -> claves.add("almacenamiento");
             case RELOJ -> claves.add("conectividad");
-            case NEVERA, LAVADORA, LICUADORA, FREIDORA -> claves.add("capacidad");
+            case NEVERA, LAVADORA, LICUADORA, FREIDORA, ARROCERA, CAFETERA -> claves.add("capacidad");
             default -> {
             }
         }
@@ -216,6 +218,19 @@ public class ServicioComparacion {
                                       List<String> faltantes) {
         if (!mismoTipo(productos, avisos)) {
             return Equivalencia.DIFERENTES;
+        }
+        // Las mismas características que revisa la búsqueda (AtributosProducto): unos audífonos con cable y unos
+        // inalámbricos, o una freidora de aire y una de aceite, no son el mismo producto.
+        for (int i = 0; i < productos.size(); i++) {
+            for (int j = i + 1; j < productos.size(); j++) {
+                List<String> diferencias = co.edu.unicesar.marketradar.domain.AtributosProducto
+                        .diferenciasDeProducto(productos.get(i).titulo(), productos.get(j).titulo());
+                if (!diferencias.isEmpty()) {
+                    avisos.add("No son el mismo producto (" + String.join("; ", diferencias) + "). Los mostramos "
+                            + "lado a lado, pero no compare sus precios como si fueran iguales.");
+                    return Equivalencia.DIFERENTES;
+                }
+            }
         }
         if (!mismoModelo(filas, avisos)) {
             return Equivalencia.DIFERENTES;
